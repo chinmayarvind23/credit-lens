@@ -1,0 +1,22 @@
+# CreditLens Starter Manifest
+
+- `.env`
+- `PRD.md`
+- `PROJECT_PLAN.md`
+- `README.md`
+- `docs/HLD.md`
+- `docs/LLD.md`
+- `docs/adr/ADR-001-modular-monolith.md`
+- `docs/adr/ADR-002-snowflake-primary-retrieval.md`
+- `docs/adr/ADR-003-hybrid-retrieval.md`
+- `docs/adr/ADR-004-caching.md`
+- `docs/adr/ADR-005-consistency-durability.md`
+- `docs/chunks/CHUNK_PLAN.md`
+- `docs/commands.md`
+- `docs/deployment.md`
+- `docs/evaluation.md`
+- `docs/failure-modes.md`
+- `docs/observability.md`
+- `docs/performance.md`
+- `docs/security.md`
+- `docs/system-design.md`
