@@ -16,8 +16,7 @@ Key non-functional constraints:
 - deterministic financial calculations,
 - reproducible RAG evaluation,
 - explicit latency/cost measurement,
-- dependency resilience,
-- no unsupported production-scale claims.
+- dependency resilience.
 
 ## 3. Assumptions
 
