@@ -51,10 +51,8 @@ Outside hot path:
 
 ## Infrastructure as code
 
-Terraform covers primary AWS resources used by the portfolio deployment.
+Terraform covers primary AWS resources used by the deployment.
 
 ## CI/CD
 
 GitHub Actions should run lint, format check, strict type check, deterministic tests, security scans, smoke evals, infrastructure validation, and build.
-
-Release workflow additionally runs approved full evals/benchmarks, deploys, performs health checks, and verifies rollback where practical.

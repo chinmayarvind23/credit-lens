@@ -93,8 +93,6 @@ def reciprocal_rank_fusion(
     return scores
 ```
 
-The human should write or closely review this implementation.
-
 ## Cache keys
 
 Embedding cache:

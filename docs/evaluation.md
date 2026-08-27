@@ -76,19 +76,19 @@ A correct final answer can still fail execution-path grading.
 
 ## 240-case suite
 
-| Category | Count |
-|---|---:|
-| Direct policy lookup | 60 |
-| Borrower evidence | 40 |
-| Structured calculation | 30 |
-| Multi-document synthesis | 25 |
-| Missing documents | 20 |
-| Policy exceptions | 20 |
-| Contradictory evidence | 15 |
-| ACL / tenant isolation | 10 |
-| Stale/versioned policy | 10 |
-| Prompt injection/adversarial | 10 |
-| Total | 240 |
+| Category                     | Count |
+| ---------------------------- | ----: |
+| Direct policy lookup         |    60 |
+| Borrower evidence            |    40 |
+| Structured calculation       |    30 |
+| Multi-document synthesis     |    25 |
+| Missing documents            |    20 |
+| Policy exceptions            |    20 |
+| Contradictory evidence       |    15 |
+| ACL / tenant isolation       |    10 |
+| Stale/versioned policy       |    10 |
+| Prompt injection/adversarial |    10 |
+| Total                        |   240 |
 
 ## Golden-case schema
 
@@ -183,6 +183,6 @@ Each run records metric status, git SHA, dataset version, corpus hash, chunker v
 
 Use a smoke eval on ordinary PRs.
 
-Use a full evaluation before release and after major retrieval, model, embedding, chunker, or index changes.
+Use a full evaluation before and after major retrieval, model, embedding, chunker, or index changes.
 
 Hard security invariants cannot regress.

@@ -21,8 +21,8 @@ Key non-functional constraints:
 ## 3. Assumptions
 
 - Small underwriting-team workload.
-- Synthetic borrower data for public portfolio use.
-- One primary AWS region for the portfolio deployment.
+- Synthetic borrower data.
+- One primary AWS region for the deployment.
 - Snowflake is externally managed.
 - Final loan decision remains human-controlled.
 - Search index refresh may be eventually consistent.

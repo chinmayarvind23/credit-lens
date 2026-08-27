@@ -18,7 +18,7 @@ CreditLens helps commercial-loan underwriters assemble policy-grounded borrower 
 
 ## Architecture principle
 
-Start as a **modular monolith** because the query path is tightly coupled and the modeled workload is modest. Keeping the backend stateless so horizontal scaling stays straightforward. Adding supporting infrastructure only when a measured requirement or mandatory portfolio objective justifies it.
+Start as a **modular monolith** because the query path is tightly coupled and the modeled workload is modest. Keeping the backend stateless so horizontal scaling stays straightforward. Adding supporting infrastructure only when a measured requirement justifies it.
 
 ```text
 Browser / Vercel
