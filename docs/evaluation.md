@@ -369,3 +369,26 @@ and the second case stops on incomplete generation. Four selected packets remain
 unrun. Source/input provenance is stable in every run. Prior default-prompt
 failures remain preserved; no verdict or label was repaired. Evaluation needs an
 explicit field inventory and bounded claim units before whole-packet scoring.
+
+## Explicit packet field coverage
+
+The exporter at `64dc55c` verifies saved packets against canonical spans and
+authored scope, validates each citation tuple and exports every cited claim and
+metric by field path. Context is restricted to the field's cited spans. Wrong
+claim text with a valid source identity stays evaluable; export does not filter
+unsupported answers out of the denominator. All 19 Packet fields are accounted
+for, with empty arrays, metadata and pending rubrics represented explicitly.
+Six adversarial exporter tests pass.
+
+The same six packets yield 85 units. Before judging, the pilot selected the first
+cited claim in each packet and all three financial metrics, for nine units total.
+All nine score 1.0 with stable provenance under the lending-v1 profile. Each metric
+is extracted verbatim, including the DSCR omitted by whole-JSON extraction.
+All 18 raw responses match their retained parsed outputs. The coverage ledger
+still contains 76 unselected units and 26 nonempty field entries awaiting rubrics.
+
+These are selected-unit faithfulness scores, with a different denominator from
+the earlier whole-packet pilots. They establish neither complete extraction within
+all fields nor question relevance, whole-packet pass rate or population groundedness.
+Remaining work includes the other cited units and explicit rubrics for disposition,
+missing-document findings, recommendations, questions and abstention.

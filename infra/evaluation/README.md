@@ -147,6 +147,15 @@ runs the judge. Freeze pilot unit IDs before inference and retain every unselect
 or failed unit explicitly. Claim-level scores use a different denominator from
 the earlier whole-JSON pilots; they cannot be reported as whole-packet pass rates.
 
+The export at `64dc55c` accounts for all 19 fields in each of the six frozen
+packets and yields 85 cited claim/metric units. A preselected pilot includes the
+first cited claim per packet and all three metrics: nine units total. All nine
+completed with faithfulness 1.0 under lending-v1, and each metric was extracted
+verbatim. The 18 raw responses match the retained outputs. This selected pilot
+has no population interpretation: 76 units remain unselected, and 26 nonempty
+field entries still need rubrics. The private score-coverage ledger preserves
+those counts and keeps whole-packet scoring false.
+
 Next: inspect real packet judgments and calibrate against human judgments before
 promoting semantic results. Public
 benchmarks, full RAGAS validation, online replay/alerts and regression gates remain required by
