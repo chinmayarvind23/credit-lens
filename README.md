@@ -28,6 +28,7 @@ DSCR threshold does not approve a loan or establish compliance with every policy
 | Corpus | 3,840 physical pages, 203 PDFs | 200 synthetic borrowers, three policy versions; 98 templates and short pages limit diversity |
 | Lexical control | Recall@10 74.05%, nDCG@10 .6775 | 220 positive-qrel cases from 240 exposed authored questions |
 | Local hybrid + reranker | Recall@10 82.55%, nDCG@10 .7291 | Composed serving provider reproduces the prior experiment's top ten exactly on all 240 cases |
+| Selective borrower-query experiment | Recall@10 86.54%, nDCG@10 .7878 | Development-set selector replay; 23 additional relevant-page hits, serving integration pending |
 | Structured fixture outcomes | 212/240 initially, 240/240 after intent/topic checks | Also reproduced through the composed model workflow; semantic groundedness remains unmeasured |
 | Complete HTTP, cache disabled | p95 18.13 ms | 330-page demo, 150 serial loopback requests, disk-backed SQLite audit |
 | Complete HTTP, warm Redis | p95 19.87 ms | Same workload, 150 hits; cache was slower and remains optional |

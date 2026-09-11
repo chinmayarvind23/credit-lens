@@ -270,3 +270,40 @@ and a fresh private `--output` directory. Model loading uses verified local
 weights and socket connections are denied. Raw scores, ten variant rankings,
 input/source hashes, package versions and the separate recomputation are retained
 in `resources/credit_lens/evals/candidate-budgets-abc0cdb`.
+
+## Borrower-grounded query experiment
+
+At `94db2cb`, the offline experiment prefixed questions with a single authorized
+application name while preserving the original question. Lexical, dense and
+cross-encoder stages used the same expanded question; models and candidate budgets
+stayed fixed. Name lookup did not broaden tenant, borrower, ACL or effective-date
+scope. Missing, conflicting, malformed or oversized metadata disabled augmentation.
+
+| Variant | Recall@10 | nDCG@10 | Relevant page hits |
+| --- | --- | --- | --- |
+| Original question | 82.55% | .7291 | 337/465 |
+| Name prefix on every eligible question | 78.02% | .6360 | 350/465 |
+| Initial selective prefix | 84.72% | .7686 | 356/465 |
+| Stricter selector, saved-output replay | 86.54% | .7878 | 360/465 |
+
+Universal augmentation reduced macro recall despite increasing total hits because
+it lost single-page policy cases while recovering some multi-page evidence. The
+initial selector improved missing-document and contradiction retrieval but lost
+four general annual-review policy questions. At `9573d00`, calendar frequency was
+removed as a standalone borrower-context cue. A replay changed only which saved
+ranking was selected, with zero new model calls. It recovered those four cases
+and had no per-case recall regressions across the 220 eligible cases relative to
+the original baseline. All 240 cases remained in the audit.
+
+This final adjustment used observed development results. It is not held-out
+validation, and the exposed authored benchmark limits generalization claims.
+Separate raw-label recomputation verified baseline identity, source scope,
+question preservation and metric arithmetic. Seven focused selector tests pass.
+The experiment has not yet changed the serving provider or demonstrated updated
+workflow outcomes. Full serving verification is required before deployment.
+
+Run the model experiment with `python -m scripts.benchmark_grounding`, passing
+`--gold`, `--pages`, `--models`, the verified candidate run as `--baseline` and a
+fresh private `--output` directory. Raw V1 outputs are preserved in
+`resources/credit_lens/evals/query-grounding-94db2cb`; the V2 selector replay is in
+`resources/credit_lens/evals/query-grounding-selector-9573d00`.
