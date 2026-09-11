@@ -11,7 +11,8 @@ from creditlens.citations import quote, validate_citation, validate_extract
 from creditlens.domain import Chunk, Packet, Principal, QueryRequest, Stage
 from creditlens.errors import ServiceError
 from creditlens.finance import FinanceResult, calculate_review
-from creditlens.retrieval import EvidenceCatalog, lexical_rank, terms
+from creditlens.intent import classify_intent, topic_supported
+from creditlens.retrieval import EvidenceCatalog, lexical_rank
 from creditlens.storage import GrantStore
 
 ACTIONS = {
@@ -25,9 +26,6 @@ ACTIONS = {
     ),
     "HUMAN_JUDGMENT_REQUIRED": ("Review the cited evidence and make the final credit judgment.",),
 }
-FINANCE_TERMS = frozenset(
-    {"dscr", "coverage", "financial", "underwriting", "packet", "exception", "conflict", "missing"}
-)
 
 
 class Trace:
@@ -96,14 +94,18 @@ class QueryWorkflow:
             )
         with trace.span("retrieval.local_bm25"):
             ranked = lexical_rank(query.question, candidates)
-        finance = bool(set(terms(query.question)) & FINANCE_TERMS)
+        with trace.span("intent.classify_question"):
+            intent = classify_intent(query.question)
+            finance = intent.financial_review
+        with trace.span("context.check_requested_topic"):
+            supported = bool(ranked) and topic_supported(intent, ranked)
         with trace.span("retrieval.financial_metadata_lookup" if finance else "context.build"):
-            evidence = collect_context(ranked, candidates, finance) if ranked else ()
+            evidence = collect_context(ranked, candidates, finance) if supported else ()
         with trace.span("finance.deterministic" if finance else "answer.extractive"):
             result = (
                 calculate_review(evidence) if finance else FinanceResult("HUMAN_JUDGMENT_REQUIRED")
             )
-            if not ranked:
+            if not supported:
                 result = replace(
                     result, disposition="INSUFFICIENT_EVIDENCE", missing=("relevant evidence",)
                 )

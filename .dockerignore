@@ -32,6 +32,7 @@ src/creditlens/*
 !src/creditlens/errors.py
 !src/creditlens/finance.py
 !src/creditlens/ingestion.py
+!src/creditlens/intent.py
 !src/creditlens/limits.py
 !src/creditlens/retrieval.py
 !src/creditlens/settings.py
