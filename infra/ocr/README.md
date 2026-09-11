@@ -40,7 +40,23 @@ repository Python code, and record each downloaded file's SHA-256 in
 manifests and uses the installed Paddle implementation with local safetensors,
 native CPU inference, four threads and a 1024-token generation bound. A caller
 must supervise the process tree with a wall-clock limit; the probe itself is an
-experiment, not a production worker. The first measured execution is in progress.
+experiment, not a production worker. `supervise.py` implements a Windows process-tree
+deadline and log-size bound and removes cloud credentials from the child environment.
+Its cleanup was tested against a real child and grandchild process.
+
+The first actual financial-page run recovered 15/15 cells at their exact row and
+column, including 8/8 numeric cells. Model loading took 60.97 seconds and prediction
+227.60 seconds on this workstation. This is one exposed synthetic scan, not a
+general OCR accuracy estimate. The degraded table also recovered 15/15 cells,
+including 8/8 numeric cells, but misread the printed footer page number as a blank
+and a separate `9`. The actual PDF has one physical page. The two-column policy
+recovered all 14 annotated lines in correct column order. The blank page returned
+zero blocks. Prediction times were 292.45 seconds degraded, 316.83 seconds policy
+and 5.95 seconds blank; those runs overlapped, so these are not isolated latency
+benchmarks. No broad OCR accuracy or speedup claim follows from four fixtures.
+`scripts/evaluate_scanned_fixtures.py` compares annotations with raw vendor JSON,
+retaining every expected and actual table cell. Swapping years reduces accuracy
+even when all numbers remain present.
 
 `creditlens.ocr.normalize_vl` validates bounded vendor JSON, geometry and reading
 order and preserves markup as data. It requires the trusted renderer's PDF/image
@@ -55,6 +71,10 @@ Contract tests exercise malformed JSON, blank output, geometry, reading order,
 oversize output and uncertain completion. These tests do not measure OCR quality.
 Raw model results and independent comparisons belong in the private resources
 directory, separately from the 240-question RAG benchmark.
+
+Run the platform-specific experiment tests separately with
+`python -m pytest infra/ocr/tests`. The core normalization tests are in
+`tests/test_ocr.py` and do not load models.
 
 Official contracts: [PaddleOCR-VL](https://github.com/PaddlePaddle/PaddleOCR/blob/main/docs/version3.x/pipeline_usage/PaddleOCR-VL.en.md)
 and [PP-DocLayoutV3](https://huggingface.co/PaddlePaddle/PP-DocLayoutV3).

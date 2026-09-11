@@ -20,6 +20,17 @@ catalog joins state, canonical pages/chunks and normalized ACLs in one statement
 serializes writers on a state row and invalidates old epochs across instances.
 Full response caching and the following broader pipeline remain unfinished.
 
+`ocr.py` normalizes at most 1 MB of offline vendor JSON into an immutable
+`ScannedPage`. It validates image dimensions, up to 256 blocks, physical bounding
+boxes and contiguous non-null reading order. Table markup remains literal data;
+the raw output hash binds the fuller polygon/layout record retained by the worker.
+Trusted metadata supplies tenant, borrower, ACL, version and physical page, while
+its text is discarded. Extracted text receives a new content hash and zero
+confidence. The renderer supplies PDF and bitmap hashes. Unverified generation
+completion, invalid geometry and blank content produce an `ExtractionError`.
+The experiment supervisor bounds elapsed time and logs and kills the complete
+owned Windows process tree. This is not yet an untrusted-file production worker.
+
 ## Core domain schemas
 
 Illustrative contracts:

@@ -15,6 +15,13 @@ optional acceleration. Actual-service tests cover cross-instance cache reuse,
 revocation, restart and audit rejection during a concurrent change. Process-local
 quotas and demo bootstrap privileges still limit production scaling.
 
+Scanned-document work runs in a separate local CPU environment. A bounded Poppler
+container renders physical pages, and pinned PaddleOCR-VL 1.6 with PP-DocLayoutV3
+produces layout and recognized text for review. OCR artifacts retain source hashes
+and scope but receive zero extraction confidence until reviewed; they cannot enter
+the current retrieval path automatically. Public uploads and durable ingestion
+orchestration remain unfinished. See [OCR experiments](../infra/ocr/README.md).
+
 ## User flow
 
 ```text
