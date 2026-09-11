@@ -4,10 +4,10 @@
   "core_minimum_percent": 85,
   "critical_minimum_percent": 95,
   "core_files": [
-    "api.py", "auth.py", "citations.py", "cortex_search.py", "domain.py", "errors.py", "finance.py",
-    "hybrid_provider.py", "ingestion.py", "intent.py", "limits.py", "opensearch_provider.py", "retrieval.py", "search_provider.py", "settings.py", "storage.py", "workflow.py"
+    "api.py", "auth.py", "cache.py", "citations.py", "cortex_search.py", "domain.py", "errors.py", "finance.py",
+    "hybrid_provider.py", "ingestion.py", "intent.py", "limits.py", "local_search.py", "opensearch_provider.py", "retrieval.py", "retrieval_cache.py", "search_provider.py", "settings.py", "storage.py", "workflow.py"
   ],
-  "critical_files": ["auth.py", "finance.py", "citations.py", "cortex_search.py", "hybrid_provider.py", "intent.py", "opensearch_provider.py", "retrieval.py", "storage.py"],
+  "critical_files": ["auth.py", "cache.py", "finance.py", "citations.py", "cortex_search.py", "hybrid_provider.py", "intent.py", "local_search.py", "opensearch_provider.py", "retrieval.py", "retrieval_cache.py", "storage.py"],
   "excluded_files": {
     "__init__.py": "Package version declaration only.",
     "corpus.py": "Synthetic fixture and PDF generation; exercised separately by corpus and ingestion tests.",
