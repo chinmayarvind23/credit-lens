@@ -41,7 +41,9 @@ export class CreditLensApi {
       if (body) headers.set("Content-Type", "application/json");
       const options: RequestInit = { method: body ? "POST" : "GET", headers, signal: controller.signal, cache: "no-store", credentials: "omit", redirect: "error" };
       if (body) options.body = JSON.stringify(body);
-      const response = await this.transport(this.base + path, options);
+      // Native browser fetch rejects the API instance as its receiver; invoke the injected function directly.
+      const transport = this.transport;
+      const response = await transport(this.base + path, options);
       if (!response.ok) {
         if (response.status === 401) throw new Error("Authentication is required or has expired. Update your managed access token in Connection.");
         if (response.status === 403) throw new Error("This identity cannot access the requested borrower or evidence. Refresh your authorized borrower list.");

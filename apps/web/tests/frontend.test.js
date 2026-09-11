@@ -40,6 +40,15 @@ describe("runtime contracts", () => {
 
 // Injected transport tests inspect HTTP behavior without pretending to exercise server authorization.
 describe("API transport", () => {
+  /** Native Window.fetch cannot use a CreditLensApi instance as its receiver. */
+  test("calls the transport without an API instance receiver", async () => {
+    /** A regular function exposes the receiver that arrow-function stubs would hide. */
+    async function transport() {
+      expect(this).toBeUndefined();
+      return json({ mode: "demo", borrowers: [] });
+    }
+    await new CreditLensApi("", transport).borrowers(new AbortController().signal);
+  });
   /** Deployed builds cannot redirect bearer tokens to a configurable third-party host. */
   test("uses same origin except the explicit localhost dev port", () => { expect(apiBase({ hostname: "localhost", port: "3000" })).toBe("http://localhost:8000"); expect(apiBase({ hostname: "credit.example", port: "3000" })).toBe(""); });
   /** A request carries exactly the public query fields and keeps bearer credentials out of the body. */
