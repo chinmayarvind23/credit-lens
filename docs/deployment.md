@@ -1,5 +1,18 @@
 # CreditLens Deployment Plan
 
+## Current deployment
+
+The [interactive HF Space](https://huggingface.co/spaces/chinmayarvind/creditlens)
+embeds the synthetic FastAPI/TypeScript app running on the owner's computer through
+a free Cloudflare Quick Tunnel. See the [live release procedure](../infra/huggingface/live/DEPLOYMENT.md).
+Computer, Docker and tunnel availability determine demo availability. HF hosts the
+entry page with its Static SDK; each question executes against the live backend.
+The former recorded preview has been removed from the published Space.
+
+AWS Terraform is validated locally and remains unapplied under the user's
+no-spending restriction. Live Cognito and Snowflake integration remain unfinished.
+The following cloud architecture is a plan, not a list of deployed services.
+
 ## Local development
 
 Use:

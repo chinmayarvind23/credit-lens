@@ -2,11 +2,29 @@
 
 import json
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 import httpx
 import pytest
+from PIL import Image
 
-from scripts.publish_live_space import live_html, verify_live
+from scripts.publish_live_space import demo_gif, live_html, verify_live
+
+
+def test_demo_media_requires_decodable_bounded_animation() -> None:
+    """Reject a static or renamed image while preserving exact reviewed animation bytes."""
+    with TemporaryDirectory() as directory:
+        path = Path(directory) / "demo.gif"
+        first = Image.new("RGB", (8, 8), "white")
+        second = Image.new("RGB", (8, 8), "black")
+        first.save(path, format="GIF")
+        with pytest.raises(ValueError, match="animated"):
+            demo_gif(path)
+        first.save(path, format="GIF", save_all=True, append_images=[second], duration=200)
+        assert demo_gif(path) == path.read_bytes()
+        path.write_bytes(b"not image data")
+        with pytest.raises(OSError):
+            demo_gif(path)
 
 
 @pytest.mark.parametrize(

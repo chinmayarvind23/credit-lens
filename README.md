@@ -2,10 +2,16 @@
 
 **Permission-aware lending evidence for human review**
 
-Implementation is in progress. The [public preview](https://huggingface.co/spaces/chinmayarvind/creditlens)
-shows five recorded synthetic API examples and their cited sources on free Static
-hosting. The full API and workbench run locally. Live AWS, Cognito and Snowflake
+Implementation is in progress. The [live workbench](https://huggingface.co/spaces/chinmayarvind/creditlens)
+accepts questions, borrower selection and policy dates, and opens cited sources.
+Hugging Face serves the entry page; the API runs on the owner's computer through
+a free HTTPS tunnel. The computer, Docker and tunnel must stay running. Live AWS, Cognito and Snowflake
 integration, scanned-document ingestion and semantic answer evaluation remain unfinished.
+
+[![Live browser demonstration](https://huggingface.co/spaces/chinmayarvind/creditlens/resolve/main/demo.gif)](https://huggingface.co/spaces/chinmayarvind/creditlens)
+
+The animation records a live synthetic query and source inspection. Open the
+workbench to enter your own question.
 
 CreditLens helps commercial-loan underwriters assemble policy-grounded borrower evidence, deterministic financial metrics, missing-document checks, policy exceptions, conflicts, and recommended next actions with page-level citations. The final lending decision remains human-controlled.
 
@@ -125,15 +131,19 @@ integration check. Weaviate and a combined managed retrieval path remain unfinis
 
 ## Deployment and remaining work
 
-The [Hugging Face package](infra/huggingface/static/DEPLOYMENT.md) publishes a
-strictly bounded recorded preview. The [AWS reference](infra/aws/README.md) passes
+The [Hugging Face live package](infra/huggingface/live/DEPLOYMENT.md) embeds the
+running synthetic workbench. It uses no paid HF runtime; the temporary tunnel
+changes address on restart and requires republishing the entry page. The
+[AWS reference](infra/aws/README.md) passes
 local Terraform validation and mocked plans but remains unapplied. AWS account
 no-charge eligibility is unverified; do not provision paid services or upgrade plans.
 
 Next product work is richer document layouts, unseen questions and semantic
 grading calibrated against human review. Engineering work includes a durable
 shared catalog, asynchronous ingestion, OCR, live governed search, full response
-caching and observability. Browser visual checks and the demo video remain pending.
+caching and observability. Native browser checks exposed and corrected a fetch
+receiver bug that API-only tests missed. Browser recordings and raw evidence are
+kept in the private resources directory.
 Synthetic templates, exact topical matching, process-local authority and limited
 live-provider evidence constrain the current results.
 

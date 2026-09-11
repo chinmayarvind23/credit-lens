@@ -1,6 +1,7 @@
 """Replace a known recorded preview with an explicitly verified live synthetic workbench."""
 
 import argparse
+import io
 import json
 import re
 from datetime import UTC, datetime
@@ -9,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 import httpx
+from PIL import Image
 
 from scripts.publish_static_preview import free_static, verify_remote
 
@@ -46,6 +48,22 @@ def verify_live(client: httpx.Client, origin: str) -> dict[str, Any]:
     return {"ready": ready.json(), "fresh_request_ids": [p["request_id"] for p in packets]}
 
 
+def demo_gif(path: Path) -> bytes:
+    """Bound and decode the explicitly reviewed demo animation before publishing public media."""
+    if path.is_symlink() or path.stat().st_size > 8_000_000:
+        raise ValueError("Demo GIF must be a regular file below 8 MB")
+    payload = path.read_bytes()
+    with Image.open(io.BytesIO(payload)) as picture:
+        if picture.format != "GIF" or not 2 <= picture.n_frames <= 250:
+            raise ValueError("Expected a bounded animated GIF")
+        if picture.width * picture.height > 2_000_000:
+            raise ValueError("Demo animation dimensions exceed the limit")
+        for frame in range(picture.n_frames):
+            picture.seek(frame)
+            picture.load()
+    return payload
+
+
 def publish(args: argparse.Namespace, api: Any, client: httpx.Client) -> dict[str, Any]:
     """Replace only exact previously verified project files with one parent-bound HF commit."""
     from huggingface_hub import CommitOperationAdd, CommitOperationDelete
@@ -53,6 +71,10 @@ def publish(args: argparse.Namespace, api: Any, client: httpx.Client) -> dict[st
     repo = Path(__file__).resolve().parents[1]
     html = live_html(args.origin, repo / "infra/huggingface/live/index.html")
     card = (repo / "infra/huggingface/live/README.md").read_bytes()
+    payloads = {"index.html": html, "README.md": card}
+    if args.demo_gif is not None:
+        payloads["demo.gif"] = demo_gif(args.demo_gif)
+        payloads["README.md"] += b"\n![Recorded live browser demonstration](demo.gif)\n"
     previous = json.loads(args.previous_audit.read_text(encoding="utf-8"))
     if previous["status"] != "verified" or previous["repo_id"] != args.repo_id:
         raise ValueError("A verified previous publication is required")
@@ -80,17 +102,17 @@ def publish(args: argparse.Namespace, api: Any, client: httpx.Client) -> dict[st
         "previous_revision": info.sha,
         "started_at": datetime.now(UTC).isoformat(),
         "live_verification": verify_live(client, args.origin),
-        "files": {"index.html": sha256(html).hexdigest(), "README.md": sha256(card).hexdigest()},
+        "files": {name: sha256(payload).hexdigest() for name, payload in payloads.items()},
         "no_paid_hardware_requested": True,
     }
     args.audit.parent.mkdir(parents=True, exist_ok=True)
     args.audit.write_text(json.dumps(result, indent=2), encoding="utf-8")
     operations = [
-        CommitOperationAdd(path_in_repo="index.html", path_or_fileobj=html),
-        CommitOperationAdd(path_in_repo="README.md", path_or_fileobj=card),
+        CommitOperationAdd(path_in_repo=name, path_or_fileobj=payload)
+        for name, payload in payloads.items()
     ] + [
         CommitOperationDelete(path_in_repo=name)
-        for name in sorted(inventory - {"index.html", "README.md", ".gitattributes"})
+        for name in sorted(inventory - set(payloads) - {".gitattributes"})
     ]
     try:
         commit = api.create_commit(
@@ -98,7 +120,7 @@ def publish(args: argparse.Namespace, api: Any, client: httpx.Client) -> dict[st
             repo_type="space",
             parent_commit=info.sha,
             operations=operations,
-            commit_message="Replace recorded examples with the live synthetic workbench",
+            commit_message="Publish verified live workbench and reviewed demo media",
         )
         result.update(status="uploaded", revision=commit.oid)
         args.audit.write_text(json.dumps(result, indent=2), encoding="utf-8")
@@ -124,6 +146,7 @@ def main() -> None:
     parser.add_argument("--repo-id", required=True)
     parser.add_argument("--previous-audit", type=Path, required=True)
     parser.add_argument("--audit", type=Path, required=True)
+    parser.add_argument("--demo-gif", type=Path)
     args = parser.parse_args()
 
     def factory() -> httpx.Client:

@@ -1,5 +1,14 @@
 # CreditLens High-Level Design
 
+## Implemented demonstration
+
+HF HTML entry page → embedded TypeScript workbench → HTTPS Quick Tunnel → local
+FastAPI demo → current SQL grant → scoped memory catalog → local lexical retrieval
+→ Decimal calculations and cited extracts → permission/citation checks → SQL audit.
+Redis retrieval caching is optional and disabled by default. The live synthetic
+demo requires the owner's computer, Docker and tunnel to remain running. No AWS
+resources are deployed. The cloud flows below describe the intended architecture.
+
 ## User flow
 
 ```text

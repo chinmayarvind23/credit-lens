@@ -1,5 +1,23 @@
 # CreditLens Low-Level Design
 
+## Current runtime contracts
+
+`domain.py` is authoritative for implemented schemas; the sketches below describe
+the broader design. The public query accepts only borrower_id, question and an
+effective date. Frozen Pydantic models reject extra fields. The server resolves
+identity and current grants, validates cited canonical chunks and writes an audit
+before returning a packet. The browser keeps tokens in memory, uses same-origin
+fetch with a 30-second deadline, and binds source GET requests to the completed
+packet's borrower/date. Native fetch is invoked as a standalone function to avoid
+the browser's invalid-receiver error. Source dialogs render literal text.
+
+The live HF entry page embeds the whole application, so UI and API share one
+tunnel origin. Its release manifest and exact remote inventory are checked before
+each parent-bound publication. Redis contains signed, bounded evidence IDs keyed
+by the complete current scope, query, policy date, catalog and provider version;
+hits rehydrate current evidence and produce a new audit. Full response caching,
+shared catalog integration and the following broader pipeline remain unfinished.
+
 ## Core domain schemas
 
 Illustrative contracts:
