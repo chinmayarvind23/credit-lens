@@ -1,9 +1,26 @@
 """Search providers return canonical evidence with an explicit freshness checkpoint."""
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Protocol
 
 from creditlens.domain import Chunk, Citation, Principal, QueryRequest
+from creditlens.errors import ServiceError
+
+Ranker = Callable[[str, tuple[Chunk, ...], int], tuple[Chunk, ...]]
+
+
+def validate_ranking(ranking: tuple[Chunk, ...], candidates: tuple[Chunk, ...], limit: int) -> None:
+    """A scorer may order canonical evidence, never add, alter or duplicate its records."""
+    allowed = {chunk.chunk_id: chunk for chunk in candidates}
+    if (
+        not isinstance(ranking, tuple)
+        or len(ranking) > limit
+        or any(not isinstance(chunk, Chunk) for chunk in ranking)
+        or len({chunk.chunk_id for chunk in ranking}) != len(ranking)
+        or any(allowed.get(chunk.chunk_id) != chunk for chunk in ranking)
+    ):
+        raise ServiceError("invalid_search_result", "Search result is unavailable", 503)
 
 
 @dataclass(frozen=True)

@@ -222,3 +222,14 @@ Mutating operations use idempotency where required.
 Keep injectable interfaces around search provider, reranker, model provider, OCR provider, object store, cache, and clock.
 
 Do not create abstraction layers with no real testing or benchmark purpose.
+
+## Bounded reranking provider
+
+`LocalSearchProvider` accepts an injected scorer only after resolving current SQL
+grants and selecting canonical tenant, borrower, ACL and policy-date scope. The
+result validator rejects duplicates, altered records, foreign chunks and excessive
+results. `RerankProvider` takes at most 40 candidates from its wrapped provider
+and returns at most ten. It retains the original hybrid result, verifies both
+branches before and after scoring and delegates exact citations to their source.
+Failure in a required scorer fails the request. These tested provider contracts
+do not establish that a neural model is enabled in the default public demo.

@@ -3,17 +3,28 @@
 from creditlens.domain import Chunk, Citation, Principal, QueryRequest
 from creditlens.errors import ServiceError
 from creditlens.retrieval import CanonicalCatalog, lexical_rank
-from creditlens.search_provider import SearchResult
+from creditlens.search_provider import Ranker, SearchResult, validate_ranking
 from creditlens.storage import GrantStore
 
 
 class LocalSearchProvider:
     """Keep local cache and provider comparisons explicit without inventing remote execution."""
 
-    def __init__(self, catalog: CanonicalCatalog, store: GrantStore) -> None:
-        """Share the authoritative catalog and SQL grant store with downstream consumers."""
+    def __init__(
+        self,
+        catalog: CanonicalCatalog,
+        store: GrantStore,
+        *,
+        ranker: Ranker = lexical_rank,
+        mode: str = "local-bm25",
+    ) -> None:
+        """Inject ranking after authorization; the lexical baseline remains the default."""
+        if not mode or len(mode) > 200:
+            raise ValueError("A bounded ranking mode is required")
         self.catalog = catalog
         self.store = store
+        self.ranker = ranker
+        self.mode = mode
 
     def verify(self, result: SearchResult) -> None:
         """Reject current revocation even when the original search has already completed."""
@@ -22,15 +33,18 @@ class LocalSearchProvider:
             raise ServiceError("access_changed", "Access changed; retry the request", 409)
 
     def search(self, request: QueryRequest, principal: Principal, limit: int = 10) -> SearchResult:
-        """Select current authorized candidates before the local lexical scorer sees text."""
+        """Select current authorized candidates before any injected scorer sees their text."""
+        if not 1 <= limit <= 100:
+            raise ValueError("Search limit must be between 1 and 100")
         current = self.store.resolve(principal.subject)
         candidates, revision = self.catalog.snapshot(
             current, request.borrower_id, request.effective_at
         )
-        checkpoint = SearchResult((), principal, request, revision, "local-bm25")
+        checkpoint = SearchResult((), principal, request, revision, self.mode)
         self.verify(checkpoint)
-        ranking = lexical_rank(request.question, candidates, limit)
-        result = SearchResult(ranking, principal, request, revision, "local-bm25")
+        ranking = self.ranker(request.question, candidates, limit)
+        validate_ranking(ranking, candidates, limit)
+        result = SearchResult(ranking, principal, request, revision, self.mode)
         self.verify(result)
         return result
 
