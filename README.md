@@ -2,6 +2,10 @@
 
 **Production RAG for regulated commercial lending**
 
+Status: implementation in progress from a design-only starting point. Quality,
+latency, cost and corpus-size figures in the PRD are targets, not measured results.
+No public deployment is available yet.
+
 CreditLens helps commercial-loan underwriters assemble policy-grounded borrower evidence, deterministic financial metrics, missing-document checks, policy exceptions, conflicts, and recommended next actions with page-level citations. The final lending decision remains human-controlled.
 
 ## Core product loop
@@ -45,7 +49,6 @@ The retrieval lab uses the same canonical chunks to compare exact NumPy search, 
 ## Documentation
 
 - [PRD](PRD.md)
-- [Project Plan](PROJECT_PLAN.md)
 - [System Design](docs/system-design.md)
 - [HLD](docs/HLD.md)
 - [LLD](docs/LLD.md)
@@ -55,9 +58,14 @@ The retrieval lab uses the same canonical chunks to compare exact NumPy search, 
 - [Performance](docs/performance.md)
 - [Failure Modes](docs/failure-modes.md)
 - [Deployment](docs/deployment.md)
-- [20-Chunk Plan](docs/chunks/CHUNK_PLAN.md)
-- [Agent Instructions](AGENTS.md)
-- [Skills Bootstrap](SKILLS_BOOTSTRAP.md)
-- [Chunk Start Prompt](prompts/CHUNK_START.md)
-- [Chunk Finish Prompt](prompts/CHUNK_FINISH.md)
-- [Codex Bootstrap Prompt](prompts/CODEX_BOOTSTRAP.md)
+- [Commands](docs/commands.md)
+
+Execution plans, agent instructions and private evidence are maintained in the
+parent workspace at `resources/credit_lens`.
+
+## Development setup
+
+Install Python tooling with uv, then run `uv sync --locked` in this directory.
+The project pins Python 3.11. Frontend setup is in [apps/web](apps/web/README.md).
+Run `uv run ruff check src`, `uv run ruff format --check src` and
+`uv run mypy src` to verify the initial Python environment.

@@ -1,22 +1,13 @@
-# CreditLens Starter Manifest
+# CreditLens repository map
 
-- `.env`
-- `PRD.md`
-- `PROJECT_PLAN.md`
-- `README.md`
-- `docs/HLD.md`
-- `docs/LLD.md`
-- `docs/adr/ADR-001-modular-monolith.md`
-- `docs/adr/ADR-002-snowflake-primary-retrieval.md`
-- `docs/adr/ADR-003-hybrid-retrieval.md`
-- `docs/adr/ADR-004-caching.md`
-- `docs/adr/ADR-005-consistency-durability.md`
-- `docs/chunks/CHUNK_PLAN.md`
-- `docs/commands.md`
-- `docs/deployment.md`
-- `docs/evaluation.md`
-- `docs/failure-modes.md`
-- `docs/observability.md`
-- `docs/performance.md`
-- `docs/security.md`
-- `docs/system-design.md`
+- `PRD.md`: product requirements and explicitly unmeasured targets.
+- `README.md`: current status, setup and documentation links.
+- `pyproject.toml`, `uv.lock`, `.python-version`: Python environment.
+- `src/creditlens`: backend package.
+- `apps/web`: Bun and TypeScript browser application.
+- `docs`: public system design and operational contracts.
+- `docs/adr`: accepted architecture decisions.
+
+Private plans, execution instructions, decisions, audit reports and measured
+evidence live outside this Git repository in `resources/credit_lens` within the
+parent workspace. The existing `.env` is local and ignored by Git.
