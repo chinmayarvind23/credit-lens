@@ -8,7 +8,7 @@ from sqlalchemy import update
 
 from creditlens.api import create_app
 from creditlens.corpus import build_demo_pages
-from creditlens.intent import classify_intent, topic_supported
+from creditlens.intent import classify_intent, textual_support, topic_supported
 from creditlens.retrieval import chunk_page
 from creditlens.settings import Settings
 from creditlens.storage import grants
@@ -173,3 +173,32 @@ def test_sensitive_request_without_a_subject_is_insufficient() -> None:
     assert intent.requires_topic_support
     assert not intent.topic_terms
     assert not topic_supported(intent, chunk_page(build_demo_pages()[0]))
+
+
+@pytest.mark.parametrize(
+    "question",
+    [
+        "When does the nearby planetarium open?",
+        "Who won the lunar surfing tournament?",
+        "What are the opening hours of the nearest planetarium?",
+        "Tell me about 2026",
+        "Why?",
+    ],
+)
+def test_generic_overlap_cannot_admit_unrelated_packets(question: str) -> None:
+    """Dates, interrogatives and nearest-neighbor output do not establish a requested subject."""
+    chunks = tuple(chunk_page(page)[0] for page in build_demo_pages())
+    assert not textual_support(question, chunks)
+    with TestClient(create_app(Settings(database_url="sqlite:///:memory:"))) as client:
+        response = client.post(
+            "/api/v1/query", json={"borrower_id": "borrower-001", "question": question}
+        )
+        assert response.status_code == 200 and response.json()["abstained"]
+        assert response.json()["evidence"] == []
+
+
+def test_actual_topic_anchor_and_empty_ranking() -> None:
+    """The conservative floor still admits explicit lending terms but cannot grade qualifiers."""
+    chunks = tuple(chunk_page(page)[0] for page in build_demo_pages())
+    assert textual_support("Explain the DSCR threshold", chunks)
+    assert not textual_support("Explain the DSCR threshold", ())

@@ -25,6 +25,10 @@ TOPIC_GLUE = frozenset(
     "private confidential restricted internal secret secrets borrower borrowers "
     "details information".split()
 )
+RELEVANCE_GLUE = TOPIC_GLUE | frozenset(
+    "when where who whom whose why how what which whether explain describe discuss summarize "
+    "summary prepare provide find answer question tell according relevant available".split()
+)
 
 
 @dataclass(frozen=True)
@@ -72,3 +76,9 @@ def topic_supported(intent: QueryIntent, ranked: tuple[Chunk, ...]) -> bool:
     if not intent.topic_terms:
         return False
     return any(intent.topic_terms <= question_words(chunk.text) for chunk in ranked)
+
+
+def textual_support(question: str, ranked: tuple[Chunk, ...]) -> bool:
+    """Nearest neighbors alone cannot admit a packet; require a non-generic textual topic anchor."""
+    topics = {word for word in question_words(question) - RELEVANCE_GLUE if not word.isdecimal()}
+    return any(topics & question_words(chunk.text) for chunk in ranked)

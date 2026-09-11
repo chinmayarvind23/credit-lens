@@ -233,3 +233,17 @@ and returns at most ten. It retains the original hybrid result, verifies both
 branches before and after scoring and delegates exact citations to their source.
 Failure in a required scorer fails the request. These tested provider contracts
 do not establish that a neural model is enabled in the default public demo.
+
+`CREDITLENS_RETRIEVAL_MODE=hybrid` requires an explicit local model directory in
+demo mode. `LocalNeuralRanker` verifies the packaged 17-file manifest before
+offline-only safetensors loading. It uses four CPU threads, one concurrent
+inference, a 4,096-entry document-vector LRU and no query cache. Vector keys bind
+tenant, chunk identity and actual text hash; each vector owns its memory. Dense
+input is limited to 512 scoped chunks and reranking to 40 pairs. Token truncation
+is explicitly 256 for embeddings and 512 for pairs. See the complete budgets,
+setup and evaluation scope in [local retrieval](../infra/retrieval/README.md).
+Both optional Redis and model references are owned by application lifespan.
+Packet admission also requires a non-generic question term in authorized ranked
+text. Nearest-neighbor output and common words alone cannot establish relevance.
+This conservative textual floor can reject zero-overlap semantic paraphrases and
+does not validate every qualifier; calibrated semantic abstention remains open.

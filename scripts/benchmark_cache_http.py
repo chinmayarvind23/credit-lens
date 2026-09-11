@@ -52,8 +52,10 @@ def fingerprint(packet: Packet) -> str:
 
 
 @contextmanager
-def serve(settings: Settings) -> Iterator[tuple[str, Any]]:
+def serve(settings: Settings, *, startup_timeout: float = 15) -> Iterator[tuple[str, Any]]:
     """Bind a dedicated ephemeral loopback port and close only this owned Uvicorn server."""
+    if not 0 < startup_timeout <= 120:
+        raise ValueError("Startup timeout must be between zero and 120 seconds")
     app = create_app(settings)
     with socket(AF_INET, SOCK_STREAM) as listener:
         listener.bind(("127.0.0.1", 0))
@@ -62,7 +64,7 @@ def serve(settings: Settings) -> Iterator[tuple[str, Any]]:
         worker = Thread(target=server.run, kwargs={"sockets": [listener]}, daemon=True)
         worker.start()
         try:
-            deadline = perf_counter() + 15
+            deadline = perf_counter() + startup_timeout
             while not server.started:
                 if not worker.is_alive() or perf_counter() > deadline:
                     raise RuntimeError("Benchmark HTTP server failed startup")

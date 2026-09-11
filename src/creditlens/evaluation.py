@@ -274,6 +274,7 @@ def summarize_ranking(records: Sequence[dict[str, Any]]) -> dict[str, Any]:
 def source_hashes(repo: Path) -> dict[str, str]:
     """Capture exact imported implementation bytes even when another agent owns uncommitted work."""
     paths = sorted((repo / "src" / "creditlens").glob("*.py"))
+    paths += sorted((repo / "src" / "creditlens").glob("*.json"))
     paths += [repo / "scripts" / "evaluate.py", repo / "uv.lock"]
     return {
         str(path.relative_to(repo)).replace("\\", "/"): sha256(path.read_bytes()).hexdigest()

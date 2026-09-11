@@ -52,12 +52,14 @@ def metric_pass(packet: Packet, case: GoldCase) -> bool | None:
     )
 
 
-def expected_path(stages: Sequence[str]) -> bool:
+def expected_path(stages: Sequence[str], retrieval_stage: str = "retrieval.local_bm25") -> bool:
     """Demand the mandatory ordered stages while allowing documented query branches."""
+    if retrieval_stage not in {"retrieval.local_bm25", "retrieval.provider"}:
+        raise ValueError("Unknown evaluated retrieval path")
     required = (
         "auth.resolve_current_grant",
         "authorization.filter_before_retrieval",
-        "retrieval.local_bm25",
+        retrieval_stage,
         "citation.validate_exact_extracts",
         "authorization.recheck",
         "audit.persist",
@@ -66,7 +68,13 @@ def expected_path(stages: Sequence[str]) -> bool:
     return all(position >= 0 for position in positions) and positions == sorted(set(positions))
 
 
-def packet_checks(packet: Packet, case: GoldCase, store: GrantStore) -> dict[str, Any]:
+def packet_checks(
+    packet: Packet,
+    case: GoldCase,
+    store: GrantStore,
+    *,
+    retrieval_stage: str = "retrieval.local_bm25",
+) -> dict[str, Any]:
     """Inspect persisted audit state and context alongside deterministic fixture checks."""
     validate_packet(packet)
     text = normalized(
@@ -91,7 +99,7 @@ def packet_checks(packet: Packet, case: GoldCase, store: GrantStore) -> dict[str
             .mappings()
             .first()
         )
-    path_pass = expected_path(stages) and audit is not None
+    path_pass = expected_path(stages, retrieval_stage) and audit is not None
     if audit is not None:
         path_pass = path_pass and audit["event"]["chunk_ids"] == [
             c.chunk_id for c in packet.evidence

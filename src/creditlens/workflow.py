@@ -11,7 +11,7 @@ from creditlens.citations import quote, validate_citation, validate_extract
 from creditlens.domain import Chunk, Packet, Principal, QueryRequest, Stage
 from creditlens.errors import ServiceError
 from creditlens.finance import FinanceResult, calculate_review
-from creditlens.intent import classify_intent, topic_supported
+from creditlens.intent import classify_intent, textual_support, topic_supported
 from creditlens.retrieval import CanonicalCatalog, lexical_rank
 from creditlens.retrieval_cache import CachedResult, CanonicalProvider
 from creditlens.search_provider import SearchResult
@@ -112,7 +112,7 @@ class QueryWorkflow:
             intent = classify_intent(query.question)
             finance = intent.financial_review
         with trace.span("context.check_requested_topic"):
-            supported = bool(ranked) and topic_supported(intent, ranked)
+            supported = textual_support(query.question, ranked) and topic_supported(intent, ranked)
         with trace.span("retrieval.financial_metadata_lookup" if finance else "context.build"):
             evidence = collect_context(ranked, candidates, finance) if supported else ()
         with trace.span("finance.deterministic" if finance else "answer.extractive"):

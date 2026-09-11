@@ -60,7 +60,7 @@ until its real evidence workflow is initialized.
 For local checks:
 
 ```powershell
-uv sync --locked --extra queue
+uv sync --locked --extra queue --extra retrieval
 uv run --no-sync ruff check src
 uv run --no-sync ruff format --check src
 uv run --no-sync mypy src
@@ -68,7 +68,9 @@ uv run --no-sync pytest tests infra/huggingface/tests .github/tests --ignore=tes
 ```
 
 Optional model experiments require `uv sync --locked --extra retrieval` and their
-pinned model snapshots. [Redis instructions](infra/redis/README.md) cover the
+pinned model snapshots. The [local hybrid runtime](infra/retrieval/README.md) can
+load verified models at startup and use scoped dense search and reranking in the
+API. It remains opt-in; the public demo is lexical. [Redis instructions](infra/redis/README.md) cover the
 optional cache and actual-server tests. Hosted CI requires manual dispatch under
 the current no-spending restriction; local tests do not imply a hosted CI run.
 

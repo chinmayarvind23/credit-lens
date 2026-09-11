@@ -120,5 +120,7 @@ same qrels / same benchmark harness
 The provider layer can compose scoped local ranking, lexical/dense rank fusion
 and a bounded reranker. Every model boundary preserves current canonical evidence
 and SQL grant checks; reranking retains the underlying branch snapshots. The
-default public demo remains lexical pending verified offline model loading and
-actual composed HTTP evaluation. Offline model results are reported separately.
+default public demo remains lexical. An opt-in local runtime verifies pinned
+model files and loads CPU models during startup; it bounds scoring concurrency
+and retained document vectors. Composed evaluation and public deployment are
+separate promotion steps. Offline model results are reported separately.

@@ -25,6 +25,8 @@ class Settings(BaseSettings):
     cache_signing_key: SecretStr = SecretStr("")
     cache_ttl_seconds: int = 60
     catalog_backend: Literal["memory", "postgres"] = "memory"
+    retrieval_mode: Literal["lexical", "hybrid"] = "lexical"
+    local_model_directory: str = Field(default="", max_length=2048)
     ingestion_enabled: bool = False
     ingestion_sqs_endpoint: str = Field(default="", max_length=2048)
     ingestion_sqs_queue_url: str = Field(default="", max_length=2048)
@@ -34,6 +36,15 @@ class Settings(BaseSettings):
     demo_catalog_id: str = Field(
         default="synthetic-demo-v1", pattern=r"^synthetic-[a-z0-9-]{1,64}$"
     )
+
+    @model_validator(mode="after")
+    def validate_local_models(self) -> "Settings":
+        """Require an explicit offline model directory and preserve production/demo separation."""
+        if (self.retrieval_mode == "hybrid") != bool(self.local_model_directory):
+            raise ValueError("Hybrid retrieval and a local model directory must be set together")
+        if self.retrieval_mode == "hybrid" and self.mode != "demo":
+            raise ValueError("Local hybrid workflow currently supports demo mode only")
+        return self
 
     @model_validator(mode="after")
     def validate_catalog(self) -> "Settings":
