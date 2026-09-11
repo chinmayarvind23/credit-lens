@@ -79,7 +79,7 @@ class Citation(StrictModel):
 class Claim(StrictModel):
     """Every factual field uses this contract, including the borrower summary."""
 
-    text: str
+    text: str = Field(min_length=1)
     citations: tuple[Citation, ...] = Field(min_length=1)
 
 
