@@ -67,12 +67,40 @@ packets fail export instead of disappearing from the denominator. A private mani
 records the selected IDs, original input hashes and exported bytes. Run a small pilot
 before expanding; a selected subset cannot establish population quality.
 
+## RAGAS local calibration
+
+RAGAS 0.4.3 now uses the same pinned local transport through its structured-output
+interface. `run_ragas.py` runs the library's unchanged Faithfulness prompts and
+retains both extracted statements and NLI verdicts. Empty extraction, missing or
+rewritten verdict statements, nonbinary values and inconsistent scores fail the
+run. These checks validate score structure, not the judge's semantic correctness
+or complete extraction of the original answer. Calibration remains required.
+
+The lock pins `langchain-community==0.4.1` because RAGAS imports VertexAI classes
+removed in 0.4.2, even when the selected judge is local. No VertexAI client is
+created. The runner disables telemetry before imports and restricts sockets to
+the local Ollama endpoint. Its standard-library event loop is initialized first
+to permit Windows's internal wakeup sockets. Cases run sequentially with at most
+48 model calls under the existing transport bounds; there is no hosted fallback.
+
+```powershell
+..\resources\credit_lens\semantic-venv\Scripts\python.exe infra/evaluation/run_ragas.py --cases infra/evaluation/controls-v3.jsonl --model qwen3:8b --digest 500a1f067a9f782620b40bee6f7b0c89e17ae61f686b92c24933e4ca4b2b8b41 --output ..\resources\credit_lens\evals\new-ragas-screen
+..\resources\credit_lens\semantic-venv\Scripts\python.exe -m unittest discover -s infra/evaluation -p test_ragas.py -v
+```
+
+Use a fresh directory and an existing model with that verified digest. Raw prompts,
+responses, extracted statements, verdicts, errors, input hashes and source/lock
+hashes remain private. Protocol tests use explicit doubles and do not demonstrate
+model quality. The full 240-case RAGAS semantic baseline has not been established.
+
 Next: inspect real packet judgments and calibrate against human judgments before
 promoting semantic results. Public
-benchmarks, RAGAS, online replay/alerts and regression gates remain required by
+benchmarks, full RAGAS validation, online replay/alerts and regression gates remain required by
 the broader evaluation plan. Read [observability](../../docs/observability.md)
 and [failure modes](../../docs/failure-modes.md) for that next layer.
 
 Contracts: [DeepEval custom models](https://deepeval.com/guides/guides-using-custom-llms),
 [Faithfulness](https://deepeval.com/docs/metrics-faithfulness),
 [Ollama chat API](https://docs.ollama.com/api/chat).
+RAGAS contracts: [Faithfulness pipeline](https://github.com/vibrantlabsai/ragas/tree/v0.4.3/src/ragas/metrics/collections/faithfulness)
+and [structured model interface](https://github.com/vibrantlabsai/ragas/blob/v0.4.3/src/ragas/llms/base.py).

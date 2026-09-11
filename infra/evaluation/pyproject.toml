@@ -2,7 +2,13 @@
 name = "creditlens-semantic-evaluation"
 version = "0.1.0"
 requires-python = ">=3.11,<3.12"
-dependencies = ["deepeval==4.2.2", "httpx==0.28.1"]
+dependencies = [
+    "deepeval==4.2.2",
+    "httpx==0.28.1",
+    "ragas==0.4.3",
+    # RAGAS still imports VertexAI symbols removed by community 0.4.2.
+    "langchain-community==0.4.1",
+]
 
 [tool.uv]
 package = false
