@@ -121,6 +121,32 @@ stopped on incomplete generation. Four packets were not run. All runs retain
 stable provenance. Explicit field coverage and bounded evaluation units are
 needed before a whole-packet metric; none of these pilots establish one.
 
+## Field coverage export
+
+`export_field_units.py` reads saved benchmark records, canonical pages and authored
+scope. It exports every cited claim and financial metric at a stable packet field
+path. Each context contains only the exact cited spans; an uncited retrieved page
+cannot supply missing support. Values are preserved, including incorrect claim
+text with structurally valid citations, so export cannot inflate scores by dropping
+wrong answers. Metric sentences retain displayed precision and carry exact
+extraction expectations, which do not assert that the calculation is correct.
+
+The private `coverage.json` accounts for all 19 current Packet fields and rejects
+schema drift. Empty arrays, identity, source evidence and execution metadata are
+identified. Disposition, missing-document statements, advice, questions and
+abstention retain their values with pending-rubric status. The manifest reports
+zero scored units after export. Export coverage is not semantic scoring coverage.
+
+```powershell
+python infra/evaluation/export_field_units.py --gold evals/gold_cases.jsonl --pages ../resources/credit_lens/corpus/pages.jsonl --records ../resources/credit_lens/evals/neural-linux-51a2c75/records.jsonl --case-ids creditlens-001,creditlens-101,creditlens-156,creditlens-176,creditlens-196,creditlens-231 --output ../resources/credit_lens/evals/new-field-export
+python -m unittest discover -s infra/evaluation -p test_field_units.py -v
+```
+
+Use the main project environment for export. The separate semantic environment
+runs the judge. Freeze pilot unit IDs before inference and retain every unselected
+or failed unit explicitly. Claim-level scores use a different denominator from
+the earlier whole-JSON pilots; they cannot be reported as whole-packet pass rates.
+
 Next: inspect real packet judgments and calibrate against human judgments before
 promoting semantic results. Public
 benchmarks, full RAGAS validation, online replay/alerts and regression gates remain required by
