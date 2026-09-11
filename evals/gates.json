@@ -1,0 +1,12 @@
+{
+  "policy_version": "local-authored-qrel-v1",
+  "scheduled_cases": 240,
+  "eligible_cases": 220,
+  "zero_tolerance_execution": ["unauthorized_candidates", "unauthorized_ranked", "ranking_errors"],
+  "quality_metrics": ["macro_recall_at_10", "ndcg_at_10", "mrr_at_10"],
+  "max_relative_regression": 0.05,
+  "regression_source": "eval-suite SKILL.md requires rejection at 5% or larger relative regression",
+  "latency_gate": null,
+  "semantic_quality_gate": null,
+  "note": "No independent semantic or provider latency tolerance is established. Security is mandatory."
+}
