@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Ask live lending evidence questions and inspect cited sources in the synthetic CreditLens workbench.">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; frame-src __LIVE_ORIGIN__; style-src 'unsafe-inline'; script-src 'unsafe-inline'; base-uri 'none'">
+  <title>CreditLens · Live workbench</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; background: #f6f5f0; color: #173b39; font: 13px system-ui, sans-serif; }
+    body { display: grid; grid-template-rows: 38px 1fr; min-height: 100dvh; }
+    header { display: flex; align-items: center; justify-content: space-between; padding: 0 18px; border-bottom: 1px solid #d9ded8; }
+    a { color: inherit; text-underline-offset: 3px; }
+    iframe { width: 100%; height: 100%; min-height: calc(100dvh - 38px); border: 0; }
+  </style>
+</head>
+<body>
+  <header><span>CreditLens · Live synthetic demo</span><a href="__LIVE_ORIGIN__" target="_blank" rel="noopener noreferrer">Open full screen ↗</a></header>
+  <iframe src="__LIVE_ORIGIN__" title="CreditLens live lending evidence workbench" sandbox="allow-scripts allow-same-origin allow-forms" referrerpolicy="no-referrer"></iframe>
+</body>
+</html>
