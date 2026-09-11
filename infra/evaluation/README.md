@@ -172,7 +172,8 @@ instruction and evaluator source identities must match across runs. The checker
 rejects duplicate units, altered inputs and raw-output mismatches. Failed and
 unrun units stay in the coverage ledger; failed expected extraction is distinct
 from scored coverage. Six adversarial tests pass, and it reproduces the original
-nine-unit pilot ledger. Within-field extraction completeness remains unproven.
+nine-unit pilot ledger. Generative extraction completeness remains unproven in
+the original extraction-based metric.
 
 The first two additional batches bring the historical sample to 57/85 scored
 cited units, with 28 not run and 26 nonempty fields still awaiting rubrics.

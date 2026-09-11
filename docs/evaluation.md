@@ -433,5 +433,3 @@ nonempty operational/advice/question fields still need suitable rubrics.
 Whole-packet quality, question relevance, semantic citation applicability, human
 calibration and the full 240-question semantic baseline remain open. The result
 does not establish a population groundedness rate or the requested quality gain.
-Remaining work includes the other cited units and explicit rubrics for disposition,
-missing-document findings, recommendations, questions and abstention.
