@@ -101,6 +101,16 @@ responses, extracted statements, verdicts, errors, input hashes and source/lock
 hashes remain private. Protocol tests use explicit doubles and do not demonstrate
 model quality. The full 240-case RAGAS semantic baseline has not been established.
 
+An experimental `--profile lending-v1` adds explicit rules for supported
+derivation and faithful extraction. The default `--profile stock` keeps the
+library's original instructions. Each run records the profile and instruction
+hashes. The experiment addresses observed pilot failures and is development
+calibration, not held-out validation. `controls-derivation-v1.jsonl` contains
+twelve frozen positive/negative financial controls with exact single-statement
+extraction expectations. Rerun `controls-v3.jsonl` too before assessing the
+unchanged saved calculations. Failed controls block promotion; do not reinterpret
+their labels or replace earlier outputs.
+
 Next: inspect real packet judgments and calibrate against human judgments before
 promoting semantic results. Public
 benchmarks, full RAGAS validation, online replay/alerts and regression gates remain required by

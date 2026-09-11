@@ -11,6 +11,7 @@ from importlib.metadata import version
 from pathlib import Path
 from typing import Any
 
+from ragas_profiles import configure
 from run_deepeval import restrict_network
 
 
@@ -55,6 +56,13 @@ def read_cases(path: Path) -> tuple[bytes, list[dict[str, Any]]]:
         bounds = case.get("expected_range")
         if bounds is not None and (len(bounds) != 2 or not 0 <= bounds[0] <= bounds[1] <= 1):
             raise ValueError("Invalid screening range")
+        statements = case.get("expected_statements")
+        if statements is not None and (
+            not isinstance(statements, list)
+            or not statements
+            or any(not isinstance(s, str) or not s.strip() for s in statements)
+        ):
+            raise ValueError("Expected extraction must contain nonempty statements")
     return inputs, cases
 
 
@@ -74,7 +82,14 @@ def run(args: argparse.Namespace, loop: asyncio.AbstractEventLoop) -> None:
     args.output.mkdir(parents=True, exist_ok=False)
     sources = [
         Path(__file__).with_name(n)
-        for n in ("run_ragas.py", "ragas_judge.py", "local_judge.py", "run_deepeval.py", "uv.lock")
+        for n in (
+            "run_ragas.py",
+            "ragas_judge.py",
+            "ragas_profiles.py",
+            "local_judge.py",
+            "run_deepeval.py",
+            "uv.lock",
+        )
     ]
     sources.extend([Path(sys.modules[Faithfulness.__module__].__file__), Path(util.__file__)])
     before = {p.name: sha256(p.read_bytes()).hexdigest() for p in sources}
@@ -86,6 +101,7 @@ def run(args: argparse.Namespace, loop: asyncio.AbstractEventLoop) -> None:
         "model": args.model,
         "digest": args.digest,
         "metric": "ragas.metrics.collections.Faithfulness",
+        "profile": args.profile,
         "human_calibrated": False,
         "network": "127.0.0.1:11434 only; stdlib loop initialized before restriction",
         "case_count": len(cases),
@@ -96,6 +112,7 @@ def run(args: argparse.Namespace, loop: asyncio.AbstractEventLoop) -> None:
     (args.output / "summary.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
     try:
         metric = Faithfulness(llm=judge)
+        manifest["instruction_sha256"] = configure(metric, args.profile)
         for case in cases:
             judge.outputs.clear()
             result: dict[str, Any] = {
@@ -116,6 +133,14 @@ def run(args: argparse.Namespace, loop: asyncio.AbstractEventLoop) -> None:
                 result["score"] = score if math.isfinite(score) else None
                 validate_score(score, judge.outputs)
                 result["structure_valid"] = True
+                expected_statements = case.get("expected_statements")
+                result["expected_statements"] = expected_statements
+                result["extraction_matches"] = (
+                    Counter(expected_statements)
+                    == Counter(judge.outputs[0]["output"]["statements"])
+                    if expected_statements is not None
+                    else None
+                )
             finally:
                 result["outputs"] = list(judge.outputs)
                 (args.output / "summary.json").write_text(
@@ -127,7 +152,11 @@ def run(args: argparse.Namespace, loop: asyncio.AbstractEventLoop) -> None:
             if controls
             else None
         )
-        if manifest["controls_passed"] is False:
+        extractions = [r for r in manifest["results"] if r.get("expected_statements") is not None]
+        manifest["extraction_controls_passed"] = (
+            all(r["extraction_matches"] for r in extractions) if extractions else None
+        )
+        if manifest["controls_passed"] is False or manifest["extraction_controls_passed"] is False:
             raise ValueError("Judge screening controls failed; do not promote these judgments")
         manifest["status"] = "completed"
     except Exception as error:
@@ -154,6 +183,7 @@ def main() -> None:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--model", required=True)
     parser.add_argument("--digest", required=True)
+    parser.add_argument("--profile", choices=("stock", "lending-v1"), default="stock")
     args = parser.parse_args()
     loop = asyncio.new_event_loop()
     try:

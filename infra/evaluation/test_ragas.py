@@ -12,9 +12,11 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import Mock
 
 import httpx
 from ragas_judge import LocalJudge, RagasJudge
+from ragas_profiles import configure
 from run_ragas import read_cases, validate_score
 
 from ragas.metrics.collections import Faithfulness
@@ -22,6 +24,31 @@ from ragas.metrics.collections import Faithfulness
 
 class RagasTests(unittest.TestCase):
     """Guard extraction denominators, schema transport and startup privacy ordering."""
+
+    def test_profile_does_not_change_stock_metric(self) -> None:
+        """A domain experiment must not mutate the shared library defaults or another metric."""
+        judge = RagasJudge(Mock(spec=LocalJudge))
+        stock = Faithfulness(llm=judge)
+        original = configure(stock, "stock")
+        experiment = Faithfulness(llm=judge)
+        changed = configure(experiment, "lending-v1")
+        self.assertNotEqual(changed, original)
+        self.assertEqual(configure(stock, "stock"), original)
+        self.assertEqual(configure(Faithfulness(llm=judge), "stock"), original)
+        self.assertEqual(
+            stock.statement_generator_prompt.examples,
+            experiment.statement_generator_prompt.examples,
+        )
+        with self.assertRaisesRegex(ValueError, "Unknown"):
+            configure(experiment, "unversioned")
+
+    def test_derivation_cases_preserve_atomic_answers(self) -> None:
+        """Frozen extraction expectations cover the entire answer, including wrong claims."""
+        _, cases = read_cases(Path(__file__).with_name("controls-derivation-v1.jsonl"))
+        self.assertEqual(len(cases), 12)
+        self.assertEqual(sum(c["expected_range"] == [1, 1] for c in cases), 3)
+        for case in cases:
+            self.assertEqual(case["expected_statements"], [case["actual_output"]])
 
     def test_library_metric_uses_local_schema_transport(self) -> None:
         """Exercise both unmodified RAGAS prompts through the real adapter and mocked HTTP only."""
