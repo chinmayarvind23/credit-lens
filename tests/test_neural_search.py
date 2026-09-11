@@ -176,7 +176,7 @@ def test_hybrid_lifespan_and_cache_revision(
         first = client.post("/api/v1/query", json=body)
         assert first.status_code == 200
         assert client.post("/api/v1/query", json=body).json()["cache_hit"] is True
-        models = provider.provider.ranker.__self__
+        models = provider.provider.provider.ranker.__self__
     assert models._closed and models.embedding is None
     backend.close.assert_called_once()
 
@@ -225,5 +225,5 @@ def test_model_shutdown_survives_cache_close_failure(
         pytest.raises(RuntimeError, match="cache close failed"),
         TestClient(create_app(config)) as client,
     ):
-        models = client.app.state.workflow.provider.provider.ranker.__self__
+        models = client.app.state.workflow.provider.provider.provider.ranker.__self__
     assert models._closed and not models._vectors

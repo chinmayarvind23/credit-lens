@@ -42,6 +42,7 @@ FILES = (
     "src/creditlens/model_manifest.json",
     "src/creditlens/neural_search.py",
     "src/creditlens/pdf_worker.py",
+    "src/creditlens/query_grounding.py",
     "src/creditlens/rerank_provider.py",
     "src/creditlens/retrieval.py",
     "src/creditlens/retrieval_cache.py",

@@ -47,7 +47,7 @@ def test_real_local_models_http(monkeypatch: pytest.MonkeyPatch) -> None:
             httpx.Client(base_url=url, timeout=30, trust_env=False) as client,
         ):
             assert client.get("/ready").status_code == 200
-            models = app.state.workflow.provider.ranker.__self__
+            models = app.state.workflow.provider.provider.ranker.__self__
             for number, expected in (
                 (1, "MEETS_POLICY"),
                 (2, "EXCEPTION_REQUIRED"),
@@ -57,7 +57,10 @@ def test_real_local_models_http(monkeypatch: pytest.MonkeyPatch) -> None:
             ):
                 body = {
                     "borrower_id": f"borrower-{number:03d}",
-                    "question": "Calculate debt service coverage and identify policy exceptions",
+                    "question": (
+                        "Calculate debt service coverage and identify policy exceptions "
+                        "for this borrower"
+                    ),
                     "effective_at": "2026-09-11",
                 }
                 started = perf_counter()
@@ -95,7 +98,11 @@ def test_real_local_models_http(monkeypatch: pytest.MonkeyPatch) -> None:
             with app.state.store.engine.begin() as connection:
                 events = connection.execute(select(audit_events.c.event)).scalars().all()
                 assert len(events) == 6
+                assert all(len(e["search_provider_mode"]) <= 200 for e in events)
                 assert all("reranked:local-minilm-v1:" in e["search_provider_mode"] for e in events)
+                assert all(
+                    e["search_provider_mode"].startswith("borrower-context-v2:") for e in events
+                )
                 connection.execute(grants.update().values(enabled=False, revision=2))
             assert client.post("/api/v1/query", json=body).status_code == 403
         assert models._closed

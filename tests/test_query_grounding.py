@@ -4,8 +4,8 @@ import pytest
 
 from creditlens.corpus import build_demo_pages
 from creditlens.domain import Chunk
+from creditlens.query_grounding import grounded_query
 from creditlens.retrieval import chunk_page
-from scripts.benchmark_grounding import grounded_query
 
 
 def application_chunk() -> Chunk:

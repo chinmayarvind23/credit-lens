@@ -3,7 +3,6 @@
 import argparse
 import json
 import os
-import re
 import sys
 from dataclasses import asdict
 from hashlib import sha256
@@ -11,43 +10,15 @@ from pathlib import Path
 from time import perf_counter
 from typing import Any
 
-from creditlens.domain import Chunk
 from creditlens.evaluation import GoldCase, audit_chunks, page_key, read_inputs, score_ranking
-from creditlens.intent import question_words
 from creditlens.lab_evidence import experiment_manifest, finish_manifest, save_checkpoint
 from creditlens.neural_search import LocalNeuralRanker
+from creditlens.query_grounding import grounded_query
 from creditlens.retrieval import EvidenceCatalog, lexical_rank, reciprocal_rank_fusion
 from creditlens.search_provider import validate_ranking
 from scripts.benchmark_candidates import allowed_chunks, no_network
 
-CONTEXT_WORDS = frozenset(
-    "borrower package packet cash numerator denominator missing unprovided documented "
-    "discrepancy discrepancies reconcile reconciliation".split()
-)
 VARIANTS = ("baseline", "universal", "selective")
-
-
-def grounded_query(
-    question: str, borrower_id: str, allowed: tuple[Chunk, ...]
-) -> tuple[str, bool, str]:
-    """Use one canonical application label; ambiguity or bad metadata leaves the question intact."""
-    names = {
-        c.title.removesuffix(" / application")
-        for c in allowed
-        if c.borrower_id == borrower_id
-        and c.document_kind == "application"
-        and c.title.endswith(" / application")
-    }
-    if len(names) != 1:
-        return question, False, "missing_or_ambiguous_name"
-    name = names.pop()
-    if not name.strip() or not re.fullmatch(r"[\w .,&'()-]{1,120}", name):
-        return question, False, "invalid_name"
-    expanded = f"Borrower: {name}. {question}"
-    if len(expanded) > 2000:
-        return question, False, "question_budget"
-    selected = bool(question_words(question) & CONTEXT_WORDS)
-    return expanded, selected, "borrower_context" if selected else "general_question"
 
 
 def case_row(

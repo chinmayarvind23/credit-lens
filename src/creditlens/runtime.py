@@ -46,6 +46,7 @@ def open_search(
         if config.retrieval_mode == "hybrid":
             from creditlens.hybrid_provider import HybridProvider
             from creditlens.neural_search import LocalNeuralRanker
+            from creditlens.query_grounding import GROUNDING_VERSION, GroundedProvider
             from creditlens.rerank_provider import RerankProvider
 
             models = LocalNeuralRanker(Path(config.local_model_directory))
@@ -53,8 +54,10 @@ def open_search(
                 catalog, store, ranker=models.rank, mode="local-minilm-dense-v1"
             )
             hybrid = HybridProvider(LocalSearchProvider(catalog, store), dense)
-            provider = RerankProvider(hybrid, models.rerank, mode=models.revision)
-            version = models.revision
+            provider = GroundedProvider(
+                RerankProvider(hybrid, models.rerank, mode=models.revision), store
+            )
+            version = f"{GROUNDING_VERSION}:{models.revision}"
         if config.redis_url.get_secret_value():
             backend = RedisBytes(config.redis_url.get_secret_value())
             provider = RetrievalCache(

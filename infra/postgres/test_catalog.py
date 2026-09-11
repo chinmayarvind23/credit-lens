@@ -463,3 +463,50 @@ def test_readiness_rejects_replaced_catalog_authority(engine: Engine) -> None:
         response = client.get("/ready")
         assert response.status_code == 503
         assert response.json()["error"]["code"] == "catalog_unavailable"
+
+
+def test_grounded_provider_rechecks_shared_name_and_grants(engine, catalog):
+    """A separate catalog reader can invalidate a name-grounded result across SQL authority."""
+    from creditlens.citations import cite
+    from creditlens.corpus import build_demo_pages
+    from creditlens.domain import QueryRequest
+    from creditlens.local_search import LocalSearchProvider
+    from creditlens.query_grounding import GroundedProvider
+    from creditlens.storage import GrantStore, metadata
+
+    metadata.create_all(engine)
+    principal = Principal(
+        subject=f"grounding-{uuid4()}",
+        tenant_id="demo-bank",
+        role="underwriter",
+        borrower_ids=("borrower-001",),
+        acl_groups=("underwriting",),
+        revision=1,
+    )
+    with engine.begin() as connection:
+        connection.execute(grants.insert().values(**principal.model_dump(), enabled=True))
+    catalog.publish(build_demo_pages())
+    provider = GroundedProvider(
+        LocalSearchProvider(catalog, GrantStore(engine)), GrantStore(engine)
+    )
+    request = QueryRequest(
+        borrower_id="borrower-001",
+        question="Which package inputs are missing?",
+        effective_at=date(2026, 9, 11),
+    )
+    result = provider.search(request, principal)
+    assert result.request == request and result.source.request.question.startswith(
+        "Borrower: Northstar"
+    )
+    assert provider.citation(result, cite(result.chunks[0])) == result.chunks[0]
+    other = SqlEvidenceCatalog(engine, catalog.catalog_id)
+    allowed, _ = other.snapshot(principal, request.borrower_id, request.effective_at)
+    other.revoke(next(c.chunk_id for c in allowed if c.document_kind == "application"))
+    with pytest.raises(ServiceError):
+        provider.verify(result)
+    with engine.begin() as connection:
+        connection.execute(
+            grants.update().where(grants.c.subject == principal.subject).values(revision=2)
+        )
+    with pytest.raises(ServiceError, match="access_changed"):
+        provider.search(request, principal)
