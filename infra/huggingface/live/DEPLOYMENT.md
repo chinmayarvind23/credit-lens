@@ -41,6 +41,11 @@ docker port creditlens-neural-release
 
 Use the reported loopback port for the candidate tunnel. This image loads the
 verified offline models before readiness; allow up to 120 seconds at startup.
+Before making that candidate the live backend, recreate it with an explicit host
+port, for example `-p 127.0.0.1:51651:7860`, and test an actual container restart.
+Docker can assign a different port after restarting a container created with an
+empty host port. A tunnel pointing to the previous port then returns 502 even
+though the application is healthy. Random ports are for candidate checks only.
 The public entrypoint ignores ambient provider settings and always uses synthetic
 memory evidence and local SQLite. See [model setup](../../retrieval/README.md).
 Verify actual model execution in the protected SQLite audit's
