@@ -27,8 +27,8 @@ DSCR threshold does not approve a loan or establish compliance with every policy
 | --- | --- | --- |
 | Corpus | 3,840 physical pages, 203 PDFs | 200 synthetic borrowers, three policy versions; 98 templates and short pages limit diversity |
 | Lexical control | Recall@10 74.05%, nDCG@10 .6775 | 220 positive-qrel cases from 240 exposed authored questions |
-| Local hybrid + reranker | Recall@10 82.55%, nDCG@10 .7291 | Pinned MiniLM embeddings, BM25 rank fusion and cross-encoder; reproduced with stable provenance |
-| Structured fixture outcomes | 212/240 initially, 240/240 after intent/topic checks | Exposed development fixtures; semantic groundedness remains unmeasured |
+| Local hybrid + reranker | Recall@10 82.55%, nDCG@10 .7291 | Composed serving provider reproduces the prior experiment's top ten exactly on all 240 cases |
+| Structured fixture outcomes | 212/240 initially, 240/240 after intent/topic checks | Also reproduced through the composed model workflow; semantic groundedness remains unmeasured |
 | Complete HTTP, cache disabled | p95 18.13 ms | 330-page demo, 150 serial loopback requests, disk-backed SQLite audit |
 | Complete HTTP, warm Redis | p95 19.87 ms | Same workload, 150 hits; cache was slower and remains optional |
 
@@ -38,6 +38,12 @@ improvements remain targets. Exact excerpt checks and synthetic fixture passes
 do not establish semantic metrics or real lending impact. Evaluation definitions
 are in [evaluation documentation](docs/evaluation.md); private raw runs and failure
 records are maintained outside this repository.
+
+The optional neural runtime passed real loopback HTTP checks for five financial
+scenarios, exact source access, denied scope, abstention, overload and revocation,
+with no observed external connections. Its complete local suite passes 440 tests
+with 98.51% core statement coverage. These checks do not imply that the public
+Space uses the neural runtime; it remains on the verified lexical deployment.
 
 ## Run locally
 
@@ -114,7 +120,7 @@ flowchart LR
     UI[TypeScript workbench] --> API[FastAPI]
     API --> Grants[Current SQL grants]
     Grants --> Scope[Authorized canonical pages]
-    Scope --> Rank[Local BM25 / optional Redis retrieval cache]
+    Scope --> Rank[BM25 / optional local hybrid and reranker / Redis retrieval cache]
     Rank --> Packet[Intent, context, Decimal finance and cited extracts]
     Packet --> Check[Current permission and citation checks]
     Check --> Audit[SQL audit]

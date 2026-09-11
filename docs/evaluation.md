@@ -186,3 +186,38 @@ Use a smoke eval on ordinary PRs.
 Use a full evaluation before and after major retrieval, model, embedding, chunker, or index changes.
 
 Hard security invariants cannot regress.
+
+## Composed local model runtime
+
+The clean `76aaa91` runtime experiment used the same frozen 3,840 pages and 240
+authored cases as the earlier dense/hybrid study. It reproduced every prior top-ten
+chunk ordering, yielding Recall@10 0.8254545454545454 and nDCG@10
+0.7290997986576191 across 220 eligible cases. Micro recall was 337/465
+(0.7247311827956989); 20 no-positive-qrel cases remain excluded from ranking
+averages. All 240 deterministic workflow fixture checks passed, with zero
+unauthorized context and zero path failures. These remain exposed development
+fixtures, not independent semantic answer grades.
+
+`scripts/benchmark_neural.py` exercises the configured serving provider, including
+current SQL grants, scoped dense scoring, both fusion branches, cross-encoder,
+canonical result checks and subsequent workflow/audit execution. Model loading
+took 8.70 seconds in this run. Provider-ranking p95 was 1190.05 ms and mean was
+734.33 ms. Document vectors were cached within bounded retention across cases;
+questions were not cached. Each workflow ran after its separate ranking and
+therefore reused document vectors. These values are local provider measurements,
+not HTTP latency, a cloud comparison or a request-cost improvement. Other projects
+were running on the same host; no exclusive-machine timing is claimed.
+
+The actual-model HTTP check is separate: five financial scenarios, exact source
+inspection, denied borrower scope, unrelated-question abstention, model overload
+and grant revocation. It observed no external socket connections. Five observed
+round trips are insufficient for a population latency claim. The complete local
+suite passed 440 tests; core statement coverage was 2315/2350 (98.5106%), with
+every critical module above its 95% gate.
+
+Private raw evidence is under `resources/credit_lens/evals/neural-runtime-76aaa91`
+and `resources/credit_lens/evidence/neural-runtime-*`. Source, model-manifest,
+gold and corpus hashes remained unchanged. A separate root-run recomputation
+from raw labels confirmed metric arithmetic and all 240 prior top-ten matches;
+it is not described as an independent agent review. The public HF deployment
+remains lexical pending a separate model-serving deployment verification.
