@@ -3,6 +3,7 @@
 import json
 import os
 import subprocess
+import sys
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -45,7 +46,7 @@ def execution():
     )
     with engine.begin() as connection:
         connection.execute(grants.insert().values(**actor.model_dump(mode="json"), enabled=True))
-    store = JobStore(engine, "execution-" + uuid4().hex)
+    store = JobStore(engine, "synthetic-execution-" + uuid4().hex)
     catalog = initialize_catalog(engine, store.queue_id)
     sources = LocalSourceStore(tmp_path / "sources")
     pdf = tmp_path / "original.pdf"
@@ -308,3 +309,71 @@ def test_child_deadline_status_and_log_overflow_are_curated(execution, image, pr
         FailingExtractor(image).extract(
             sources.read(actor.tenant_id, source.source_sha256), source, lambda: None
         )
+
+
+def test_operator_cli_stages_and_executes_real_job(execution, image) -> None:
+    """Separate Python invocations must retain job state and process the staged PDF in Docker."""
+    store, catalog, sources, actor, source = execution
+    root = sources.root.parent
+    manifest = root / "manifest.json"
+    manifest.write_text(source.model_dump_json(), encoding="utf-8")
+    environment = {k: v for k, v in os.environ.items() if not k.startswith("CREDITLENS_")}
+    environment.update(
+        {
+            "CREDITLENS_MODE": "demo",
+            "CREDITLENS_DATABASE_URL": os.environ["CREDITLENS_TEST_POSTGRES_URL"],
+            "CREDITLENS_CATALOG_BACKEND": "postgres",
+            "CREDITLENS_DEMO_CATALOG_ID": store.queue_id,
+            "CREDITLENS_INGESTION_ENABLED": "true",
+            "CREDITLENS_INGESTION_QUEUE_ID": store.queue_id,
+        }
+    )
+    command = [
+        sys.executable,
+        str(Path(__file__).resolve().parents[2] / "scripts/ingest_documents.py"),
+        "--source-root",
+        str(root / "operator-sources"),
+    ]
+
+    def invoke(arguments, expected=0):
+        """Exercise the actual CLI; capture output privately and require curated JSON only."""
+        result = subprocess.run(  # noqa: S603 - fixed local Python and explicitly owned fixture paths.
+            command + arguments,
+            env=environment,
+            capture_output=True,
+            timeout=75,
+            check=False,
+        )
+        assert result.returncode == expected, result.stderr.decode()
+        return json.loads(result.stdout)
+
+    staging = [
+        "submit",
+        "--pdf",
+        str(root / "original.pdf"),
+        "--manifest",
+        str(manifest),
+        "--subject",
+        actor.subject,
+        "--key",
+        "operator-cli",
+    ]
+    job = invoke(staging)
+    assert job["state"] == "QUEUED"
+    assert invoke(staging)["job_id"] == job["job_id"]
+    processing = ["work-one", "--image", image, "--job-id", job["job_id"]]
+    assert invoke(processing)["state"] == "COMPLETED"
+    assert invoke(processing) == {"state": "IDLE"}
+    chunks, _ = catalog.snapshot(actor, "borrower-001", source.pages[0].valid_from)
+    assert any("operating_cash_flow=180000.00" in chunk.text for chunk in chunks)
+    with store.engine.begin() as connection:
+        connection.execute(
+            grants.update().where(grants.c.subject == actor.subject).values(enabled=False)
+        )
+    assert invoke(staging, expected=2)["error_code"] == "access_denied"
+    manifest.write_bytes(b"x" * 1_000_001)
+    assert invoke(staging, expected=2) == {"error_code": "operator_input_invalid"}
+    environment["CREDITLENS_DATABASE_URL"] = environment["CREDITLENS_DATABASE_URL"].replace(
+        "/creditlens_test", "/creditlens_missing_" + uuid4().hex
+    )
+    assert invoke(processing, expected=2) == {"error_code": "ingestion_unavailable"}

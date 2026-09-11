@@ -52,7 +52,7 @@ jobs:
         run: |
           uv run ruff check src tests scripts infra/huggingface infra/postgres .github/scripts .github/tests
           uv run ruff format --check src tests scripts infra/huggingface infra/postgres .github/scripts .github/tests
-          uv run mypy src scripts/deploy_space.py infra/huggingface/demo_entrypoint.py infra/huggingface/smoke_container.py .github/scripts/check_coverage.py
+          uv run mypy src scripts/deploy_space.py scripts/ingest_documents.py infra/huggingface/demo_entrypoint.py infra/huggingface/smoke_container.py .github/scripts/check_coverage.py
       - name: Verify the sanitized deployment snapshot
         run: |
           uv run python scripts/deploy_space.py stage --output "${{ runner.temp }}/creditlens-space"

@@ -121,3 +121,29 @@ Explicit fault injection tests are distinguished from actual container parsing.
 The source store assumes a trusted local root and retains immutable objects;
 capacity quotas and garbage collection are not yet implemented. Worker output
 size limits are polled detection thresholds, not hard host filesystem quotas.
+
+## Local operator commands
+
+After initializing the opt-in ingestion API, an operator with the same database
+configuration can stage a PDF and run one digital job:
+
+```powershell
+.venv\Scripts\python.exe scripts/ingest_documents.py --source-root C:/creditlens-sources submit --pdf C:/incoming/document.pdf --manifest C:/incoming/manifest.json --subject your-private-admin-subject --key document-v1
+.venv\Scripts\python.exe scripts/ingest_documents.py --source-root C:/creditlens-sources work-one --image $env:CREDITLENS_TEST_PARSER_IMAGE
+```
+
+`manifest.json` follows the `IngestionInput` schema in `/docs`: exact PDF SHA-256,
+`parser: digital` and contiguous physical-page metadata with tenant, borrower,
+document/version and ACL provenance. Metadata text is discarded. Use a new
+document identity/version rather than trying to overwrite an immutable page.
+The submit command prints the durable job ID; `work-one --job-id <id>` can select
+it explicitly. Without that flag, the worker claims the next eligible digital
+job. An empty queue returns `IDLE`. Retries respect persisted availability times.
+
+The commands require `CREDITLENS_DATABASE_URL`, `CREDITLENS_CATALOG_BACKEND`,
+`CREDITLENS_DEMO_CATALOG_ID`, `CREDITLENS_INGESTION_ENABLED` and
+`CREDITLENS_INGESTION_QUEUE_ID` to match the initialized API. Credentials stay in
+local configuration. The named subject must already have a current private admin
+grant covering every page. The tool creates neither identities nor grants.
+It is a trusted host operator interface using database access, not remote user
+authentication. Keep the public `synthetic-demo` subject an underwriter.

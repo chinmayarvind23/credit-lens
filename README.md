@@ -76,6 +76,11 @@ catalog and actual database checks. For the complete coverage gate, start that
 local fixture, set its test URL and add `infra/postgres` to the pytest paths.
 The default demo uses its in-memory catalog. The documented PostgreSQL option
 shares canonical evidence, revocation, grants and audit across demo API instances.
+The same guide covers local PDF staging and isolated digital ingestion workers.
+An operator with a private admin grant submits a hash-addressed source, then runs
+`scripts/ingest_documents.py work-one` to extract and atomically publish its pages.
+The public demo identity cannot administer ingestion. OCR review, SQS delivery
+and managed source storage remain unfinished.
 
 ## Core product loop
 
@@ -146,8 +151,8 @@ local Terraform validation and mocked plans but remains unapplied. AWS account
 no-charge eligibility is unverified; do not provision paid services or upgrade plans.
 
 Next product work is richer document layouts, unseen questions and semantic
-grading calibrated against human review. Engineering work includes asynchronous
-ingestion, OCR, live governed search, full response
+grading calibrated against human review. Engineering work includes SQS delivery,
+reviewed OCR ingestion, live governed search, full response
 caching and observability. Native browser checks exposed and corrected a fetch
 receiver bug that API-only tests missed. Browser recordings and raw evidence are
 kept in the private resources directory.

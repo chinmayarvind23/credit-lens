@@ -73,6 +73,13 @@ again before atomic publication. Malformed or altered sources fail; missing
 objects, timeouts and Docker launch failures retry. Lease loss cannot acknowledge
 another worker's work. OCR stays queued for its separate reviewed path.
 
+`scripts/ingest_documents.py` is a trusted local operator interface. It uses the
+initialized API's database, queue and catalog configuration, resolves an existing
+private admin subject, validates manifest scope before reading the source and
+checks grants again after staging. It creates no grants. Separate invocations
+submit idempotently and execute one eligible digital job. It prints bounded
+status or curated errors; it does not implement remote user authentication.
+
 ## Core domain schemas
 
 Illustrative contracts:
