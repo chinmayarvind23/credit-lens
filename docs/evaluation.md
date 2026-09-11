@@ -237,5 +237,36 @@ Private raw evidence is under `resources/credit_lens/evals/neural-runtime-76aaa9
 and `resources/credit_lens/evidence/neural-runtime-*`. Source, model-manifest,
 gold and corpus hashes remained unchanged. A separate root-run recomputation
 from raw labels confirmed metric arithmetic and all 240 prior top-ten matches;
-it is not described as an independent agent review. The public HF deployment
-remains lexical pending a separate model-serving deployment verification.
+it is not described as an independent agent review. The later Linux CPU replay
+at `51a2c75` reproduced all 240 rankings and fixture outcomes. That verified
+model container was subsequently deployed behind the public HF entry page and
+checked through desktop and mobile browsers.
+
+## Candidate-budget experiment
+
+The offline `abc0cdb` experiment compared ten branch/rerank budgets on the same
+240 frozen cases, with 220 eligible for ranking metrics. It scored each authorized
+query/chunk pair once and reconstructed each candidate prefix from saved
+branch rankings. A separate recomputation verified all rankings and metrics;
+the existing 100-branch/40-rerank baseline matched exactly on all 240 cases.
+
+| Branch candidates | Rerank candidates | Recall@10 | nDCG@10 | Relevant page hits |
+| --- | --- | --- | --- | --- |
+| 20 | 20 | 82.61% | .7283 | 337/465 |
+| 100 | 40, current baseline | 82.55% | .7291 | 337/465 |
+| 100 | 80 | 82.85% | .7306 | 339/465 |
+| 100 | 100 | 82.70% | .7300 | 338/465 |
+
+With 100 candidates, every labeled relevant page reached the reranking pool,
+but the final top ten still missed many of them. Increasing the pool alone is
+insufficient. The serving default remains 40 pending a stronger quality/latency
+tradeoff. Shared pair scores do not measure per-variant latency or request cost.
+The benchmark records actual experiment time, scored pairs and context bytes;
+it does not claim model-token or cloud-cost measurements. No variant is promoted
+from these exposed development fixtures alone.
+
+Run `scripts/benchmark_candidates.py` with explicit `--gold`, `--pages`, `--models`
+and a fresh private `--output` directory. Model loading uses verified local
+weights and socket connections are denied. Raw scores, ten variant rankings,
+input/source hashes, package versions and the separate recomputation are retained
+in `resources/credit_lens/evals/candidate-budgets-abc0cdb`.
