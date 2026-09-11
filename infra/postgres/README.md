@@ -104,7 +104,8 @@ applies to submissions; distributed admission quotas remain unfinished. Readines
 checks the configured job table. A separate `IngestionWorker` now reads staged
 objects through `LocalSourceStore`, supervises `DockerPdfExtractor` and atomically
 publishes valid digital pages. Current grants are checked during extraction.
-OCR admission, SQS delivery and managed object storage remain unfinished.
+The optional [local SQS adapter](../sqs/README.md) supports notification delivery
+and recovery. OCR admission, managed SQS and managed object storage remain unfinished.
 
 Build the local parser image and require its immutable ID for the actual Docker
 execution tests. No image is pulled by the worker:

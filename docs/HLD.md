@@ -29,9 +29,11 @@ admin grant locked through commit. Opt-in admin HTTP routes register staged sour
 hashes and read durable status with current grants. Local source storage separates
 tenants and verifies immutable PDF bytes. Digital workers parse one source in a
 network-disabled Docker container, recheck grants on heartbeats and publish only
-validated output. SQS delivery and managed object storage remain unfinished.
-Queue messages will identify jobs; the database remains authoritative for source
-identity and permissions.
+validated output. An optional boto3 adapter now sends and consumes job notifications
+through a local SQS-compatible broker. Duplicate notifications are acknowledged
+from durable terminal state; an empty broker poll recovers missed SQL jobs.
+Managed SQS deployment and object storage remain unfinished. The database remains
+authoritative for source identity and permissions.
 
 ## User flow
 

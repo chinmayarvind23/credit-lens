@@ -80,6 +80,19 @@ checks grants again after staging. It creates no grants. Separate invocations
 submit idempotently and execute one eligible digital job. It prints bounded
 status or curated errors; it does not implement remote user authentication.
 
+`sqs_queue.py` restricts the current executable adapter to numeric loopback HTTP
+and a synthetic CreditLens queue on the same origin. boto3 uses explicit synthetic
+credentials, no proxy and finite transport/retry limits. `Notification` accepts
+only a job UUID; bounded `Delivery` bodies and receipt handles are not logged.
+`queue_worker.py` runs the existing fenced worker, deletes only terminal jobs and
+defers active/retry notifications. Queue-scoped status reads cannot select a job
+from another configured SQL queue. Unknown or malformed messages remain for a
+dead-letter policy. Empty polls recover SQL work; broker outages require the
+separate SQL polling command. Three consecutive broker failures open a 30-second
+process-local circuit. Operator submission sends after SQL commit and reports
+`PENDING` if notification sending fails. API notification sending and managed AWS
+configuration remain unfinished. See [queue integration](../infra/sqs/README.md).
+
 ## Core domain schemas
 
 Illustrative contracts:

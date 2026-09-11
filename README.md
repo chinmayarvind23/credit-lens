@@ -60,10 +60,11 @@ until its real evidence workflow is initialized.
 For local checks:
 
 ```powershell
-uv run ruff check src
-uv run ruff format --check src
-uv run mypy src
-uv run pytest tests infra/huggingface/tests .github/tests --ignore=tests/test_retrieval_lab.py
+uv sync --locked --extra queue
+uv run --no-sync ruff check src
+uv run --no-sync ruff format --check src
+uv run --no-sync mypy src
+uv run --no-sync pytest tests infra/huggingface/tests .github/tests --ignore=tests/test_retrieval_lab.py
 ```
 
 Optional model experiments require `uv sync --locked --extra retrieval` and their
@@ -72,15 +73,17 @@ optional cache and actual-server tests. Hosted CI requires manual dispatch under
 the current no-spending restriction; local tests do not imply a hosted CI run.
 
 [PostgreSQL instructions](infra/postgres/README.md) cover the shared canonical
-catalog and actual database checks. For the complete coverage gate, start that
-local fixture, set its test URL and add `infra/postgres` to the pytest paths.
+catalog and actual database checks. For the complete coverage gate, start the
+PostgreSQL, Redis and [queue fixtures](infra/sqs/README.md), set their test URLs and
+the parser image ID, and add `infra/postgres` to the pytest paths.
 The default demo uses its in-memory catalog. The documented PostgreSQL option
 shares canonical evidence, revocation, grants and audit across demo API instances.
 The same guide covers local PDF staging and isolated digital ingestion workers.
 An operator with a private admin grant submits a hash-addressed source, then runs
 `scripts/ingest_documents.py work-one` to extract and atomically publish its pages.
-The public demo identity cannot administer ingestion. OCR review, SQS delivery
-and managed source storage remain unfinished.
+The public demo identity cannot administer ingestion. The [local SQS-compatible
+integration](infra/sqs/README.md) supports notifications and duplicate recovery.
+OCR review, managed SQS deployment and managed source storage remain unfinished.
 
 ## Core product loop
 
@@ -151,7 +154,7 @@ local Terraform validation and mocked plans but remains unapplied. AWS account
 no-charge eligibility is unverified; do not provision paid services or upgrade plans.
 
 Next product work is richer document layouts, unseen questions and semantic
-grading calibrated against human review. Engineering work includes SQS delivery,
+grading calibrated against human review. Engineering work includes managed queue deployment,
 reviewed OCR ingestion, live governed search, full response
 caching and observability. Native browser checks exposed and corrected a fetch
 receiver bug that API-only tests missed. Browser recordings and raw evidence are

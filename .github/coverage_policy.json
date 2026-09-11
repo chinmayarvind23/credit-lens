@@ -22,6 +22,7 @@
     "ocr.py",
     "opensearch_provider.py",
     "pdf_worker.py",
+    "queue_worker.py",
     "retrieval.py",
     "retrieval_cache.py",
     "runtime.py",
@@ -29,6 +30,7 @@
     "settings.py",
     "source_store.py",
     "sql_catalog.py",
+    "sqs_queue.py",
     "storage.py",
     "workflow.py"
   ],
@@ -46,10 +48,12 @@
     "ocr.py",
     "opensearch_provider.py",
     "pdf_worker.py",
+    "queue_worker.py",
     "retrieval.py",
     "retrieval_cache.py",
     "source_store.py",
     "sql_catalog.py",
+    "sqs_queue.py",
     "storage.py"
   ],
   "excluded_files": {

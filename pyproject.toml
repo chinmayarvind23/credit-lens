@@ -18,6 +18,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+queue = ["boto3>=1.43.92,<2", "boto3-stubs[sqs]>=1.43.92,<2"]
 retrieval = [
     "faiss-cpu>=1.12,<2",
     "llama-index-core>=0.14,<1",
@@ -59,6 +60,7 @@ select = ["E", "F", "I", "B", "UP", "S", "C90"]
 "infra/postgres/test_catalog.py" = ["S101"]
 "infra/postgres/test_ingestion_jobs.py" = ["S101"]
 "infra/postgres/test_ingestion_execution.py" = ["S101"]
+"infra/postgres/test_queue_execution.py" = ["S101"]
 "infra/huggingface/sdk_tests/test_publish_sdk.py" = ["S101"]
 "infra/ocr/tests/test_experiments.py" = ["S101"]
 
