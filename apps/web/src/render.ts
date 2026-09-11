@@ -61,7 +61,7 @@ function textSection(title: string, items: string[], empty: string, kind = ""): 
   return section;
 }
 /** Render an immutable request snapshot so editing the question or date cannot relabel an older result. */
-export function renderPacket(packet: Packet, request: QueryRequest, borrowerName: string, elapsedMs: number): DocumentFragment {
+export function renderPacket(packet: Packet, request: QueryRequest, borrowerName: string, elapsedMs: number, recorded = false): DocumentFragment {
   const fragment = document.createDocumentFragment(); const sources = new Map<string, Chunk>();
   for (const source of packet.evidence) sources.set(source.chunk_id, source);
   const heading = element("div", "result-heading"); const headingCopy = element("div");
@@ -97,9 +97,9 @@ export function renderPacket(packet: Packet, request: QueryRequest, borrowerName
   fragment.append(evidenceSection);
   const trace = element("details", "trace-card"); trace.append(element("summary", "", `Execution trace · ${duration(packet.latency_ms)} service time`));
   const metadata = element("dl", "trace-metadata");
-  const fields = [["Provider mode", packet.provider_mode], ["Corpus version", packet.corpus_version], ["Request ID", packet.request_id], ["Service time", duration(packet.latency_ms)], ["Browser round trip", duration(elapsedMs)], ["Cache", packet.cache_hit ? "Hit" : "Miss"], ["Reported request cost", packet.cost_usd === null ? "Not reported" : `$${packet.cost_usd}`]];
+  const fields = [["Provider mode", packet.provider_mode], ["Corpus version", packet.corpus_version], ["Request ID", packet.request_id], [recorded ? "Recorded local service time" : "Service time", duration(packet.latency_ms)], [recorded ? "Recorded API round trip" : "Browser round trip", duration(elapsedMs)], ["Cache", packet.cache_hit ? "Hit" : "Miss"], ["Reported request cost", packet.cost_usd === null ? "Not reported" : `$${packet.cost_usd}`]];
   for (const [label, value] of fields) { metadata.append(element("dt", "", label), element("dd", "", value)); }
-  trace.append(metadata, element("p", "field-note", "Timings describe this request. They are not benchmark percentiles. Browser round trip includes transfer and response validation."));
+  trace.append(metadata, element("p", "field-note", recorded ? "These timings were captured from a local synthetic API request. Viewing this recording does not run the backend. No benchmark percentile or current response speed is claimed." : "Timings describe this request. They are not benchmark percentiles. Browser round trip includes transfer and response validation."));
   const stages = element("ol", "stage-list");
   for (const stage of packet.stages) { const row = element("li"); row.append(element("span", "", humanize(stage.name)), element("span", "stage-duration", duration(stage.duration_ms))); stages.append(row); }
   if (!packet.stages.length) trace.append(element("p", "empty-note", "No stage timings were returned."));

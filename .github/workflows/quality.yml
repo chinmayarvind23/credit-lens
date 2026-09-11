@@ -46,6 +46,7 @@ jobs:
           bun run typecheck
           bun run test
           bun run build
+          bun run build:preview
           bun audit
       - name: Generate the synthetic evaluation corpus
         run: uv run python scripts/build_corpus.py --output "${{ runner.temp }}/creditlens-corpus" --borrowers 200

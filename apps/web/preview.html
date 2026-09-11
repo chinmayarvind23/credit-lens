@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Inspect recorded synthetic lending API examples and their cited sources." />
+  <title>CreditLens | Recorded synthetic examples</title>
+  <link rel="stylesheet" href="./src/styles.css" />
+  <script type="module" src="./src/preview.ts"></script>
+</head>
+<body>
+  <a class="skip-link" href="#workspace">Skip to recorded examples</a>
+  <header class="topbar">
+    <a class="brand" href="./" aria-label="CreditLens preview home"><span class="brand-mark" aria-hidden="true">C<span></span></span>CreditLens</a>
+    <span class="workspace-label">Commercial lending <span>/</span> Evidence preview</span>
+    <span class="environment">Recorded examples</span>
+  </header>
+  <div class="environment-notice"><strong>Recorded synthetic API examples.</strong> This free static preview shows saved local responses. It has no live backend, sign-in, or arbitrary query processing. Source inspection reads captured data.</div>
+  <div class="app-layout">
+    <aside class="sidebar" aria-label="Recorded example selection">
+      <div class="sidebar-heading"><span class="section-number">01</span><h2>Choose an example</h2></div>
+      <label for="example">Recorded scenario</label>
+      <select id="example" disabled><option>Loading verified recordings…</option></select>
+      <p class="field-note">Each example came from an actual local API request using fictional borrowers and policies.</p>
+      <div class="sidebar-divider"></div>
+      <p class="eyebrow">Review the evidence</p>
+      <p class="sidebar-copy">Compare a supported DSCR result, an exception, incomplete sources, conflicting evidence, and a private-topic abstention.</p>
+      <div class="review-principle"><span aria-hidden="true">◇</span><p>Recorded examples illustrate behavior. This static viewer does not enforce or prove live authorization.</p></div>
+      <p class="field-note"><a href="https://github.com/chinmayarvind23/credit-lens" target="_blank" rel="noopener noreferrer">Project source and local setup</a></p>
+      <p class="field-note"><a href="./recordings.json">Download synthetic capture records</a></p>
+      <p class="field-note"><a href="./preview-manifest.json">Preview file hashes</a></p>
+    </aside>
+    <main id="workspace" class="workspace">
+      <div class="page-heading"><div><p class="eyebrow">Evidence before judgment</p><h1>Follow the source trail.</h1><p class="page-description">Explore how an underwriting question becomes a cited review packet.</p></div><span class="read-only-label">Read-only recording</span></div>
+      <section class="question-panel"><h2>What this preview shows</h2><p>The local service computed the results below from synthetic sources. Local dispositions cover DSCR only. Captured timings describe those requests, and no quality or cost target is claimed.</p><p id="capture-provenance" class="field-note"></p></section>
+      <div id="request-status" class="request-status" role="status" aria-live="polite">Verifying saved response hashes and source records…</div>
+      <div id="request-error" class="error-banner" role="alert" hidden></div>
+      <div id="packet"></div>
+      <footer class="workspace-footer"><span>CreditLens · Static preview</span><span>Fictional documents · Captured local API results · Human lending decisions</span></footer>
+    </main>
+  </div>
+  <dialog id="source-dialog" class="source-dialog" aria-labelledby="source-title"><div class="source-header"><div><p class="eyebrow">Recorded source response</p><h2 id="source-title">Evidence page</h2></div><button id="close-source" class="icon-button" type="button" aria-label="Close source inspection">×</button></div><div id="source-content"></div></dialog>
+</body>
+</html>

@@ -220,3 +220,10 @@ test("invalid JSON produces a curated error", async () => {
   const transport = async () => new Response("sensitive malformed payload", { headers: { "Content-Type": "application/json" } });
   await expect(new CreditLensApi("", transport).borrowers(new AbortController().signal)).rejects.toThrow("The API returned invalid JSON. No result was accepted.");
 });
+
+/** Recorded samples must never present captured measurements as a current query. */
+test("recorded packets clearly label captured timings", () => {
+  const output = withDocument(() => renderPacket(parsePacket(fixture()), { borrower_id: "borrower-001", question: "Recorded question", effective_at: "2025-01-01" }, "Synthetic Borrower", 9, true));
+  expect(output.textContent).toContain("Recorded local service time");
+  expect(output.textContent).toContain("Recorded API round trip");
+});
