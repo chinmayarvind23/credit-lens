@@ -43,7 +43,10 @@ DeepEval now has an [isolated local judge runner](infra/evaluation/README.md).
 The first two local judges failed screening. Qwen3 8B then passed twelve frozen
 supported/contradicted controls covering amounts, entities, dates, missing evidence,
 currency and approval authority. This is authored screening, not a project quality
-score. RAGAS, human calibration and the full semantic baseline remain open.
+score. Actual packet pilots then exposed omitted fields, incomplete generation
+and incorrect verdicts on valid calculations. The judge is not validated for
+project quality claims. RAGAS, human calibration and the full semantic baseline
+remain open.
 
 The optional neural runtime passed real loopback HTTP checks for five financial
 scenarios, exact source access, denied scope, abstention, overload and revocation,

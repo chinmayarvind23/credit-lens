@@ -66,6 +66,13 @@ baseline. Saved packet pilots verify evidence against canonical page spans and
 authored scope before judging. Human calibration, RAGAS, the full 240-case semantic
 run and associated regression gates remain open.
 
+The initial six-packet JSON pilot stopped on its second case when generation
+was incomplete. Its first score of 1.0 omitted the calculated DSCR from extracted
+claims. A separate two-metric pilot retained both values but returned zero scores
+with explanations that confirmed the calculations. Both runs are preserved as
+judge-validation failures. No full-packet groundedness or unsupported-claim rate
+can be inferred from them, and verdicts are not repaired to agree with expectations.
+
 ## Execution-path grade
 
 Inspect the ordered event log.

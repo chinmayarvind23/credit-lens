@@ -11,6 +11,14 @@ not use the question to resolve dates. Earlier controls and failed runs are reta
 This clears authored screening only. Human calibration, RAGAS and the full 240-case
 semantic baseline remain unfinished.
 
+Actual saved-packet pilots exposed limits that the controls missed. A six-packet
+JSON run stopped at its second case after incomplete generation; the first case
+scored 1.0 while omitting its calculated DSCR from extracted claims. A separate
+two-metric run extracted both saved values, then scored both zero despite reasons
+that confirmed the calculations. The local judge is therefore not validated for
+project quality claims. Preserve those raw failures and keep deterministic
+arithmetic checks; do not repair judge verdicts or report a packet pass rate.
+
 ## Run the screen
 
 Use an existing local Ollama endpoint at `127.0.0.1:11434`. The evaluator neither
