@@ -51,6 +51,10 @@ controls, but its two-calculation pilot rejected correctly derived ratios and
 added a claim absent from one answer. Human calibration and the full semantic
 baseline remain open; neither framework establishes project groundedness yet.
 
+A separate lending-specific RAGAS prompt passes 24 authored controls and preserves
+both saved DSCR claims correctly. Its full-packet pilot still omits a calculation
+and stops on an incomplete response, so whole-packet semantic scoring remains open.
+
 The optional neural runtime passed real loopback HTTP checks for five financial
 scenarios, exact source access, denied scope, abstention, overload and revocation,
 with no observed external connections. The query-grounding integration passes 472

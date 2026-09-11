@@ -111,6 +111,16 @@ extraction expectations. Rerun `controls-v3.jsonl` too before assessing the
 unchanged saved calculations. Failed controls block promotion; do not reinterpret
 their labels or replace earlier outputs.
 
+At `4d5d5f6`, lending-v1 passed all twelve derivation controls, including exact
+atomic extraction, and all twelve original V3 controls. The two unchanged saved
+DSCR claims each scored 1.0 with verbatim extraction and correct arithmetic in
+their reasons. This addresses the observed narrow calculation failure.
+The same six full JSON packets remain unsuitable for population scoring: the
+first received 1.0 while extraction omitted its displayed DSCR, and the second
+stopped on incomplete generation. Four packets were not run. All runs retain
+stable provenance. Explicit field coverage and bounded evaluation units are
+needed before a whole-packet metric; none of these pilots establish one.
+
 Next: inspect real packet judgments and calibrate against human judgments before
 promoting semantic results. Public
 benchmarks, full RAGAS validation, online replay/alerts and regression gates remain required by

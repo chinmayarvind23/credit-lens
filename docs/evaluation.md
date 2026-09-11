@@ -354,3 +354,18 @@ These scores do not establish packet groundedness, citation precision or an
 unsupported-claim rate. Arithmetic remains independently checked with Decimal.
 Further calibration must test supported derivation, wrong calculations and
 extraction fidelity before a population semantic run.
+
+The separate `lending-v1` prompt at `4d5d5f6` was calibrated against those observed
+failures. Twelve new financial controls cover supported derivation and rounding,
+wrong values, missing formula/inputs, borrower/period/currency mismatches, zero
+denominators and unsupported approval. All expected scores and exact atomic
+extractions passed. The original twelve V3 controls also passed under this
+profile. These are exposed authored controls, not held-out validation.
+
+Both unchanged saved DSCR claims now score 1.0, preserve the original sentence
+verbatim and include the correct division in their reasons. The full JSON packet
+pilot still fails coverage: its first score of 1.0 omits the displayed DSCR,
+and the second case stops on incomplete generation. Four selected packets remain
+unrun. Source/input provenance is stable in every run. Prior default-prompt
+failures remain preserved; no verdict or label was repaired. Evaluation needs an
+explicit field inventory and bounded claim units before whole-packet scoring.
