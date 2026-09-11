@@ -29,6 +29,24 @@ The example keeps demo storage ephemeral. Restarting loses its synthetic audit
 database; copy required evidence before replacing or restarting the container.
 Production durable retention is separate unfinished work.
 
+For the optional CPU model variant, build the reviewed stage with
+`--target neural-runtime`. Use a separate container name and port during review:
+
+```powershell
+docker build --target neural-runtime -t creditlens-neural:release ..\resources\credit_lens\artifacts\live-release
+$modelDirectory = (Resolve-Path ..\resources\credit_lens\local-models).Path
+docker run -d --name creditlens-neural-release --restart unless-stopped --read-only --cap-drop ALL --security-opt no-new-privileges --memory 2g --cpus 4 --pids-limit 128 --tmpfs /app/data:rw,noexec,nosuid,size=64m,uid=1000,gid=1000 --tmpfs /tmp:rw,noexec,nosuid,size=64m --mount "type=bind,source=$modelDirectory,target=/models,readonly" -e TOKENIZERS_PARALLELISM=false -e OPENBLAS_NUM_THREADS=1 -p 127.0.0.1::7860 creditlens-neural:release
+docker port creditlens-neural-release
+```
+
+Use the reported loopback port for the candidate tunnel. This image loads the
+verified offline models before readiness; allow up to 120 seconds at startup.
+The public entrypoint ignores ambient provider settings and always uses synthetic
+memory evidence and local SQLite. See [model setup](../../retrieval/README.md).
+Verify actual model execution in the protected SQLite audit's
+`search_provider_mode` field. The packet's `local-extractive` provider label
+describes how answers are assembled, not which retrieval model is running.
+
 Start cloudflared with `tunnel --url http://127.0.0.1:17862 --no-autoupdate --protocol http2`.
 On Windows, launch the helper with `Start-Process -WindowStyle Hidden` and redirect
 output to a private evidence directory. Record its PID and generated HTTPS origin.
@@ -58,6 +76,17 @@ retain that media; publication uses an exact inventory and removes omitted asset
 Verify the actual HF app in a browser: load authorized borrowers, submit a custom
 question, change scope/date, open a cited page and inspect mobile layout. HTTP
 checks alone missed the native `fetch` receiver failure found during this release.
+
+## Recover an unavailable tunnel
+
+A Quick Tunnel is temporary. If its hostname stops resolving, the HF entry page
+can still open while its embedded workbench fails. Check the named container with
+`docker ps -a`, its logs, and loopback `/ready`. Restart that existing demo
+container when needed, start a new tunnel, and publish its new origin using the
+latest verified publication audit. Retain the reviewed GIF with `--demo-gif`.
+Finally test the HF app in a browser. An existing cloudflared process alone does
+not prove the hostname or backend is available. This recovery is manual; no
+automatic hostname rotation or computer wake/restart service is installed.
 
 References: [HF Static Spaces](https://huggingface.co/docs/hub/spaces-sdks-static),
 [Cloudflare Quick Tunnels](https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/do-more-with-tunnels/trycloudflare/).
