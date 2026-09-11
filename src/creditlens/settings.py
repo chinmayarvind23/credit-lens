@@ -2,7 +2,7 @@
 
 from typing import Literal
 
-from pydantic import SecretStr, model_validator
+from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -22,6 +22,19 @@ class Settings(BaseSettings):
     redis_url: SecretStr = SecretStr("")
     cache_signing_key: SecretStr = SecretStr("")
     cache_ttl_seconds: int = 60
+    catalog_backend: Literal["memory", "postgres"] = "memory"
+    demo_catalog_id: str = Field(
+        default="synthetic-demo-v1", pattern=r"^synthetic-[a-z0-9-]{1,64}$"
+    )
+
+    @model_validator(mode="after")
+    def validate_catalog(self) -> "Settings":
+        """Keep the opt-in shared synthetic catalog separate from unfinished production wiring."""
+        if self.catalog_backend == "postgres" and (
+            self.mode != "demo" or not self.database_url.startswith("postgresql+psycopg://")
+        ):
+            raise ValueError("The shared demo catalog requires demo mode and PostgreSQL psycopg")
+        return self
 
     @model_validator(mode="after")
     def isolate_demo(self) -> "Settings":

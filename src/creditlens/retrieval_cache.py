@@ -11,7 +11,7 @@ from typing import Literal, Protocol
 from creditlens.cache import ByteCache, CachedIDs, CacheUnavailable, read_entry, sign_entry
 from creditlens.domain import Chunk, Citation, Principal, QueryRequest
 from creditlens.errors import ServiceError
-from creditlens.retrieval import EvidenceCatalog
+from creditlens.retrieval import CanonicalCatalog
 from creditlens.search_provider import SearchProvider, SearchResult
 from creditlens.storage import GrantStore
 
@@ -21,7 +21,7 @@ CacheState = Literal["hit", "miss", "invalid", "unavailable"]
 class CanonicalProvider(SearchProvider, Protocol):
     """The cache must share its wrapped provider's authoritative catalog instance."""
 
-    catalog: EvidenceCatalog
+    catalog: CanonicalCatalog
 
 
 @dataclass(frozen=True)

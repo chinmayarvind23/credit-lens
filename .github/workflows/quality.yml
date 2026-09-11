@@ -17,7 +17,13 @@ jobs:
     timeout-minutes: 30
     env:
       CREDITLENS_TEST_POSTGRES_URL: postgresql+psycopg://postgres:creditlens-test-only@127.0.0.1:5432/creditlens_test
+      CREDITLENS_TEST_REDIS_URL: redis://127.0.0.1:6379/15
     services:
+      redis:
+        image: redis:7.4-alpine@sha256:ff02b58f971e7d7d156a1267e283fcbbeee91773b6aa36c49dac28ecfe28eadf
+        ports:
+          - 6379:6379
+        options: --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 3s --health-retries 5
       postgres:
         image: postgres:16.4-alpine@sha256:5660c2cbfea50c7a9127d17dc4e48543eedd3d7a41a595a2dfa572471e37e64c
         env:

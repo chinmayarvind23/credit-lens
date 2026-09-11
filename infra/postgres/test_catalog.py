@@ -10,14 +10,19 @@ from time import monotonic
 from uuid import uuid4
 
 import pytest
+from fastapi.testclient import TestClient
+from pydantic import SecretStr, ValidationError
 from sqlalchemy import create_engine, event, select
 from sqlalchemy.engine import Engine, make_url
 
+from creditlens.api import create_app
 from creditlens.auth import authorized_page
-from creditlens.domain import Page, Principal
+from creditlens.domain import Packet, Page, Principal
 from creditlens.errors import ServiceError
 from creditlens.retrieval import chunk_page
+from creditlens.settings import Settings
 from creditlens.sql_catalog import SqlEvidenceCatalog, initialize_catalog, pages, states
+from creditlens.storage import audit_events, grants
 
 
 @pytest.fixture
@@ -299,3 +304,143 @@ def test_lock_timeout_is_bounded_curated_and_recoverable(
         assert "SELECT" not in str(failure.value)
     assert catalog.version == before
     assert catalog.publish((page(),)) == 2
+
+
+def test_shared_runtime_requires_postgres_and_synthetic_namespace() -> None:
+    """An opt-in catalog cannot silently use SQLite or an arbitrary production catalog name."""
+    with pytest.raises(ValidationError, match="PostgreSQL"):
+        Settings(catalog_backend="postgres")
+    with pytest.raises(ValidationError, match="pattern"):
+        Settings(demo_catalog_id="production")
+    with pytest.raises(ValidationError, match="demo mode"):
+        Settings(
+            mode="production",
+            catalog_backend="postgres",
+            database_url="postgresql+psycopg://localhost/demo",
+        )
+
+
+def test_two_api_instances_share_catalog_cache_and_revocation(engine: Engine) -> None:
+    """Actual PostgreSQL and optional actual Redis preserve scope and revocation across apps."""
+    redis_url = os.getenv("CREDITLENS_TEST_REDIS_URL", "")
+    config = Settings(
+        database_url=engine.url.render_as_string(hide_password=False),
+        catalog_backend="postgres",
+        demo_catalog_id="synthetic-" + uuid4().hex,
+        redis_url=SecretStr(redis_url),
+        cache_signing_key=SecretStr("synthetic-cache-signing-test-key-32" if redis_url else ""),
+    )
+    body = {
+        "borrower_id": "borrower-001",
+        "question": "Calculate debt service coverage.",
+        "effective_at": "2026-06-01",
+    }
+    with TestClient(create_app(config)) as first, TestClient(create_app(config)) as second:
+        before = first.post("/api/v1/query", json=body)
+        assert before.status_code == 200
+        a = before.json()
+        b = second.post("/api/v1/query", json=body).json()
+        assert a["request_id"] != b["request_id"]
+        assert a["corpus_version"] == b["corpus_version"]
+        assert a["calculated_metrics"] == b["calculated_metrics"]
+        if redis_url:
+            assert not a["cache_hit"] and b["cache_hit"]
+        target = next(c for c in a["evidence"] if c["section"] == "financial_summary")
+        SqlEvidenceCatalog(engine, config.demo_catalog_id).revoke(target["chunk_id"])
+        for client in (first, second):
+            source = client.get(
+                f"/api/v1/evidence/{target['chunk_id']}",
+                params={"borrower_id": body["borrower_id"], "effective_at": body["effective_at"]},
+            )
+            assert source.status_code == 404
+            packet = client.post("/api/v1/query", json=body).json()
+            assert target["chunk_id"] not in {c["chunk_id"] for c in packet["evidence"]}
+            assert packet["policy_disposition"] == "INSUFFICIENT_EVIDENCE"
+        with TestClient(create_app(config)) as restarted:
+            assert (
+                restarted.get(
+                    f"/api/v1/evidence/{target['chunk_id']}",
+                    params={
+                        "borrower_id": body["borrower_id"],
+                        "effective_at": body["effective_at"],
+                    },
+                ).status_code
+                == 404
+            )
+        with engine.connect() as connection:
+            ids = set(connection.execute(select(audit_events.c.request_id)).scalars())
+        assert {a["request_id"], b["request_id"]} <= ids
+        try:
+            with engine.begin() as connection:
+                connection.execute(
+                    grants.update()
+                    .where(grants.c.subject == "synthetic-demo")
+                    .values(enabled=False, revision=2)
+                )
+            assert first.post("/api/v1/query", json=body).status_code == 403
+            assert second.post("/api/v1/query", json=body).status_code == 403
+        finally:
+            with engine.begin() as connection:
+                connection.execute(
+                    grants.update()
+                    .where(grants.c.subject == "synthetic-demo")
+                    .values(enabled=True, revision=1)
+                )
+
+
+def test_mid_query_sql_revocation_prevents_audit(
+    engine: Engine, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A revocation committed by another instance during validation prevents a success audit."""
+    from creditlens import workflow
+
+    config = Settings(
+        database_url=engine.url.render_as_string(hide_password=False),
+        catalog_backend="postgres",
+        demo_catalog_id="synthetic-" + uuid4().hex,
+    )
+    with TestClient(create_app(config)) as client:
+        original = workflow.validate_packet
+        writer = SqlEvidenceCatalog(engine, config.demo_catalog_id)
+
+        def revoke(packet: Packet) -> None:
+            """Commit revocation after packet construction and before final authorization."""
+            original(packet)
+            writer.revoke(packet.evidence[0].chunk_id)
+
+        monkeypatch.setattr(workflow, "validate_packet", revoke)
+        with engine.connect() as connection:
+            before = set(connection.execute(select(audit_events.c.request_id)).scalars())
+        response = client.post(
+            "/api/v1/query",
+            json={
+                "borrower_id": "borrower-001",
+                "question": "Calculate DSCR.",
+                "effective_at": "2026-06-01",
+            },
+        )
+        assert response.status_code == 409
+        assert response.json()["error"]["code"] == "evidence_changed"
+        with engine.connect() as connection:
+            after = set(connection.execute(select(audit_events.c.request_id)).scalars())
+        assert before == after
+
+
+def test_readiness_rejects_replaced_catalog_authority(engine: Engine) -> None:
+    """A live database connection must not hide an invalidated workflow catalog identity."""
+    config = Settings(
+        database_url=engine.url.render_as_string(hide_password=False),
+        catalog_backend="postgres",
+        demo_catalog_id="synthetic-" + uuid4().hex,
+    )
+    with TestClient(create_app(config)) as client:
+        assert client.get("/ready").status_code == 200
+        with engine.begin() as connection:
+            connection.execute(
+                states.update()
+                .where(states.c.catalog_id == config.demo_catalog_id)
+                .values(authority=str(uuid4()))
+            )
+        response = client.get("/ready")
+        assert response.status_code == 503
+        assert response.json()["error"]["code"] == "catalog_unavailable"

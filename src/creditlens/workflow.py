@@ -12,7 +12,7 @@ from creditlens.domain import Chunk, Packet, Principal, QueryRequest, Stage
 from creditlens.errors import ServiceError
 from creditlens.finance import FinanceResult, calculate_review
 from creditlens.intent import classify_intent, topic_supported
-from creditlens.retrieval import EvidenceCatalog, lexical_rank
+from creditlens.retrieval import CanonicalCatalog, lexical_rank
 from creditlens.retrieval_cache import CachedResult, CanonicalProvider
 from creditlens.search_provider import SearchResult
 from creditlens.storage import GrantStore
@@ -78,7 +78,10 @@ class QueryWorkflow:
     """The initial workflow guarantees quoted support without claiming an LLM quality score."""
 
     def __init__(
-        self, catalog: EvidenceCatalog, store: GrantStore, provider: CanonicalProvider | None = None
+        self,
+        catalog: CanonicalCatalog,
+        store: GrantStore,
+        provider: CanonicalProvider | None = None,
     ) -> None:
         """Inject authoritative evidence and grants for failure and revocation testing."""
         self.catalog = catalog

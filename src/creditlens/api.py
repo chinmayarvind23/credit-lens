@@ -137,6 +137,11 @@ def ready(request: Request) -> dict[str, str]:
         probe_cortex(request.app.state.http, config)
     if request.app.state.workflow is None:
         raise ServiceError("workflow_not_initialized", "Query workflow is not initialized")
+    try:
+        # A healthy SQL connection alone cannot prove that the workflow's authority still exists.
+        _ = request.app.state.workflow.catalog.version
+    except ServiceError as error:
+        raise ServiceError("catalog_unavailable", "Evidence catalog is unavailable", 503) from error
     return {"status": "ready", "mode": config.mode, "search": "local-extractive"}
 
 

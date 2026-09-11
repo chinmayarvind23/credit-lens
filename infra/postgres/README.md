@@ -7,8 +7,10 @@ one SELECT. Revocation removes all sibling chunks from future snapshots and
 invalidates results held by another process. Duplicate publication and repeated
 revocation are idempotent; a revoked page cannot be restored by replaying a batch.
 
-The default runtime still uses the in-memory catalog. This module is separately
-verified before integration; it does not enable the unfinished production path.
+The default runtime still uses the in-memory catalog. Demo mode can opt into the
+shared catalog on its existing PostgreSQL grant/audit engine; it does not enable
+the unfinished production path. Startup idempotently publishes the synthetic
+corpus under a synthetic-prefixed catalog ID and never restores revoked pages.
 Bootstrap with `initialize_catalog(engine, catalog_id)` using an administrator
 connection to an owned database. Readers construct `SqlEvidenceCatalog` without
 creating schema. Mutation methods are internal administrator/ingestion operations,
@@ -25,6 +27,27 @@ $env:CREDITLENS_TEST_POSTGRES_URL='postgresql+psycopg://postgres:creditlens-test
 docker stop creditlens-postgres-check
 ```
 
+For the local demo, keep that database running and configure:
+
+```powershell
+$env:CREDITLENS_DATABASE_URL=$env:CREDITLENS_TEST_POSTGRES_URL
+$env:CREDITLENS_CATALOG_BACKEND='postgres'
+$env:CREDITLENS_DEMO_CATALOG_ID='synthetic-demo-v1'
+.venv\Scripts\python.exe -m uvicorn creditlens.api:create_app --factory --host 127.0.0.1 --port 8000
+```
+
+The database must contain only synthetic demonstration data. A real deployment
+needs explicit schema migration and database roles; demo startup uses bootstrap
+privileges. Returning to the default mode requires removing these environment
+overrides. The disposable command above has no durable volume, so stopping it
+removes its test state. Use deliberate persistent storage for retained audits.
+
+With the [Redis fixture](../redis/README.md) running, also set
+`CREDITLENS_TEST_REDIS_URL` to exercise cache reuse between two real API instances.
+The tests verify that a committed page revocation removes source access and
+cached evidence on both instances, restart does not restore the page, revoked
+grants deny both apps, and mid-query revocation prevents a success audit.
+
 The credential is disposable synthetic test data. Tests require loopback and the
 exact `creditlens_test` database name, allocate unique catalogs and never drop
 unrelated tables. The pinned cached PostgreSQL 16.4 image is a reproducible local
@@ -34,6 +57,7 @@ The main manual CI job includes the same real PostgreSQL checks in core and
 critical coverage gates. Its workflow is not dispatched under the no-spend
 restriction. Database statement and lock waits are bounded at five and two seconds.
 SQL failures roll back and return a curated catalog-unavailable error. The caller
-must configure finite connection/pool timeouts; integration tests use a three-second
-connect timeout. A whole-workflow deadline and production migration orchestration
+must configure finite connection/pool timeouts; application PostgreSQL engines use
+a three-second connect timeout, five-second pool wait and bounded statements.
+A whole-workflow deadline and production migration orchestration
 remain separate work.

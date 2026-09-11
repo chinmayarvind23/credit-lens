@@ -9,6 +9,12 @@ Redis retrieval caching is optional and disabled by default. The live synthetic
 demo requires the owner's computer, Docker and tunnel to remain running. No AWS
 resources are deployed. The cloud flows below describe the intended architecture.
 
+The local demo can opt into PostgreSQL on its grant/audit database. That path
+shares canonical evidence and revocation between API instances; Redis remains
+optional acceleration. Actual-service tests cover cross-instance cache reuse,
+revocation, restart and audit rejection during a concurrent change. Process-local
+quotas and demo bootstrap privileges still limit production scaling.
+
 ## User flow
 
 ```text

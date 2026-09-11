@@ -19,7 +19,7 @@ from creditlens.cortex_search import (
 )
 from creditlens.domain import Chunk, Citation, Principal, QueryRequest
 from creditlens.errors import ServiceError
-from creditlens.retrieval import EvidenceCatalog
+from creditlens.retrieval import CanonicalCatalog
 from creditlens.search_provider import SearchResult
 from creditlens.storage import GrantStore
 
@@ -122,7 +122,7 @@ class OpenSearchProvider:
         endpoint: str,
         index: str,
         client: httpx.Client,
-        catalog: EvidenceCatalog,
+        catalog: CanonicalCatalog,
         store: GrantStore,
         *,
         token: SecretStr | None = None,

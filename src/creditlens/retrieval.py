@@ -7,7 +7,7 @@ from collections import Counter
 from datetime import date
 from hashlib import sha256
 from threading import RLock
-from typing import Literal
+from typing import Literal, Protocol
 
 from creditlens.auth import authorize_borrower, authorized_page
 from creditlens.domain import Chunk, Page, Principal
@@ -64,6 +64,25 @@ def chunk_page(
         )
         start = end
     return tuple(chunks)
+
+
+class CanonicalCatalog(Protocol):
+    """Memory and PostgreSQL supply the same authoritative, scoped snapshot contract."""
+
+    @property
+    def version(self) -> str:
+        """Identify canonical content and authority for cache and audit provenance."""
+        ...
+
+    def snapshot(
+        self, principal: Principal, borrower_id: str, effective_at: date
+    ) -> tuple[tuple[Chunk, ...], int]:
+        """Filter authorization before returning candidates and their consistent epoch."""
+        ...
+
+    def verify_revision(self, revision: int) -> None:
+        """Reject an obsolete snapshot against the currently committed authority."""
+        ...
 
 
 class EvidenceCatalog:

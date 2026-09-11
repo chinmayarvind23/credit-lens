@@ -47,6 +47,16 @@ audit_events = Table(
 def open_database(url: str) -> Engine:
     """SQLite supports local evidence; the same SQLAlchemy contract supports shared Postgres."""
     options: dict[str, Any] = {"pool_pre_ping": True}
+    if url.startswith("postgresql+psycopg://"):
+        options.update(
+            pool_size=5,
+            max_overflow=5,
+            pool_timeout=5,
+            connect_args={
+                "connect_timeout": 3,
+                "options": "-c statement_timeout=5000 -c lock_timeout=2000",
+            },
+        )
     if url.startswith("sqlite"):
         options["connect_args"] = {"check_same_thread": False}
         if url.endswith(":memory:"):

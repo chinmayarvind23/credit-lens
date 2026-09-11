@@ -2,7 +2,7 @@
 
 from creditlens.domain import Chunk, Citation, Principal, QueryRequest
 from creditlens.errors import ServiceError
-from creditlens.retrieval import EvidenceCatalog, lexical_rank
+from creditlens.retrieval import CanonicalCatalog, lexical_rank
 from creditlens.search_provider import SearchResult
 from creditlens.storage import GrantStore
 
@@ -10,7 +10,7 @@ from creditlens.storage import GrantStore
 class LocalSearchProvider:
     """Keep local cache and provider comparisons explicit without inventing remote execution."""
 
-    def __init__(self, catalog: EvidenceCatalog, store: GrantStore) -> None:
+    def __init__(self, catalog: CanonicalCatalog, store: GrantStore) -> None:
         """Share the authoritative catalog and SQL grant store with downstream consumers."""
         self.catalog = catalog
         self.store = store

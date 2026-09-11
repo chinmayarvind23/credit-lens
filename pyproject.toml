@@ -57,6 +57,7 @@ select = ["E", "F", "I", "B", "UP", "S", "C90"]
 "tests/**" = ["S101"]
 "infra/redis/test_integration.py" = ["S101"]
 "infra/postgres/test_catalog.py" = ["S101"]
+"infra/huggingface/sdk_tests/test_publish_sdk.py" = ["S101"]
 
 [tool.ruff.lint.mccabe]
 max-complexity = 10

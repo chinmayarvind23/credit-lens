@@ -6,7 +6,7 @@ from contextlib import contextmanager
 from creditlens.cache import RedisBytes
 from creditlens.corpus import build_demo_pages
 from creditlens.local_search import LocalSearchProvider
-from creditlens.retrieval import EvidenceCatalog
+from creditlens.retrieval import CanonicalCatalog, EvidenceCatalog
 from creditlens.retrieval_cache import RetrievalCache
 from creditlens.settings import Settings
 from creditlens.storage import GrantStore
@@ -19,7 +19,15 @@ def open_workflow(config: Settings, store: GrantStore) -> Iterator[QueryWorkflow
     if config.mode != "demo":
         yield None
         return
-    catalog = EvidenceCatalog(build_demo_pages())
+    catalog: CanonicalCatalog
+    if config.catalog_backend == "postgres":
+        from creditlens.sql_catalog import initialize_catalog
+
+        shared = initialize_catalog(store.engine, config.demo_catalog_id)
+        shared.publish(build_demo_pages())
+        catalog = shared
+    else:
+        catalog = EvidenceCatalog(build_demo_pages())
     if not config.redis_url.get_secret_value():
         yield QueryWorkflow(catalog, store)
         return

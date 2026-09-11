@@ -15,8 +15,10 @@ The live HF entry page embeds the whole application, so UI and API share one
 tunnel origin. Its release manifest and exact remote inventory are checked before
 each parent-bound publication. Redis contains signed, bounded evidence IDs keyed
 by the complete current scope, query, policy date, catalog and provider version;
-hits rehydrate current evidence and produce a new audit. Full response caching,
-shared catalog integration and the following broader pipeline remain unfinished.
+hits rehydrate current evidence and produce a new audit. The optional PostgreSQL
+catalog joins state, canonical pages/chunks and normalized ACLs in one statement,
+serializes writers on a state row and invalidates old epochs across instances.
+Full response caching and the following broader pipeline remain unfinished.
 
 ## Core domain schemas
 

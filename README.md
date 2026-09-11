@@ -74,8 +74,8 @@ the current no-spending restriction; local tests do not imply a hosted CI run.
 [PostgreSQL instructions](infra/postgres/README.md) cover the shared canonical
 catalog and actual database checks. For the complete coverage gate, start that
 local fixture, set its test URL and add `infra/postgres` to the pytest paths.
-The default demo still uses its in-memory catalog while shared runtime integration
-is completed.
+The default demo uses its in-memory catalog. The documented PostgreSQL option
+shares canonical evidence, revocation, grants and audit across demo API instances.
 
 ## Core product loop
 
@@ -92,8 +92,9 @@ is completed.
 ## Architecture principle
 
 The FastAPI modular monolith keeps authorization, finance, evidence validation and
-audit in one request path. The current in-memory catalog and quota are process-local;
-shared authority and coordinated quotas are required before horizontal scaling.
+audit in one request path. The default catalog and quota are process-local.
+PostgreSQL can share evidence authority; coordinated quotas and production
+migration orchestration are still required before horizontal scaling.
 
 ```mermaid
 flowchart LR
@@ -145,8 +146,8 @@ local Terraform validation and mocked plans but remains unapplied. AWS account
 no-charge eligibility is unverified; do not provision paid services or upgrade plans.
 
 Next product work is richer document layouts, unseen questions and semantic
-grading calibrated against human review. Engineering work includes a durable
-shared catalog, asynchronous ingestion, OCR, live governed search, full response
+grading calibrated against human review. Engineering work includes asynchronous
+ingestion, OCR, live governed search, full response
 caching and observability. Native browser checks exposed and corrected a fetch
 receiver bug that API-only tests missed. Browser recordings and raw evidence are
 kept in the private resources directory.

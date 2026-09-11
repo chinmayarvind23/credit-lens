@@ -41,6 +41,7 @@ FILES = (
     "src/creditlens/runtime.py",
     "src/creditlens/search_provider.py",
     "src/creditlens/settings.py",
+    "src/creditlens/sql_catalog.py",
     "src/creditlens/storage.py",
     "src/creditlens/workflow.py",
     "infra/huggingface/demo_entrypoint.py",

@@ -5,7 +5,7 @@ from typing import Protocol
 
 from creditlens.domain import Chunk, Citation, Principal, QueryRequest
 from creditlens.errors import ServiceError
-from creditlens.retrieval import EvidenceCatalog, reciprocal_rank_fusion
+from creditlens.retrieval import CanonicalCatalog, reciprocal_rank_fusion
 from creditlens.search_provider import SearchProvider, SearchResult
 
 
@@ -19,7 +19,7 @@ class HybridResult(SearchResult):
 class CanonicalSearchProvider(SearchProvider, Protocol):
     """This local composition requires one shared authority, not coincident integer epochs."""
 
-    catalog: EvidenceCatalog
+    catalog: CanonicalCatalog
 
 
 class HybridProvider:

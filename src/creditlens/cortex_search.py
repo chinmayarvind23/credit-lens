@@ -12,7 +12,7 @@ from pydantic import SecretStr
 
 from creditlens.domain import Chunk, Citation, Principal, QueryRequest
 from creditlens.errors import ServiceError
-from creditlens.retrieval import EvidenceCatalog
+from creditlens.retrieval import CanonicalCatalog
 from creditlens.search_provider import SearchResult
 from creditlens.storage import GrantStore
 
@@ -120,7 +120,7 @@ class CortexSearchProvider:
         endpoint: str,
         token: SecretStr,
         client: httpx.Client,
-        catalog: EvidenceCatalog,
+        catalog: CanonicalCatalog,
         store: GrantStore,
         timeout_seconds: float = 5,
     ) -> None:
