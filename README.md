@@ -55,6 +55,11 @@ A separate lending-specific RAGAS prompt passes 24 authored controls and preserv
 both saved DSCR claims correctly. Its full-packet pilot still omits a calculation
 and stops on an incomplete response, so whole-packet semantic scoring remains open.
 
+An explicit field export now accounts for all 19 packet fields. Nine selected
+cited claims and metrics passed a bounded RAGAS pilot; 76 other cited units and
+26 nonempty fields awaiting rubrics remain unscored in that six-packet sample.
+These pilot results do not establish the full 240-question semantic baseline.
+
 The optional neural runtime passed real loopback HTTP checks for five financial
 scenarios, exact source access, denied scope, abstention, overload and revocation,
 with no observed external connections. The query-grounding integration passes 472

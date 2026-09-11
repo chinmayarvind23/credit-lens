@@ -8,8 +8,9 @@ contradiction. Llama 3.2 3B also failed its supported control. Qwen3 8B subseque
 passed all twelve frozen V3 controls, scoring supported claims 1 and contradicted
 claims 0. The V3 dates are explicit in the judged claims because Faithfulness does
 not use the question to resolve dates. Earlier controls and failed runs are retained.
-This clears authored screening only. Human calibration, RAGAS and the full 240-case
-semantic baseline remain unfinished.
+This clears authored screening only. RAGAS is also implemented, with calibration
+and field pilots described below. Human calibration and the full 240-case semantic
+baseline remain unfinished.
 
 Actual saved-packet pilots exposed limits that the controls missed. A six-packet
 JSON run stopped at its second case after incomplete generation; the first case
@@ -155,6 +156,13 @@ verbatim. The 18 raw responses match the retained outputs. This selected pilot
 has no population interpretation: 76 units remain unselected, and 26 nonempty
 field entries still need rubrics. The private score-coverage ledger preserves
 those counts and keeps whole-packet scoring false.
+
+`check_policy_fields.py` separately grades the frozen twenty-case policy-reference
+contract in `evals/policy_lookup_expectations-v1.jsonl`. It checks disposition,
+abstention, calculated metrics, missing documents and policy-evidence presence
+against saved records, retaining case/field failures and input hashes. The baseline
+passes 6/20; the routing change at `00cb2da` passes 20/20. This operational check
+does not replace semantic judgment or alter the historical fixture rubric.
 
 Next: inspect real packet judgments and calibrate against human judgments before
 promoting semantic results. Public

@@ -63,8 +63,9 @@ is retained. A second judge also failed; Qwen3 8B then passed twelve frozen V3
 controls covering amounts, entities, explicit dates, missing evidence, currency
 and authority. Passing authored controls does not establish a semantic quality
 baseline. Saved packet pilots verify evidence against canonical page spans and
-authored scope before judging. Human calibration, RAGAS, the full 240-case semantic
-run and associated regression gates remain open.
+authored scope before judging. RAGAS is also implemented, with calibration and
+field pilots documented below. Human calibration, the full 240-case semantic run
+and associated regression gates remain open.
 
 The initial six-packet JSON pilot stopped on its second case when generation
 was incomplete. Its first score of 1.0 omitted the calculated DSCR from extracted
@@ -390,5 +391,20 @@ still contains 76 unselected units and 26 nonempty field entries awaiting rubric
 These are selected-unit faithfulness scores, with a different denominator from
 the earlier whole-packet pilots. They establish neither complete extraction within
 all fields nor question relevance, whole-packet pass rate or population groundedness.
+
+## Policy-reference field checks
+
+Field review exposed false abstention on policy-date lookups: the application
+required borrower financial inputs despite having policy evidence. The historical
+grounded fixture rubric accepts evidence or abstention, so it did not detect the
+wrong state. That rubric and the original gold set remain unchanged.
+
+At `00cb2da`, a separate frozen contract covers ten threshold-reference questions
+and ten policy-date questions. It requires cited policy, no abstention, no missing
+borrower documents, no calculated metrics and the existing nonnumeric review
+state. The saved baseline passes 6/20; the revised composed-model run passes 20/20.
+All 240 retrieval rankings and score objects match the prior baseline, and all
+240 historical fixture checks still pass with stable source/input provenance.
+This is operational field validation, not semantic groundedness or human review.
 Remaining work includes the other cited units and explicit rubrics for disposition,
 missing-document findings, recommendations, questions and abstention.
