@@ -76,5 +76,15 @@ Run the platform-specific experiment tests separately with
 `python -m pytest infra/ocr/tests`. The core normalization tests are in
 `tests/test_ocr.py` and do not load models.
 
+The planned PP-OCRv6 fallback was tested on the observed degraded-footer failure,
+using tiny detector `d3177d4e5551463292a61e27cfca2b53e7c3fe9d` and recognizer
+`0736086f72f666350ebcdc0c3a504eeac89cdfad`. Pass `--engine ocr-v6` to the supervisor.
+It recovered all eight numeric strings and the footer's `Physical page: 1`
+substring in 2.49 seconds prediction, but none of the four row labels matched
+exactly. It did not establish table associations. Incorrect lines sometimes scored
+above 0.9. It therefore remains a diagnostic comparison, not automatic fallback
+or admission. Its load timer includes imports and manifest verification, unlike
+the earlier VL runs; these small runs do not establish a comparative speedup.
+
 Official contracts: [PaddleOCR-VL](https://github.com/PaddlePaddle/PaddleOCR/blob/main/docs/version3.x/pipeline_usage/PaddleOCR-VL.en.md)
 and [PP-DocLayoutV3](https://huggingface.co/PaddlePaddle/PP-DocLayoutV3).

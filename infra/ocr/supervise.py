@@ -29,6 +29,7 @@ def main() -> None:
     parser.add_argument("--image", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--timeout", type=int, default=600)
+    parser.add_argument("--engine", choices=("vl", "ocr-v6"), default="vl")
     args = parser.parse_args()
     if os.name != "nt" or not 10 <= args.timeout <= 1800:
         raise ValueError("This supervisor requires Windows and a 10..1800 second limit")
@@ -46,6 +47,8 @@ def main() -> None:
         str(args.image.resolve()),
         "--output",
         str(args.output.resolve()),
+        "--engine",
+        args.engine,
     ]
     # Local inference needs OS paths, not cloud credentials or paid-provider endpoints.
     environment = {

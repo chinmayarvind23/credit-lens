@@ -1,14 +1,48 @@
 """Verify evaluation failure sensitivity and real Windows process-tree cleanup separately."""
 
 import ctypes
+import json
 import os
 import subprocess
 import sys
+from hashlib import sha256
+from pathlib import Path
+from tempfile import TemporaryDirectory
 
 import pytest
 
+from infra.ocr.probe import REVISIONS, verify_model
 from infra.ocr.supervise import stop_tree
 from scripts.evaluate_scanned_fixtures import score_output, score_table
+
+
+def test_model_manifest_rejects_changed_revision_bytes_and_escaping_paths() -> None:
+    """Exercise provenance checks without importing Paddle or trusting a mutable model snapshot."""
+    with TemporaryDirectory(prefix="creditlens-ocr-manifest-") as directory:
+        root = Path(directory)
+        name = "PP-DocLayoutV3"
+        model = root / name
+        model.mkdir()
+        file = model / "inference.json"
+        file.write_bytes(b"fixture")
+        manifest = {
+            "repo": f"PaddlePaddle/{name}",
+            "revision": REVISIONS[name],
+            "sha256": {file.name: sha256(b"fixture").hexdigest()},
+        }
+        path = root / f"{name}-manifest.json"
+        path.write_text(json.dumps(manifest), encoding="utf-8")
+        assert verify_model(root, name) == model
+        for change in (
+            {"revision": "0" * 40},
+            {"repo": "unknown/model"},
+            {"sha256": {}},
+            {"sha256": {"../escape": "a" * 64}},
+            {"sha256": {file.name: "b" * 64}},
+        ):
+            path.write_text(json.dumps(manifest | change), encoding="utf-8")
+            with pytest.raises(ValueError):
+                verify_model(root, name)
 
 
 def test_financial_evaluator_rejects_correct_numbers_in_wrong_columns() -> None:
