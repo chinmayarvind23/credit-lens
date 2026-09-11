@@ -21,9 +21,11 @@ def run(args: argparse.Namespace) -> None:
     if args.output.resolve().is_relative_to(repo):
         raise ValueError("Evaluation journals must stay outside the source repository")
     sys.addaudithook(restrict_network)
+    # Initialize privacy settings before any DeepEval import; preserve this import order.
+    from local_judge import LocalJudge  # noqa: I001
+
     from deepeval.metrics import FaithfulnessMetric
     from deepeval.test_case import LLMTestCase
-    from local_judge import LocalJudge
 
     args.output.mkdir(parents=True, exist_ok=False)
     inputs = args.cases.read_bytes()

@@ -2,6 +2,9 @@
 
 import argparse
 import json
+import os
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -112,6 +115,54 @@ class JudgeTests(unittest.TestCase):
         """Reject repository output before installing hooks or creating any journal directory."""
         with self.assertRaisesRegex(ValueError, "outside"):
             run(argparse.Namespace(output=Path(__file__).parent / "private-output"))
+
+    def test_privacy_flags_precede_first_sdk_import(self) -> None:
+        """A fresh process catches import ordering hidden by an already-imported test SDK."""
+        script = """
+import argparse, builtins, os, sys
+from pathlib import Path
+sys.path.insert(0, sys.argv[1])
+from run_deepeval import run
+original = builtins.__import__
+class Verified(Exception): pass
+def checked(name, *args, **kwargs):
+    if name.startswith("deepeval"):
+        assert os.environ.get("DEEPEVAL_TELEMETRY_OPT_OUT") == "YES"
+        assert os.environ.get("DEEPEVAL_DISABLE_DOTENV") == "1"
+        assert os.environ.get("DEEPEVAL_DISABLE_LEGACY_KEYFILE") == "1"
+        raise Verified()
+    return original(name, *args, **kwargs)
+builtins.__import__ = checked
+try:
+    run(argparse.Namespace(output=Path(sys.argv[2])))
+except Verified:
+    print("privacy-before-sdk")
+else:
+    raise AssertionError("SDK import was not observed")
+"""
+        environment = os.environ.copy()
+        for key in (
+            "DEEPEVAL_TELEMETRY_OPT_OUT",
+            "DEEPEVAL_DISABLE_DOTENV",
+            "DEEPEVAL_DISABLE_LEGACY_KEYFILE",
+        ):
+            environment.pop(key, None)
+        result = subprocess.run(  # noqa: S603 - fixed test script and literal private paths
+            [
+                sys.executable,
+                "-c",
+                script,
+                str(Path(__file__).parent),
+                str(Path(self.directory.name) / "run"),
+            ],
+            env=environment,
+            capture_output=True,
+            text=True,
+            timeout=20,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("privacy-before-sdk", result.stdout)
 
 
 if __name__ == "__main__":
