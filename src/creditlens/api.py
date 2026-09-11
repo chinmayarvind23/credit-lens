@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 from datetime import date
 from pathlib import Path
 from typing import Annotated
+from uuid import UUID
 
 import httpx
 from fastapi import Depends, FastAPI, Header, Request
@@ -20,6 +21,7 @@ from creditlens.auth import Authenticator
 from creditlens.corpus import build_demo_borrowers
 from creditlens.domain import Borrower, Chunk, Packet, Principal, QueryRequest, StrictModel
 from creditlens.errors import ServiceError
+from creditlens.ingestion_jobs import IngestionInput, JobStatus, JobStore, initialize_jobs
 from creditlens.limits import BodyLimit, PrivateResponses, QueryLimiter
 from creditlens.runtime import open_workflow
 from creditlens.settings import Settings
@@ -48,6 +50,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 store.seed_demo()
             app.state.store = store
             app.state.auth = Authenticator(config, store)
+            app.state.jobs = None
+            if config.ingestion_enabled:
+                initialize_jobs(engine)
+                app.state.jobs = JobStore(engine, config.ingestion_queue_id)
             with open_workflow(config, store) as workflow:
                 app.state.workflow = workflow
                 with httpx.Client(
@@ -67,7 +73,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         CORSMiddleware,
         allow_origins=config.cors_origins,
         allow_methods=["GET", "POST"],
-        allow_headers=["Authorization", "Content-Type"],
+        allow_headers=["Authorization", "Content-Type", "Idempotency-Key"],
     )
     app.add_exception_handler(ServiceError, service_error)
     app.add_exception_handler(RequestValidationError, validation_error)
@@ -78,6 +84,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.post("/api/v1/query", response_model=Packet)(query)
     app.post("/api/v1/underwriting-packet", response_model=Packet)(query)
     app.get("/api/v1/evidence/{chunk_id}", response_model=Chunk)(evidence)
+    app.post("/api/v1/admin/documents", response_model=JobStatus, status_code=202)(submit_document)
+    app.get("/api/v1/admin/index-jobs/{job_id}", response_model=JobStatus)(ingestion_status)
     frontend = Path(__file__).resolve().parents[2] / "apps" / "web" / "dist"
     if frontend.is_dir():
         app.mount("/", StaticFiles(directory=frontend, html=True), name="web")
@@ -137,6 +145,8 @@ def ready(request: Request) -> dict[str, str]:
         probe_cortex(request.app.state.http, config)
     if request.app.state.workflow is None:
         raise ServiceError("workflow_not_initialized", "Query workflow is not initialized")
+    if config.ingestion_enabled:
+        request.app.state.jobs.check_ready()
     try:
         # A healthy SQL connection alone cannot prove that the workflow's authority still exists.
         _ = request.app.state.workflow.catalog.version
@@ -199,6 +209,40 @@ def get_workflow(request: Request) -> QueryWorkflow:
     if workflow is None:
         raise ServiceError("workflow_not_initialized", "Query workflow is not initialized")
     return workflow
+
+
+def get_jobs(request: Request, principal: Principal) -> JobStore:
+    """Default public demo users cannot administer jobs, even if ingestion is configured."""
+    if principal.role != "admin":
+        raise ServiceError("access_denied", "Ingestion is not authorized", 403)
+    store: JobStore | None = request.app.state.jobs
+    if store is None:
+        raise ServiceError("ingestion_disabled", "Ingestion is not enabled", 503)
+    return store
+
+
+def submit_document(
+    body: IngestionInput,
+    request: Request,
+    principal: Annotated[Principal, Depends(current_principal)],
+    idempotency_key: Annotated[
+        str,
+        Header(alias="Idempotency-Key", min_length=1, max_length=80, pattern=r"^[a-zA-Z0-9_-]+$"),
+    ],
+) -> JobStatus:
+    """Register a pre-staged PDF hash and manifest; this route does not accept raw file uploads."""
+    store = get_jobs(request, principal)
+    request.app.state.limiter.check(principal.subject)
+    return store.submit(body, principal, idempotency_key)
+
+
+def ingestion_status(
+    job_id: UUID,
+    request: Request,
+    principal: Annotated[Principal, Depends(current_principal)],
+) -> JobStatus:
+    """Resolve current grants before every status read and return no private worker payload."""
+    return get_jobs(request, principal).status(str(job_id), principal)
 
 
 def evidence(

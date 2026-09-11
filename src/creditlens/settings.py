@@ -23,6 +23,10 @@ class Settings(BaseSettings):
     cache_signing_key: SecretStr = SecretStr("")
     cache_ttl_seconds: int = 60
     catalog_backend: Literal["memory", "postgres"] = "memory"
+    ingestion_enabled: bool = False
+    ingestion_queue_id: str = Field(
+        default="synthetic-ingestion-v1", pattern=r"^synthetic-[a-z0-9-]{1,64}$"
+    )
     demo_catalog_id: str = Field(
         default="synthetic-demo-v1", pattern=r"^synthetic-[a-z0-9-]{1,64}$"
     )
@@ -34,6 +38,13 @@ class Settings(BaseSettings):
             self.mode != "demo" or not self.database_url.startswith("postgresql+psycopg://")
         ):
             raise ValueError("The shared demo catalog requires demo mode and PostgreSQL psycopg")
+        return self
+
+    @model_validator(mode="after")
+    def validate_ingestion(self) -> "Settings":
+        """Expose staged synthetic jobs only with the explicitly enabled shared catalog."""
+        if self.ingestion_enabled and self.catalog_backend != "postgres":
+            raise ValueError("Ingestion requires the shared PostgreSQL catalog")
         return self
 
     @model_validator(mode="after")

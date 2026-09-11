@@ -84,9 +84,23 @@ rolls back publication if ownership expires during work. The shared grant lock
 prevents concurrent revocation between authorization and commit. An OCR job can
 record a hashed review artifact but cannot automatically complete or publish.
 
-`test_ingestion_jobs.py` has 15 actual-database cases, including concurrent claim,
+`test_ingestion_jobs.py` has 17 actual-database cases, including concurrent claim,
 restart/retry recovery, permission changes, post-insert failure/expiry rollback
-and a real conflicting grant lock. These tests currently invoke the job store
-directly. HTTP submission/status, source-object handling, executable workers and
-SQS delivery are the next integration work; the store alone does not implement
+and a real conflicting grant lock. HTTP tests use two API instances, actual SQL
+grants, restart, duplicate/conflicting submission, revocation and rate limiting.
+Only external Cognito transport is replaced by a test identity seam.
+
+With the shared demo catalog configured, set `CREDITLENS_INGESTION_ENABLED=true`
+and a `CREDITLENS_INGESTION_QUEUE_ID` beginning with `synthetic-`. Ingestion remains
+disabled by default. `POST /api/v1/admin/documents` accepts `IngestionInput` JSON
+and an `Idempotency-Key` header, returning status 202 and a durable job ID.
+`GET /api/v1/admin/index-jobs/{job_id}` resolves current admin scope for status.
+The public synthetic demo identity is an underwriter and cannot use these routes.
+Do not elevate that public identity to expose administrative access.
+
+The POST registers a pre-staged PDF hash and manifest; it is not a raw file upload
+and does not yet execute extraction. The existing process-local request limit
+applies to submissions; distributed admission quotas remain unfinished. Readiness
+checks the configured job table. Source-object handling, executable workers and
+SQS delivery are the next integration work. These endpoints alone do not implement
 the complete async ingestion path or an AWS deployment.

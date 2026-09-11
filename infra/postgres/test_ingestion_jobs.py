@@ -7,16 +7,20 @@ from threading import Event
 from uuid import uuid4
 
 import pytest
+from fastapi.testclient import TestClient
+from pydantic import ValidationError
 from sqlalchemy import create_engine, select, update
 from sqlalchemy.engine import make_url
 from sqlalchemy.exc import OperationalError
 
+from creditlens.api import create_app, current_principal
 from creditlens.corpus import borrower_pages
 from creditlens.domain import Principal
 from creditlens.errors import ServiceError
 from creditlens.ingestion_jobs import IngestionInput, JobStore, initialize_jobs, jobs
+from creditlens.settings import Settings
 from creditlens.sql_catalog import initialize_catalog
-from creditlens.storage import grants, open_database
+from creditlens.storage import GrantStore, grants, open_database
 
 
 @pytest.fixture
@@ -364,3 +368,103 @@ def test_current_grant_remains_locked_until_publication_commits(
             release.set()
         future.result(timeout=5)
     assert store.status(job.job_id, actor).state == "COMPLETED"
+
+
+def test_admin_http_submission_status_restart_and_revocation(store: JobStore) -> None:
+    """Exercise two actual API instances and SQL grants; only JWT transport uses a test seam."""
+    actor = admin().model_copy(update={"subject": uuid4().hex})
+    seed_current_admin(store, actor)
+    config = Settings(
+        database_url=store.engine.url.render_as_string(hide_password=False),
+        catalog_backend="postgres",
+        demo_catalog_id="synthetic-" + uuid4().hex,
+        ingestion_enabled=True,
+        ingestion_queue_id="synthetic-" + uuid4().hex,
+    )
+    first_app, second_app = create_app(config), create_app(config)
+
+    def current_admin() -> Principal:
+        """Use fresh SQL grants on every endpoint call while isolating Cognito transport."""
+        return GrantStore(store.engine).resolve(actor.subject)
+
+    for app in (first_app, second_app):
+        app.dependency_overrides[current_principal] = current_admin
+    headers = {"Idempotency-Key": "api-submission"}
+    with TestClient(first_app) as first, TestClient(second_app) as second:
+        assert first.get("/ready").status_code == 200
+        response = first.post(
+            "/api/v1/admin/documents", json=spec().model_dump(mode="json"), headers=headers
+        )
+        assert response.status_code == 202
+        result = response.json()
+        assert result["state"] == "QUEUED"
+        assert set(result) == {
+            "job_id",
+            "state",
+            "attempts",
+            "error_code",
+            "created_at",
+            "updated_at",
+        }
+        repeated = second.post(
+            "/api/v1/admin/documents", json=spec().model_dump(mode="json"), headers=headers
+        )
+        assert repeated.status_code == 202 and repeated.json()["job_id"] == result["job_id"]
+        status_path = "/api/v1/admin/index-jobs/" + result["job_id"]
+        assert second.get(status_path).json() == result
+        changed = spec().model_copy(update={"source_sha256": "b" * 64})
+        assert (
+            first.post(
+                "/api/v1/admin/documents", json=changed.model_dump(mode="json"), headers=headers
+            ).status_code
+            == 409
+        )
+        assert (
+            first.post("/api/v1/admin/documents", json=spec().model_dump(mode="json")).status_code
+            == 422
+        )
+        assert first.get("/api/v1/admin/index-jobs/invalid").status_code == 422
+        first_app.state.limiter.limit = 0
+        limited = first.post(
+            "/api/v1/admin/documents", json=spec().model_dump(mode="json"), headers=headers
+        )
+        assert limited.status_code == 429 and limited.headers["Retry-After"] == "60"
+    with TestClient(create_app(config)) as public:
+        assert public.get(status_path).status_code == 403
+    restarted = create_app(config)
+    restarted.dependency_overrides[current_principal] = current_admin
+    with TestClient(restarted) as client:
+        assert client.get(status_path).json() == result
+        with store.engine.begin() as connection:
+            connection.execute(
+                grants.update().where(grants.c.subject == actor.subject).values(enabled=False)
+            )
+        assert client.get(status_path).status_code == 403
+        assert (
+            client.post(
+                "/api/v1/admin/documents", json=spec().model_dump(mode="json"), headers=headers
+            ).status_code
+            == 403
+        )
+
+
+def test_ingestion_is_opt_in_and_readiness_checks_its_store(store: JobStore, monkeypatch) -> None:
+    """Disabled ingestion is explicit, and losing the enabled job dependency fails readiness."""
+    with pytest.raises(ValidationError):
+        Settings(ingestion_enabled=True)
+    config = Settings(database_url=store.engine.url.render_as_string(hide_password=False))
+    app = create_app(config)
+    app.dependency_overrides[current_principal] = admin
+    with TestClient(app) as client:
+        assert client.get("/api/v1/admin/index-jobs/" + str(uuid4())).status_code == 503
+    enabled = create_app(
+        config.model_copy(update={"catalog_backend": "postgres", "ingestion_enabled": True})
+    )
+    with TestClient(enabled) as client:
+
+        def unavailable() -> None:
+            """Isolate readiness behavior after the separate actual-SQL failure tests pass."""
+            raise ServiceError("ingestion_unavailable", "Ingestion storage is unavailable", 503)
+
+        monkeypatch.setattr(enabled.state.jobs, "check_ready", unavailable)
+        assert client.get("/ready").status_code == 503

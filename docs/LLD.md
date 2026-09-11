@@ -42,6 +42,13 @@ share, validates all immutable page metadata and calls
 pool, an active transaction and READ COMMITTED isolation. A final lease check
 precedes completion; failure rolls back both page insertion and job state.
 
+The admin POST requires `Idempotency-Key` and returns a `JobStatus` with HTTP 202;
+the status GET parses a UUID and reauthorizes every read. Ingestion requires the
+opt-in PostgreSQL demo catalog and a synthetic queue namespace. The default public
+underwriter receives 403. An authorized admin receives 503 when ingestion is
+disabled. Submissions share the process-local authenticated request limiter;
+these controls do not yet establish distributed quotas or source upload isolation.
+
 ## Core domain schemas
 
 Illustrative contracts:

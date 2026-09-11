@@ -33,6 +33,7 @@ FILES = (
     "src/creditlens/errors.py",
     "src/creditlens/finance.py",
     "src/creditlens/ingestion.py",
+    "src/creditlens/ingestion_jobs.py",
     "src/creditlens/intent.py",
     "src/creditlens/limits.py",
     "src/creditlens/local_search.py",

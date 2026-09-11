@@ -112,7 +112,7 @@ class QueryLimiter:
             if now - start >= self.window_seconds:
                 start, count = now, 0
             if count >= self.limit:
-                raise ServiceError("rate_limited", "Query limit reached; retry later", 429)
+                raise ServiceError("rate_limited", "Request limit reached; retry later", 429)
             self._entries[subject] = (start, count + 1)
             self._entries.move_to_end(subject)
             if len(self._entries) > 10000:

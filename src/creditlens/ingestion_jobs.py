@@ -270,6 +270,13 @@ class JobStore:
             _authorize(principal, IngestionInput.model_validate(row["input"]))
             return _status(row)
 
+    def check_ready(self) -> None:
+        """Verify the configured job table is readable without exposing another job's content."""
+        with self._transaction() as connection:
+            connection.execute(
+                select(jobs.c.job_id).where(jobs.c.queue_id == self.queue_id).limit(1)
+            )
+
     def claim(self, job_id: str | None = None) -> JobLease | None:
         """Skip locked jobs and reclaim expired work with a fresh token and bounded attempts."""
         available = or_(
