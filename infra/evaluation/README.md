@@ -164,6 +164,16 @@ against saved records, retaining case/field failures and input hashes. The basel
 passes 6/20; the routing change at `00cb2da` passes 20/20. This operational check
 does not replace semantic judgment or alter the historical fixture rubric.
 
+`reconcile_field_runs.py` combines terminal RAGAS runs against one frozen field
+export. Supply `--export`, `--runs` and a fresh private `--output`. The runs file
+is a JSON list of objects with `cases` (the frozen JSONL path) and `run` (the
+directory containing `summary.json` and `judge-calls.jsonl`). Model, profile,
+instruction and evaluator source identities must match across runs. The checker
+rejects duplicate units, altered inputs and raw-output mismatches. Failed and
+unrun units stay in the coverage ledger; failed expected extraction is distinct
+from scored coverage. Five adversarial tests pass, and it reproduces the original
+nine-unit pilot ledger. Within-field extraction completeness remains unproven.
+
 Next: inspect real packet judgments and calibrate against human judgments before
 promoting semantic results. Public
 benchmarks, full RAGAS validation, online replay/alerts and regression gates remain required by
