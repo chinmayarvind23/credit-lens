@@ -42,8 +42,11 @@ records are maintained outside this repository.
 The optional neural runtime passed real loopback HTTP checks for five financial
 scenarios, exact source access, denied scope, abstention, overload and revocation,
 with no observed external connections. Its complete local suite passes 440 tests
-with 98.51% core statement coverage. These checks do not imply that the public
-Space uses the neural runtime; it remains on the verified lexical deployment.
+with 98.51% core statement coverage. The Linux CPU container reproduced all 240
+rankings and fixture outcomes with network access disabled. That verified model
+container now serves the public Space; its actual HF page passed desktop and
+mobile browser checks. The UI's `local-extractive` label describes quoted answer
+assembly, while protected audit records identify hybrid retrieval and reranking.
 
 ## Run locally
 
@@ -76,7 +79,8 @@ uv run --no-sync pytest tests infra/huggingface/tests .github/tests --ignore=tes
 Optional model experiments require `uv sync --locked --extra retrieval` and their
 pinned model snapshots. The [local hybrid runtime](infra/retrieval/README.md) can
 load verified models at startup and use scoped dense search and reranking in the
-API. It remains opt-in; the public demo is lexical. [Redis instructions](infra/redis/README.md) cover the
+API. Default local builds remain lexical; the public demo uses the optional CPU
+model container. [Redis instructions](infra/redis/README.md) cover the
 optional cache and actual-server tests. Hosted CI requires manual dispatch under
 the current no-spending restriction; local tests do not imply a hosted CI run.
 

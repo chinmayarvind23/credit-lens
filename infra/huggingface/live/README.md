@@ -14,6 +14,12 @@ Ask a question, select a synthetic borrower and effective date, build an evidenc
 packet, and inspect its source pages. Each request reaches the live FastAPI
 application; this version does not replay recorded answers.
 
+The service combines scoped lexical and dense retrieval with a local CPU reranker.
+It assembles quoted evidence and deterministic financial calculations. The UI's
+`local-extractive` label describes this answer method; it does not mean the
+retrieval models are disabled. Retrieved passages can still include unrelated
+policy topics, so review the source pages before relying on a packet.
+
 To stay within the no-spending restriction, Hugging Face serves the small web
 entry point while the backend runs on the owner's computer through a free HTTPS
 Cloudflare Quick Tunnel. The computer, Docker container and tunnel must remain

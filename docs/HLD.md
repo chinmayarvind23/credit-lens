@@ -120,7 +120,9 @@ same qrels / same benchmark harness
 The provider layer can compose scoped local ranking, lexical/dense rank fusion
 and a bounded reranker. Every model boundary preserves current canonical evidence
 and SQL grant checks; reranking retains the underlying branch snapshots. The
-default public demo remains lexical. An opt-in local runtime verifies pinned
+default local build remains lexical. The public demo uses a runtime that verifies pinned
 model files and loads CPU models during startup; it bounds scoring concurrency
 and retained document vectors. Composed evaluation and public deployment are
-separate promotion steps. Offline model results are reported separately.
+separate promotion steps. The Linux container reproduced all 240 frozen rankings
+and workflow outcomes before its public HF browser verification. Offline model
+results are reported separately from HTTP performance and semantic answer quality.

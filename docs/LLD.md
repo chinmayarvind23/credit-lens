@@ -232,7 +232,10 @@ results. `RerankProvider` takes at most 40 candidates from its wrapped provider
 and returns at most ten. It retains the original hybrid result, verifies both
 branches before and after scoring and delegates exact citations to their source.
 Failure in a required scorer fails the request. These tested provider contracts
-do not establish that a neural model is enabled in the default public demo.
+are complemented by a verified Linux CPU container, now used by the public demo.
+Default local builds remain lexical. The deployed SQLite audit identifies the
+model manifest and full hybrid/reranker chain; the packet's `local-extractive`
+label continues to describe answer assembly.
 
 `CREDITLENS_RETRIEVAL_MODE=hybrid` requires an explicit local model directory in
 demo mode. `LocalNeuralRanker` verifies the packaged 17-file manifest before
