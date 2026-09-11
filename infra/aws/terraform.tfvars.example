@@ -1,0 +1,5 @@
+account_id              = "111122223333"
+execution_role_arn      = "arn:aws:iam::111122223333:role/creditlens-demo-execution"
+# Replace only after a reviewed image exists in ECR. This fixture cannot run an application.
+image_digest           = "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+reference_plan_enabled = false
