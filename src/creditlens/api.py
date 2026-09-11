@@ -2,6 +2,7 @@
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from datetime import date
 from pathlib import Path
 from typing import Annotated
 
@@ -16,10 +17,14 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from creditlens import __version__
 from creditlens.auth import Authenticator
-from creditlens.domain import Borrower, Principal, StrictModel
+from creditlens.corpus import build_demo_borrowers, build_demo_pages
+from creditlens.domain import Borrower, Chunk, Packet, Principal, QueryRequest, StrictModel
 from creditlens.errors import ServiceError
+from creditlens.limits import BodyLimit, PrivateResponses, QueryLimiter
+from creditlens.retrieval import EvidenceCatalog
 from creditlens.settings import Settings
-from creditlens.storage import GrantStore, demo_borrowers, open_database
+from creditlens.storage import GrantStore, open_database
+from creditlens.workflow import QueryWorkflow
 
 
 class BorrowerList(StrictModel):
@@ -42,6 +47,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             store.seed_demo()
         app.state.store = store
         app.state.auth = Authenticator(config, store)
+        app.state.workflow = (
+            QueryWorkflow(EvidenceCatalog(build_demo_pages()), store)
+            if config.mode == "demo"
+            else None
+        )
         with httpx.Client(timeout=config.request_timeout_seconds, follow_redirects=False) as client:
             app.state.http = client
             try:
@@ -51,6 +61,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app = FastAPI(title="CreditLens", version=__version__, lifespan=lifespan)
     app.state.settings = config
+    app.state.limiter = QueryLimiter()
+    app.add_middleware(BodyLimit)
+    app.add_middleware(PrivateResponses)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=config.cors_origins,
@@ -63,6 +76,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.get("/health")(health)
     app.get("/ready")(ready)
     app.get("/api/v1/borrowers", response_model=BorrowerList)(borrowers)
+    app.post("/api/v1/query", response_model=Packet)(query)
+    app.post("/api/v1/underwriting-packet", response_model=Packet)(query)
+    app.get("/api/v1/evidence/{chunk_id}", response_model=Chunk)(evidence)
     frontend = Path(__file__).resolve().parents[2] / "apps" / "web" / "dist"
     if frontend.is_dir():
         app.mount("/", StaticFiles(directory=frontend, html=True), name="web")
@@ -74,6 +90,8 @@ async def service_error(request: Request, exc: Exception) -> JSONResponse:
     if not isinstance(exc, ServiceError):
         raise TypeError("Unexpected error handler input")
     headers = {"WWW-Authenticate": "Bearer"} if exc.status == 401 else None
+    if exc.status == 429:
+        headers = {"Retry-After": "60"}
     return JSONResponse(
         {"error": {"code": exc.code, "message": exc.message}},
         status_code=exc.status,
@@ -118,7 +136,9 @@ def ready(request: Request) -> dict[str, str]:
         connection.execute(text("SELECT 1"))
     if config.mode == "production":
         probe_cortex(request.app.state.http, config)
-    raise ServiceError("workflow_not_initialized", "Query workflow is not initialized")
+    if request.app.state.workflow is None:
+        raise ServiceError("workflow_not_initialized", "Query workflow is not initialized")
+    return {"status": "ready", "mode": config.mode, "search": "local-extractive"}
 
 
 def probe_cortex(client: httpx.Client, config: Settings) -> None:
@@ -144,8 +164,53 @@ def probe_cortex(client: httpx.Client, config: Settings) -> None:
 def borrowers(
     request: Request, principal: Annotated[Principal, Depends(current_principal)]
 ) -> BorrowerList:
-    """Only the demo catalog exists in this slice; production catalog is a separate contract."""
+    """Use the evidence fixture catalog so borrower labels and cited documents cannot drift."""
     config: Settings = request.app.state.settings
     return BorrowerList(
-        borrowers=demo_borrowers(principal) if config.mode == "demo" else (), mode=config.mode
+        borrowers=tuple(
+            b
+            for b in build_demo_borrowers()
+            if b.borrower_id in principal.borrower_ids and principal.tenant_id == "demo-bank"
+        )
+        if config.mode == "demo"
+        else (),
+        mode=config.mode,
     )
+
+
+def query(
+    body: QueryRequest,
+    request: Request,
+    principal: Annotated[Principal, Depends(current_principal)],
+) -> Packet:
+    """Expose the same verified query workflow to question and packet routes."""
+    workflow = get_workflow(request)
+    request.app.state.limiter.check(principal.subject)
+    return workflow.query(body, principal)
+
+
+def get_workflow(request: Request) -> QueryWorkflow:
+    """Never substitute local demo evidence when a production workflow is unavailable."""
+    workflow: QueryWorkflow | None = request.app.state.workflow
+    if workflow is None:
+        raise ServiceError("workflow_not_initialized", "Query workflow is not initialized")
+    return workflow
+
+
+def evidence(
+    chunk_id: str,
+    borrower_id: str,
+    effective_at: date,
+    request: Request,
+    principal: Annotated[Principal, Depends(current_principal)],
+) -> Chunk:
+    """A source drawer is another authorization boundary, even for previously cited IDs."""
+    workflow = get_workflow(request)
+    candidates, revision = workflow.catalog.snapshot(principal, borrower_id, effective_at)
+    chunk = next((candidate for candidate in candidates if candidate.chunk_id == chunk_id), None)
+    if chunk is None:
+        raise ServiceError("evidence_not_found", "Evidence is unavailable", 404)
+    workflow.catalog.verify_revision(revision)
+    if workflow.store.resolve(principal.subject) != principal:
+        raise ServiceError("access_changed", "Access changed; retry the request", 409)
+    return chunk

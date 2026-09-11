@@ -17,7 +17,34 @@ is supported; shared Postgres deployment remains to be verified.
 Every factual output contract carries citations, including summaries and metric
 inputs. Query models reject extra fields. Canonical pages use half-open policy
 date windows. These are implemented contracts; retrieval and generated-output
-enforcement are subsequent work and not yet proven by this identity slice.
+enforcement for live model and provider integrations remains unverified.
+
+## Implemented local query controls
+
+The local evidence catalog filters tenant, borrower, ACL groups, extraction
+confidence and effective date before ranking. Revoking a page revokes every
+chunk on that page and invalidates in-flight snapshots. Query completion checks
+the catalog revision and current SQL grant again. The source drawer separately
+authorizes each fetch. API responses include Cache-Control: no-store.
+
+Streamed JSON bodies are capped at 16 KiB with a ten-second read deadline. The
+local query limiter permits 60 requests per minute per authenticated subject,
+per process. Shared deployment quotas remain a gateway/Redis requirement.
+
+The SQL audit store preserves the protected query and packet, their SHA-256
+hashes, corpus version, grant/catalog revisions and execution stage names before
+acknowledging success. This is sensitive application storage, not general-purpose
+telemetry. The local database is ignored by Git and only the synthetic demo uses
+it. Production requires protected database access, encryption, retention and
+restore verification; that deployment has not been completed. Ordinary traces
+must never copy protected_packet or protected_query from audit records.
+The packet hash scope is `packet-before-runtime-timings-v1`: it covers the
+acknowledged business payload before response stage timings and total latency
+are added. It does not claim to hash the exact final HTTP bytes.
+
+The demo serves authored synthetic pages in memory. The physical PDF extraction
+and its metrics are a separate reproducible path. Public document upload is not
+enabled because untrusted PDF process isolation and OCR remain incomplete.
 
 ## Objective
 

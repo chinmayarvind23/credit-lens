@@ -14,8 +14,13 @@ uv run mypy src
 ```
 
 The local mode is a fixed synthetic identity. `/health` reports process health.
-`/ready` currently returns 503 until the query workflow is initialized.
+`/ready` verifies the initialized local workflow. Production remains unavailable
+until a governed workflow is configured and verified.
 `/api/v1/borrowers` returns the current grant's synthetic borrower choices.
+`POST /api/v1/query` accepts `borrower_id`, `question`, and optional `effective_at`.
+It returns an evidence-only packet using the local lexical control, with cited
+Decimal DSCR calculations where requested. The disposition covers DSCR only.
+`GET /api/v1/evidence/{chunk_id}` rechecks current borrower/date authorization.
 `/docs` and `/openapi.json` describe implemented API routes.
 
 Configuration uses `CREDITLENS_` environment variables documented in `.env.example`.

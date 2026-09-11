@@ -18,7 +18,7 @@ from sqlalchemy import (
 from sqlalchemy.engine import Engine
 from sqlalchemy.pool import StaticPool
 
-from creditlens.domain import Borrower, Principal
+from creditlens.domain import Principal
 from creditlens.errors import ServiceError
 
 metadata = MetaData()
@@ -108,20 +108,3 @@ class GrantStore:
                     event=event,
                 )
             )
-
-
-def demo_borrowers(principal: Principal) -> tuple[Borrower, ...]:
-    """The synthetic selector is scoped by the same current grant used for retrieval."""
-    names = [
-        "Northstar Manufacturing",
-        "Cedar Grove Foods",
-        "Prairie Logistics",
-        "Lakeview Components",
-        "Riverbend Services",
-    ]
-    industries = ["Manufacturing", "Food production", "Transportation", "Manufacturing", "Services"]
-    return tuple(
-        Borrower(borrower_id=f"borrower-{i:03}", name=name, industry=industry)
-        for i, (name, industry) in enumerate(zip(names, industries, strict=True), 1)
-        if f"borrower-{i:03}" in principal.borrower_ids and principal.tenant_id == "demo-bank"
-    )

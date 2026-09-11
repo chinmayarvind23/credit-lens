@@ -13,8 +13,8 @@ def test_demo_health_and_scoped_borrowers() -> None:
     with TestClient(create_app(Settings(database_url="sqlite:///:memory:"))) as client:
         assert client.get("/health").status_code == 200
         readiness = client.get("/ready")
-        assert readiness.status_code == 503
-        assert readiness.json()["error"]["code"] == "workflow_not_initialized"
+        assert readiness.status_code == 200
+        assert readiness.json()["search"] == "local-extractive"
         result = client.get("/api/v1/borrowers").json()
         assert result["mode"] == "demo"
         assert len(result["borrowers"]) == 5
