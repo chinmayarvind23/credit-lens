@@ -4,8 +4,12 @@ This isolated environment uses DeepEval 4.2.2 without changing serving dependenc
 It has run actual FaithfulnessMetric judgments through an installed local model.
 The first judge screen **failed**: Llama 3.1 8B Q4_K_M scored both a supported and
 contradicted control 0.5, incorrectly calling the matching 1.25 policy minimum a
-contradiction. These results cannot support project quality claims. RAGAS and the
-full 240-case semantic baseline remain unfinished.
+contradiction. Llama 3.2 3B also failed its supported control. Qwen3 8B subsequently
+passed all twelve frozen V3 controls, scoring supported claims 1 and contradicted
+claims 0. The V3 dates are explicit in the judged claims because Faithfulness does
+not use the question to resolve dates. Earlier controls and failed runs are retained.
+This clears authored screening only. Human calibration, RAGAS and the full 240-case
+semantic baseline remain unfinished.
 
 ## Run the screen
 
@@ -46,8 +50,17 @@ Protocol tests use explicit transport doubles and do not measure judge quality:
 ..\resources\credit_lens\semantic-venv\Scripts\python.exe -m unittest discover -s infra/evaluation -p test_local_judge.py -v
 ```
 
-Next: compare a stronger local judge and a reviewed rubric on additional controls,
-calibrate against human judgments, then run the frozen packet baseline. Public
+`export_packets.py` runs in the main project environment and exports explicitly
+selected saved benchmark packets. It verifies retrieved spans and metadata against
+canonical pages and audits authored tenant, borrower, ACL and effective-date scope.
+It preserves factual packet fields and citations as JSON, excluding runtime metadata;
+it does not rewrite an answer or regenerate retrieval. Missing or denied selected
+packets fail export instead of disappearing from the denominator. A private manifest
+records the selected IDs, original input hashes and exported bytes. Run a small pilot
+before expanding; a selected subset cannot establish population quality.
+
+Next: inspect real packet judgments and calibrate against human judgments before
+promoting semantic results. Public
 benchmarks, RAGAS, online replay/alerts and regression gates remain required by
 the broader evaluation plan. Read [observability](../../docs/observability.md)
 and [failure modes](../../docs/failure-modes.md) for that next layer.

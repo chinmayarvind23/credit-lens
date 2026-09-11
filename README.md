@@ -40,8 +40,10 @@ are in [evaluation documentation](docs/evaluation.md); private raw runs and fail
 records are maintained outside this repository.
 
 DeepEval now has an [isolated local judge runner](infra/evaluation/README.md).
-Its first supported/contradicted control screen failed, so its judgments have not
-been promoted to semantic quality scores. RAGAS and judge calibration remain open.
+The first two local judges failed screening. Qwen3 8B then passed twelve frozen
+supported/contradicted controls covering amounts, entities, dates, missing evidence,
+currency and approval authority. This is authored screening, not a project quality
+score. RAGAS, human calibration and the full semantic baseline remain open.
 
 The optional neural runtime passed real loopback HTTP checks for five financial
 scenarios, exact source access, denied scope, abstention, overload and revocation,

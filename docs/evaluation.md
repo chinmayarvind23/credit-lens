@@ -59,8 +59,12 @@ The [isolated DeepEval runner](../infra/evaluation/README.md) now executes actua
 source-grounded FaithfulnessMetric judgments against a digest-pinned local model.
 Its first two-control screen failed: the judge scored a supported answer 0.5 after
 incorrectly marking a matching policy minimum as contradictory. The failed run
-is retained and does not establish a semantic quality baseline. Judge calibration,
-RAGAS, the full 240-case semantic run and associated regression gates remain open.
+is retained. A second judge also failed; Qwen3 8B then passed twelve frozen V3
+controls covering amounts, entities, explicit dates, missing evidence, currency
+and authority. Passing authored controls does not establish a semantic quality
+baseline. Saved packet pilots verify evidence against canonical page spans and
+authored scope before judging. Human calibration, RAGAS, the full 240-case semantic
+run and associated regression gates remain open.
 
 ## Execution-path grade
 
