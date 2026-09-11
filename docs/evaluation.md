@@ -299,8 +299,24 @@ This final adjustment used observed development results. It is not held-out
 validation, and the exposed authored benchmark limits generalization claims.
 Separate raw-label recomputation verified baseline identity, source scope,
 question preservation and metric arithmetic. Seven focused selector tests pass.
-The experiment has not yet changed the serving provider or demonstrated updated
-workflow outcomes. Full serving verification is required before deployment.
+At `77a8957`, the same selector was integrated into the hybrid serving path.
+The composed runtime reproduced all 240 selector rankings, 86.54% Recall@10,
+.7878 nDCG and 360/465 relevant-page hits. All 240 authored workflow checks passed,
+with no observed scope or path failures. Source and input hashes remained stable.
+This serving replay does not convert development-set tuning into held-out evidence.
+
+The integration passed 392 main tests, 79 actual PostgreSQL/Redis/ElasticMQ tests
+and one additional original-audit-identity test. Core statement coverage was
+2388/2424 (98.51%), with every critical module above 95%. Real-model HTTP checks
+exercised scoped queries, all five financial scenarios, citations, overload and
+revocation with no observed external connections. Shared-catalog tests also
+invalidated a result when another reader revoked the application page.
+
+The provider wraps the existing rankers and preserves the original request for
+workflow checks, audits and cache identity. Its internal source result retains
+the transformed model request; verification reconstructs that transformation
+under current grants and catalog revision. The grounding version participates
+in cache keys. Linux container validation and public deployment remain separate.
 
 Run the model experiment with `python -m scripts.benchmark_grounding`, passing
 `--gold`, `--pages`, `--models`, the verified candidate run as `--baseline` and a

@@ -39,6 +39,9 @@ def repo(sandbox: Path, deploy: ModuleType, monkeypatch: pytest.MonkeyPatch) -> 
         path = root / name
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text("synthetic source\n", encoding="utf-8")
+    (root / ".dockerignore").write_text(
+        "**\n" + "".join(f"!{name}\n" for name in deploy.FILES), encoding="utf-8"
+    )
     (root / ".env").write_text("PRIVATE=do-not-upload\n", encoding="utf-8")
     (root / "data").mkdir()
     (root / "data" / "borrower.pdf").write_bytes(b"private artifact")
@@ -71,6 +74,23 @@ def test_stage_rejects_repository_output(repo: Path, deploy: ModuleType) -> None
     """A build snapshot cannot contaminate the source tree or overwrite its parent."""
     with pytest.raises(ValueError, match="outside"):
         deploy.stage_package(repo, repo / "staging")
+
+
+@pytest.mark.parametrize("change", ["missing", "extra", "wildcard"])
+def test_docker_inventory_drift_blocks_staging(
+    repo: Path, sandbox: Path, deploy: ModuleType, change: str
+) -> None:
+    """A valid manifest cannot hide missing runtime files or broaden exact build exceptions."""
+    path = repo / ".dockerignore"
+    original = path.read_text(encoding="utf-8")
+    changed = {
+        "missing": original.replace("!src/creditlens/query_grounding.py\n", ""),
+        "extra": original + "!.env\n",
+        "wildcard": original + "!src/creditlens/*.py\n",
+    }
+    path.write_text(changed[change], encoding="utf-8")
+    with pytest.raises(ValueError, match="Docker file exceptions"):
+        deploy.stage_package(repo, sandbox / "stage")
 
 
 def test_stage_refuses_existing_output(repo: Path, sandbox: Path, deploy: ModuleType) -> None:

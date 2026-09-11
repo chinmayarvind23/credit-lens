@@ -27,8 +27,8 @@ DSCR threshold does not approve a loan or establish compliance with every policy
 | --- | --- | --- |
 | Corpus | 3,840 physical pages, 203 PDFs | 200 synthetic borrowers, three policy versions; 98 templates and short pages limit diversity |
 | Lexical control | Recall@10 74.05%, nDCG@10 .6775 | 220 positive-qrel cases from 240 exposed authored questions |
-| Local hybrid + reranker | Recall@10 82.55%, nDCG@10 .7291 | Composed serving provider reproduces the prior experiment's top ten exactly on all 240 cases |
-| Selective borrower-query experiment | Recall@10 86.54%, nDCG@10 .7878 | Development-set selector replay; 23 additional relevant-page hits, serving integration pending |
+| Original-query hybrid baseline | Recall@10 82.55%, nDCG@10 .7291 | Composed provider reproduces the original experiment's top ten on all 240 cases |
+| Selective borrower-query serving code | Recall@10 86.54%, nDCG@10 .7878 | Composed replay reproduces all 240 selector rankings and fixture outcomes; public deployment pending |
 | Structured fixture outcomes | 212/240 initially, 240/240 after intent/topic checks | Also reproduced through the composed model workflow; semantic groundedness remains unmeasured |
 | Complete HTTP, cache disabled | p95 18.13 ms | 330-page demo, 150 serial loopback requests, disk-backed SQLite audit |
 | Complete HTTP, warm Redis | p95 19.87 ms | Same workload, 150 hits; cache was slower and remains optional |
@@ -51,11 +51,12 @@ remain open.
 
 The optional neural runtime passed real loopback HTTP checks for five financial
 scenarios, exact source access, denied scope, abstention, overload and revocation,
-with no observed external connections. Its complete local suite passes 440 tests
-with 98.51% core statement coverage. The Linux CPU container reproduced all 240
-rankings and fixture outcomes with network access disabled. That verified model
-container now serves the public Space; its actual HF page passed desktop and
-mobile browser checks. The UI's `local-extractive` label describes quoted answer
+with no observed external connections. The query-grounding integration passes 472
+checks across the main suite, actual service integrations and audit verification,
+with 98.51% core statement coverage. Its composed replay preserves all 240 fixture
+outcomes. The public Space currently uses the preceding Linux CPU release, which
+passed an offline 240-case replay and desktop/mobile browser checks. Deployment
+of the query-grounding change is pending. The UI's `local-extractive` label describes quoted answer
 assembly, while protected audit records identify hybrid retrieval and reranking.
 
 ## Run locally

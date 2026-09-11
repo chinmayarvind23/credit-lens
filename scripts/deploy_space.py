@@ -163,7 +163,19 @@ def verify_package(stage: Path) -> dict[str, Any]:
         digest = hashlib.sha256(checked_bytes(stage / name, stage)).hexdigest()
         if digest != hashes[name]:
             raise ValueError(f"Staged file changed since review: {name}")
+    verify_build_inventory(stage)
     return manifest
+
+
+def verify_build_inventory(stage: Path) -> None:
+    """Catch drift between exact Docker file exceptions and staging, not parse Docker rules."""
+    exceptions = {
+        line[1:]
+        for raw in (stage / ".dockerignore").read_text(encoding="utf-8").splitlines()
+        if (line := raw.strip()).startswith("!") and not line.endswith("/")
+    }
+    if exceptions != set(FILES):
+        raise ValueError("Docker file exceptions differ from the staging allowlist")
 
 
 def hf_command() -> list[str]:
