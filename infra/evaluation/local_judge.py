@@ -62,7 +62,7 @@ class LocalJudge(DeepEvalBaseLLM):  # type: ignore[no-untyped-call]  # upstream 
             raise ValueError("Local judge response must be an object")
         return result
 
-    def verify_model(self) -> None:
+    def verify_model(self) -> bool:
         """Refuse a changed tag or remote-model descriptor before asking for inference."""
         models = self.request("/api/tags")["models"]
         if not any(m["name"] == self.tag and m["digest"] == self.digest for m in models):
@@ -72,19 +72,22 @@ class LocalJudge(DeepEvalBaseLLM):  # type: ignore[no-untyped-call]  # upstream 
             raise ValueError("Remote judge routing is forbidden")
         if details.get("details", {}).get("format") != "gguf":
             raise ValueError("Expected an installed local GGUF model")
+        return "thinking" in details.get("capabilities", [])
 
     def generate(self, prompt: str, schema: type[BaseModel] | None = None) -> Any:
         """Use deterministic bounded JSON generation and reject incomplete or malformed outputs."""
         if self.remaining <= 0 or len(prompt.encode()) > 32_000:
             raise ValueError("Judge call or input budget exhausted")
         self.remaining -= 1
-        self.verify_model()
+        supports_thinking = self.verify_model()
         started = perf_counter()
         result = self.request(
             "/api/chat",
             {
                 "model": self.tag,
                 "stream": False,
+                # Disable optional reasoning so schema output retains the finite token budget.
+                **({"think": False} if supports_thinking else {}),
                 "keep_alive": "1m",
                 "messages": [{"role": "user", "content": prompt}],
                 "format": schema.model_json_schema() if schema else "json",

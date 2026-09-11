@@ -33,6 +33,7 @@ class JudgeTests(unittest.TestCase):
         self.paths: list[str] = []
         self.digest = "a" * 64
         self.remote = False
+        self.thinking = False
         self.reason = "stop"
         self.judge.client = httpx.Client(
             base_url="http://127.0.0.1:11434", transport=httpx.MockTransport(self.respond)
@@ -49,11 +50,19 @@ class JudgeTests(unittest.TestCase):
         if request.url.path == "/api/tags":
             data = {"models": [{"name": "test:8b", "digest": self.digest}]}
         elif request.url.path == "/api/show":
-            data = {"details": {"format": "gguf"}, "remote_host": "remote" if self.remote else ""}
+            data = {
+                "details": {"format": "gguf"},
+                "remote_host": "remote" if self.remote else "",
+                "capabilities": ["thinking"] if self.thinking else [],
+            }
         else:
             body = json.loads(request.content)
             self.assertFalse(body["stream"])
             self.assertEqual(body["options"]["temperature"], 0)
+            if self.thinking:
+                self.assertIs(body["think"], False)
+            else:
+                self.assertNotIn("think", body)
             data = {
                 "done": True,
                 "done_reason": self.reason,
@@ -75,6 +84,11 @@ class JudgeTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "digest"):
             self.judge.generate("question", Result)
         self.assertNotIn("/api/chat", self.paths)
+
+    def test_optional_thinking_is_disabled(self) -> None:
+        """Reasoning-capable models reserve the bounded generation budget for structured output."""
+        self.thinking = True
+        self.assertIsInstance(self.judge.generate("question", Result), Result)
 
     def test_remote_descriptor_prevents_inference(self) -> None:
         """Even a matching installed tag cannot route a judgment to a cloud host."""
