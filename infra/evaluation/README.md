@@ -171,7 +171,7 @@ directory containing `summary.json` and `judge-calls.jsonl`). Model, profile,
 instruction and evaluator source identities must match across runs. The checker
 rejects duplicate units, altered inputs and raw-output mismatches. Failed and
 unrun units stay in the coverage ledger; failed expected extraction is distinct
-from scored coverage. Five adversarial tests pass, and it reproduces the original
+from scored coverage. Six adversarial tests pass, and it reproduces the original
 nine-unit pilot ledger. Within-field extraction completeness remains unproven.
 
 The first two additional batches bring the historical sample to 57/85 scored
@@ -188,7 +188,14 @@ exact complete field. It uses one model call per unit and records a distinct
 metric identity; its denominator differs from atomic-claim faithfulness. The
 default remains `--unit-mode extracted`. Twelve frozen controls in
 `controls-field-support-v1.jsonl` test compound support and unsupported additions.
-Protocol and reconciliation checks pass; judge calibration is a separate step.
+The new twelve-control screen and the original twelve controls both pass with
+the same evaluator identity. The complete six-packet sample then scores 85/85
+cited fields supported. Verification covers every original field, all 109 raw
+responses (24 controls plus 85 fields), unchanged inputs and compatible evaluator
+identities. No generated extraction is recorded as a model response. The 26
+nonempty pending-rubric fields remain unscored. These are exposed controls and a
+selected historical sample; human calibration, question relevance and population
+quality remain unmeasured. The original failed diagnostics are retained.
 
 Next: inspect real packet judgments and calibrate against human judgments before
 promoting semantic results. Public

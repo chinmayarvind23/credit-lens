@@ -406,5 +406,32 @@ state. The saved baseline passes 6/20; the revised composed-model run passes 20/
 All 240 retrieval rankings and score objects match the prior baseline, and all
 240 historical fixture checks still pass with stable source/input provenance.
 This is operational field validation, not semantic groundedness or human review.
+
+## Verbatim field support
+
+The expanded extraction-based pilot completed 57 of 85 cited units. All received
+1.0, but source inspection found four false positives: extraction interpreted a
+document-version header as a directory location and NLI accepted the invented
+claim. That claim was absent from the application's quoted answer. The two
+unstarted batches, containing 28 units, were paused and all prior scores retained.
+
+At `78588ba`, a separate custom RAGAS metric replaces generative extraction with
+one unchanged complete field. The pinned library still constructs the NLI prompt
+and computes its score. A single binary verdict must cover the exact original
+text; missing clauses, rewritten text and nonbinary outputs fail validation.
+This changes the denominator from generated atomic claims to whole fields.
+
+Twelve new compound/metadata controls and twelve original controls pass. All 85
+cited fields in the same six historical Linux packets then receive supported
+verdicts. The verifier checks every original field and all 109 raw model outputs,
+with stable input/source provenance. JSON type preservation prevents a boolean
+from masquerading as an integer verdict during reconciliation. Two new metric
+protocol tests, six accounting tests and six existing RAGAS tests pass.
+
+This completes cited-field coverage for this selected sample only. Its 26
+nonempty operational/advice/question fields still need suitable rubrics.
+Whole-packet quality, question relevance, semantic citation applicability, human
+calibration and the full 240-question semantic baseline remain open. The result
+does not establish a population groundedness rate or the requested quality gain.
 Remaining work includes the other cited units and explicit rubrics for disposition,
 missing-document findings, recommendations, questions and abstention.

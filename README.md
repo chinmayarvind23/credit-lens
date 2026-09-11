@@ -55,10 +55,13 @@ A separate lending-specific RAGAS prompt passes 24 authored controls and preserv
 both saved DSCR claims correctly. Its full-packet pilot still omits a calculation
 and stops on an incomplete response, so whole-packet semantic scoring remains open.
 
-An explicit field export now accounts for all 19 packet fields. Nine selected
-cited claims and metrics passed a bounded RAGAS pilot; 76 other cited units and
-26 nonempty fields awaiting rubrics remain unscored in that six-packet sample.
-These pilot results do not establish the full 240-question semantic baseline.
+An explicit field export accounts for all 19 packet fields. A separate custom
+RAGAS support check preserves each complete field verbatim and uses one NLI
+judgment per field. It passes 24 controls and marks all 85 cited fields from six
+saved packets supported, with exact text and raw outputs verified. The sample
+still has 26 nonempty operational/advice/question fields awaiting rubrics.
+This is whole-field support on a selected historical sample, not stock atomic-claim
+faithfulness, whole-packet quality or the full 240-question semantic baseline.
 
 The optional neural runtime passed real loopback HTTP checks for five financial
 scenarios, exact source access, denied scope, abstention, overload and revocation,
