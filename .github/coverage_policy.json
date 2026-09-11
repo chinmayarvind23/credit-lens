@@ -1,0 +1,20 @@
+{
+  "policy_version": "deterministic-core-v1",
+  "measurement": "statement line coverage; branch coverage is not claimed",
+  "core_minimum_percent": 85,
+  "critical_minimum_percent": 95,
+  "core_files": [
+    "api.py", "auth.py", "citations.py", "cortex_search.py", "domain.py", "errors.py", "finance.py",
+    "ingestion.py", "limits.py", "retrieval.py", "search_provider.py", "settings.py", "storage.py", "workflow.py"
+  ],
+  "critical_files": ["auth.py", "finance.py", "citations.py", "cortex_search.py", "retrieval.py", "storage.py"],
+  "excluded_files": {
+    "__init__.py": "Package version declaration only.",
+    "corpus.py": "Synthetic fixture and PDF generation; exercised separately by corpus and ingestion tests.",
+    "evaluation.py": "Offline benchmark bookkeeping and scoring; exercised by evaluator tests and the CI evaluation run.",
+    "evaluation_outcomes.py": "Offline authored outcome grading; exercised by evaluator tests and the CI evaluation run.",
+    "lab_evidence.py": "Offline experiment provenance and comparison; separate retrieval experiment evidence is required.",
+    "retrieval_lab.py": "Optional model and ANN experiment runner; separate retrieval experiment evidence is required.",
+    "llama_chunking.py": "Optional LlamaIndex chunking experiment; separate experiment evidence is required."
+  }
+}

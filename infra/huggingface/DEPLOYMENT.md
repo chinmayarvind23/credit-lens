@@ -46,9 +46,11 @@ No Hugging Face account, destination, external upload, or cloud deployment is co
 
 ## CI
 
-The quality workflow uses pinned action commits and locked Bun/Python installs. It runs static checks, Python/frontend tests, a generated synthetic corpus and current local evaluation gates, staging verification, an actual Docker build, and container HTTP smoke. Evidence is retained as a workflow artifact. Cloud uploads are excluded.
+The quality workflow uses pinned action commits and locked Bun/Python installs. It runs static checks, Python/frontend tests, a generated synthetic corpus and local evaluation gates, staging verification, an actual Docker build, and container HTTP smoke. Evidence is retained as a workflow artifact. Cloud uploads are excluded.
 
-The current evaluation invocation records the local authored-qrel control. It does not prove independent semantic quality or compare against a prior release unless a frozen baseline is explicitly supplied by the evaluation workflow.
+CI regenerates the reviewed lexical control from commit `5d6d6ab840e8a498bf202582d1d3c5d5da62ddaa` in a separate worktree with its locked dependencies. Both control and current code receive the same physical pages and `--outcomes`; the current run must compare against the control's `summary.json`. Gold and metric contract mismatches fail the comparison. Both runs and their provenance are retained. Changing this reference requires review; the local authored-qrel comparison does not establish independent semantic quality.
+
+The coverage gate requires at least 85% statement line coverage across the declared deterministic request-path core and at least 95% for each declared critical module. `.github/coverage_policy.json` lists all inclusions and reasoned exclusions. New source modules fail the inventory check until their scope is reviewed. Branch coverage is not claimed; optional retrieval experiments have separate tests and evidence.
 
 ## References
 

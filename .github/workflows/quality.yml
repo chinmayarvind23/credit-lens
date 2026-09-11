@@ -1,0 +1,112 @@
+name: CreditLens quality
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: quality-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@d0d8abe699bfb85fec6de9f7adb5ae17292296ff # v6
+        with:
+          version: "0.8.4"
+          python-version: "3.11"
+          enable-cache: true
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: "1.3.10"
+      - name: Install locked dependencies
+        run: |
+          uv sync --locked
+          bun install --cwd apps/web --frozen-lockfile
+      - name: Python static checks
+        run: |
+          uv run ruff check src tests scripts infra/huggingface .github/scripts .github/tests
+          uv run ruff format --check src tests scripts infra/huggingface .github/scripts .github/tests
+          uv run mypy src scripts/deploy_space.py infra/huggingface/demo_entrypoint.py infra/huggingface/smoke_container.py .github/scripts/check_coverage.py
+      - name: Python and package boundary tests
+        run: uv run pytest tests infra/huggingface/tests .github/tests --ignore=tests/test_retrieval_lab.py --cov=creditlens --cov-report=term-missing --cov-report=xml --cov-report=json:${{ runner.temp }}/coverage.json
+      - name: Enforce reviewed line coverage
+        run: uv run python .github/scripts/check_coverage.py --report "${{ runner.temp }}/coverage.json" --output "${{ runner.temp }}/coverage-gate.json"
+      - name: Frontend checks
+        working-directory: apps/web
+        run: |
+          bun run typecheck
+          bun run test
+          bun run build
+          bun audit
+      - name: Generate the synthetic evaluation corpus
+        run: uv run python scripts/build_corpus.py --output "${{ runner.temp }}/creditlens-corpus" --borrowers 200
+      - name: Regenerate the reviewed lexical control
+        env:
+          CONTROL_REVISION: 5d6d6ab840e8a498bf202582d1d3c5d5da62ddaa
+        run: |
+          git worktree add --detach "${{ runner.temp }}/creditlens-reference" "$CONTROL_REVISION"
+          cd "${{ runner.temp }}/creditlens-reference"
+          uv run --locked python scripts/evaluate.py --pages "${{ runner.temp }}/creditlens-corpus/pages.jsonl" --output "${{ runner.temp }}/creditlens-control" --outcomes
+      - name: Run frozen local evaluation gates
+        run: uv run python scripts/evaluate.py --pages "${{ runner.temp }}/creditlens-corpus/pages.jsonl" --output "${{ runner.temp }}/creditlens-eval" --outcomes --baseline "${{ runner.temp }}/creditlens-control/summary.json"
+      - name: Verify the sanitized deployment snapshot
+        run: |
+          uv run python scripts/deploy_space.py stage --output "${{ runner.temp }}/creditlens-space"
+          uv run python scripts/deploy_space.py verify --stage "${{ runner.temp }}/creditlens-space"
+      - name: Build the synthetic demo image
+        run: docker build --tag creditlens-demo:ci "${{ runner.temp }}/creditlens-space"
+      - name: Exercise the built container
+        run: |
+          docker run --detach --name creditlens-demo-ci --publish 127.0.0.1:17860:7860 --cap-drop ALL --security-opt no-new-privileges --read-only --tmpfs /app/data:rw,noexec,nosuid,size=64m,uid=1000,gid=1000 --tmpfs /tmp:rw,noexec,nosuid,size=32m --cpus 1 --memory 512m --pids-limit 128 creditlens-demo:ci
+          uv run python infra/huggingface/smoke_container.py --base-url http://127.0.0.1:17860
+      - name: Stop the test container
+        if: always()
+        run: |
+          if docker container inspect creditlens-demo-ci >/dev/null 2>&1; then
+            docker logs creditlens-demo-ci
+            docker rm --force creditlens-demo-ci
+          fi
+      - name: Preserve verification evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: creditlens-verification
+          if-no-files-found: error
+          path: |
+            coverage.xml
+            ${{ runner.temp }}/coverage.json
+            ${{ runner.temp }}/coverage-gate.json
+            ${{ runner.temp }}/creditlens-control/
+            ${{ runner.temp }}/creditlens-eval/
+            ${{ runner.temp }}/creditlens-space/deployment-manifest.json
+          retention-days: 14
+
+  retrieval-contracts:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: astral-sh/setup-uv@d0d8abe699bfb85fec6de9f7adb5ae17292296ff # v6
+        with:
+          version: "0.8.4"
+          python-version: "3.11"
+          enable-cache: true
+      - name: Install locked optional retrieval dependencies
+        run: uv sync --locked --extra retrieval
+      - name: Require actual numeric and parser dependencies
+        run: uv run --no-sync python -c "import numpy; import faiss; import llama_index.core"
+      - name: Exercise optional retrieval contracts without model downloads
+        env:
+          HF_HUB_OFFLINE: "1"
+          TRANSFORMERS_OFFLINE: "1"
+        run: uv run --no-sync pytest tests/test_retrieval_lab.py tests/test_lab_evidence.py
