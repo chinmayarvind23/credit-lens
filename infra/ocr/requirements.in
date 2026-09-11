@@ -1,0 +1,3 @@
+# Keep offline CPU document parsing separate from the API and retrieval environments.
+paddleocr[doc-parser]==3.7.0
+paddlepaddle==3.3.1
