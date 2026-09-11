@@ -71,6 +71,12 @@ pinned model snapshots. [Redis instructions](infra/redis/README.md) cover the
 optional cache and actual-server tests. Hosted CI requires manual dispatch under
 the current no-spending restriction; local tests do not imply a hosted CI run.
 
+[PostgreSQL instructions](infra/postgres/README.md) cover the shared canonical
+catalog and actual database checks. For the complete coverage gate, start that
+local fixture, set its test URL and add `infra/postgres` to the pytest paths.
+The default demo still uses its in-memory catalog while shared runtime integration
+is completed.
+
 ## Core product loop
 
 1. Authenticate an underwriter.

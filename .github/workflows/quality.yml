@@ -15,6 +15,17 @@ jobs:
   verify:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    env:
+      CREDITLENS_TEST_POSTGRES_URL: postgresql+psycopg://postgres:creditlens-test-only@127.0.0.1:5432/creditlens_test
+    services:
+      postgres:
+        image: postgres:16.4-alpine@sha256:5660c2cbfea50c7a9127d17dc4e48543eedd3d7a41a595a2dfa572471e37e64c
+        env:
+          POSTGRES_PASSWORD: creditlens-test-only
+          POSTGRES_DB: creditlens_test
+        ports:
+          - 5432:5432
+        options: --health-cmd "pg_isready -U postgres -d creditlens_test" --health-interval 5s --health-timeout 3s --health-retries 5
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -33,11 +44,11 @@ jobs:
           bun install --cwd apps/web --frozen-lockfile
       - name: Python static checks
         run: |
-          uv run ruff check src tests scripts infra/huggingface .github/scripts .github/tests
-          uv run ruff format --check src tests scripts infra/huggingface .github/scripts .github/tests
+          uv run ruff check src tests scripts infra/huggingface infra/postgres .github/scripts .github/tests
+          uv run ruff format --check src tests scripts infra/huggingface infra/postgres .github/scripts .github/tests
           uv run mypy src scripts/deploy_space.py infra/huggingface/demo_entrypoint.py infra/huggingface/smoke_container.py .github/scripts/check_coverage.py
       - name: Python and package boundary tests
-        run: uv run pytest tests infra/huggingface/tests .github/tests --ignore=tests/test_retrieval_lab.py --cov=creditlens --cov-report=term-missing --cov-report=xml --cov-report=json:${{ runner.temp }}/coverage.json
+        run: uv run pytest tests infra/huggingface/tests infra/postgres .github/tests --ignore=tests/test_retrieval_lab.py --cov=creditlens --cov-report=term-missing --cov-report=xml --cov-report=json:${{ runner.temp }}/coverage.json
       - name: Enforce reviewed line coverage
         run: uv run python .github/scripts/check_coverage.py --report "${{ runner.temp }}/coverage.json" --output "${{ runner.temp }}/coverage-gate.json"
       - name: Frontend checks
