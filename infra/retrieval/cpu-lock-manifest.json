@@ -1,0 +1,14 @@
+{
+  "schema": 1,
+  "platform": "x86_64-unknown-linux-gnu",
+  "python": "3.11",
+  "resolver": "uv 0.8.4",
+  "torch_backend": "cpu",
+  "source_encoding": "UTF-8 with LF newlines",
+  "source_hashes": {
+    "pyproject.toml": "d66a8a9d02220145d7a821ebe23bf0816e9291b45207ba6ef1426d178e7afcd7",
+    "uv.lock": "a5199d35e4e9f2ce6744ca3e6e516bb71ce1a84eec628e9064d2e9d2c458689f",
+    "scripts/lock_neural_runtime.py": "58d595244a3e627b4c5203610f18f8604eb83271306abf48ee3e6436ca3b06dc"
+  },
+  "lock_sha256": "a0d7902a301d5680533bcb369e021a3a0dad4a8783103df8ef297046d23f2c1f"
+}

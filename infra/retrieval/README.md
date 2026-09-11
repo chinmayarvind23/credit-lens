@@ -86,3 +86,20 @@ Ranking is measured separately from the workflow's financial lookups. The
 workflow follows each ranking and reuses document vectors, so its timing is
 neither a cold-start nor an HTTP measurement. Authored fixture outcomes remain
 separate from semantic groundedness and citation precision.
+
+## CPU container variant
+
+The optional Docker target `neural-runtime` installs hashed CPU wheels from
+`requirements-cpu.lock`. Regenerate it with uv 0.8.4 using
+`python scripts/lock_neural_runtime.py --uv /path/to/uv`. The generator constrains
+resolution to `uv.lock`, preserving Python-version markers, and records source
+hashes with LF-normalized newlines. PyTorch uses its official CPU package index;
+the lock includes no NVIDIA or Triton packages. Linux CPU execution requires its
+own verification even when the Windows package versions match.
+
+Build with `docker build --target neural-runtime -t creditlens-neural:release .`.
+Mount the verified model directory read-only at `/models`. The public entrypoint
+accepts only `CREDITLENS_DEMO_RETRIEVAL=lexical` or `hybrid`; all other ambient
+CreditLens settings are ignored. Synthetic memory evidence and local SQLite stay
+fixed. Default Docker builds remain lexical. Follow the bounded-container and
+publication procedure in [live deployment](../huggingface/live/DEPLOYMENT.md).

@@ -53,6 +53,7 @@ FILES = (
     "src/creditlens/storage.py",
     "src/creditlens/workflow.py",
     "infra/huggingface/demo_entrypoint.py",
+    "infra/retrieval/requirements-cpu.lock",
 )
 CARD = "infra/huggingface/README.md"
 MANIFEST = "deployment-manifest.json"

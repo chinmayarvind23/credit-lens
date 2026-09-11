@@ -57,3 +57,6 @@ infra/*
 !infra/huggingface/
 infra/huggingface/*
 !infra/huggingface/demo_entrypoint.py
+!infra/retrieval/
+infra/retrieval/*
+!infra/retrieval/requirements-cpu.lock

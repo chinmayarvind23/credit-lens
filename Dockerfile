@@ -17,7 +17,11 @@ COPY pyproject.toml uv.lock ./
 # No development or optional provider extras enter the demo image.
 RUN uv sync --locked --no-dev --no-install-project --python /usr/local/bin/python
 
-FROM python:3.11.14-slim-bookworm@sha256:65a93d69fa75478d554f4ad27c85c1e69fa184956261b4301ebaf6dbb0a3543d AS runtime
+FROM dependencies AS neural-dependencies
+COPY infra/retrieval/requirements-cpu.lock /tmp/requirements-cpu.lock
+RUN uv pip install --python /app/.venv/bin/python --require-hashes --no-build --torch-backend cpu --default-index https://pypi.org/simple -r /tmp/requirements-cpu.lock && uv pip check --python /app/.venv/bin/python
+
+FROM python:3.11.14-slim-bookworm@sha256:65a93d69fa75478d554f4ad27c85c1e69fa184956261b4301ebaf6dbb0a3543d AS runtime-base
 RUN useradd --create-home --uid 1000 appuser
 WORKDIR /app
 ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=/app/src
@@ -30,3 +34,11 @@ USER 1000:1000
 EXPOSE 7860
 HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 CMD ["/app/.venv/bin/python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:7860/health', timeout=3).read()"]
 CMD ["/app/.venv/bin/python", "/app/demo_entrypoint.py"]
+
+FROM runtime-base AS neural-runtime
+COPY --from=neural-dependencies --chown=1000:1000 /app/.venv /app/.venv
+ENV CREDITLENS_DEMO_RETRIEVAL=hybrid HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 HF_HUB_DISABLE_TELEMETRY=1
+HEALTHCHECK --interval=30s --timeout=5s --start-period=120s --retries=3 CMD ["/app/.venv/bin/python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:7860/ready', timeout=3).read()"]
+
+# Default builds remain the small lexical demo and isolated parser.
+FROM runtime-base AS runtime
