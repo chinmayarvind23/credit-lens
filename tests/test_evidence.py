@@ -2,6 +2,7 @@
 
 from datetime import date
 from decimal import Decimal
+from hashlib import sha256
 
 import pytest
 
@@ -153,3 +154,27 @@ def test_equivalent_numbers_are_not_conflicts() -> None:
         "operating_cash_flow", "180000.00"
     )
     assert normalized_fact("operating_cash_flow", "broken") == "broken"
+
+
+@pytest.mark.parametrize(
+    ("cash_flow", "expected"),
+    [("149995.20", "EXCEPTION_REQUIRED"), ("150000.00", "MEETS_POLICY")],
+)
+def test_policy_threshold_uses_unrounded_ratio(cash_flow: str, expected: str) -> None:
+    """A displayed 1.2500 must not conceal that the true ratio is below the 1.25 threshold."""
+    pages = []
+    for page in build_demo_pages():
+        text = page.text.replace(
+            "operating_cash_flow=180000.00", f"operating_cash_flow={cash_flow}"
+        )
+        pages.append(
+            page.model_copy(
+                update={"text": text, "content_hash": sha256(text.encode()).hexdigest()}
+            )
+        )
+    chunks, _ = EvidenceCatalog(tuple(pages)).snapshot(
+        principal(), "borrower-001", date(2026, 2, 1)
+    )
+    result = calculate_review(chunks)
+    assert result.metrics[0].value == Decimal("1.2500")
+    assert result.disposition == expected
