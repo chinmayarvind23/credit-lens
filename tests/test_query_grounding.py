@@ -62,3 +62,12 @@ def test_metadata_cannot_choose_selective_route() -> None:
     expanded, selected, reason = grounded_query(question, chunk.borrower_id, (chunk,))
     assert expanded != question
     assert not selected and reason == "general_question"
+
+
+def test_calendar_frequency_alone_is_not_borrower_evidence() -> None:
+    """A recurring policy review does not identify an actual borrower's source package."""
+    chunk = application_chunk()
+    _, selected, reason = grounded_query(
+        "Explain annual review deadlines for commercial lending.", chunk.borrower_id, (chunk,)
+    )
+    assert not selected and reason == "general_question"

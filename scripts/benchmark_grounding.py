@@ -21,7 +21,7 @@ from creditlens.search_provider import validate_ranking
 from scripts.benchmark_candidates import allowed_chunks, no_network
 
 CONTEXT_WORDS = frozenset(
-    "borrower package packet annual cash numerator denominator missing unprovided documented "
+    "borrower package packet cash numerator denominator missing unprovided documented "
     "discrepancy discrepancies reconcile reconciliation".split()
 )
 VARIANTS = ("baseline", "universal", "selective")
