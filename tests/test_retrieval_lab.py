@@ -5,7 +5,7 @@ from typing import Any
 import pytest
 
 from creditlens.corpus import build_demo_pages
-from creditlens.llama_chunking import SemanticChunker, map_nodes, sentence_chunks
+from creditlens.llama_chunking import SemanticChunker, map_nodes, sentence_chunks, token_chunks
 from creditlens.retrieval import chunk_page
 from creditlens.retrieval_lab import DenseLab
 
@@ -23,17 +23,18 @@ def test_scoped_numpy_ranking() -> None:
     assert chunks[2] not in lab.rank("query", chunks[:2])
 
 
-def test_llama_sentence_offsets() -> None:
+@pytest.mark.parametrize("parser", [sentence_chunks, token_chunks])
+def test_llama_sentence_offsets(parser: Any) -> None:
     """Real LlamaIndex nodes retain page identity and exact source substrings."""
     pytest.importorskip("llama_index.core")
     page = build_demo_pages()[0].model_copy(
         update={"text": "Policy requires current evidence. " * 80}
     )
-    chunks = sentence_chunks(page, token_budget=64)
+    chunks = parser(page, token_budget=64)
     assert len(chunks) > 1
     assert all(chunk.page == page.page for chunk in chunks)
     assert all(chunk.text == page.text[chunk.start_char : chunk.end_char] for chunk in chunks)
-    assert chunks == sentence_chunks(page, token_budget=64)
+    assert chunks == parser(page, token_budget=64)
 
 
 def test_exact_hnsw_agreement() -> None:

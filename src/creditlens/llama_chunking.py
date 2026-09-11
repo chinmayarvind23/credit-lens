@@ -26,6 +26,22 @@ def sentence_chunks(page: Page, token_budget: int = 256) -> tuple[Chunk, ...]:
     return map_nodes(page, nodes, f"llama-sentence-v1-{token_budget}")
 
 
+def token_chunks(page: Page, token_budget: int = 256) -> tuple[Chunk, ...]:
+    """Use the same tokenizer budget without sentence boundaries for a controlled ablation."""
+    if not 64 <= token_budget <= 2048:
+        raise ValueError("Token chunk budget must be between 64 and 2048")
+    parsers = importlib.import_module("llama_index.core.node_parser")
+    schema = importlib.import_module("llama_index.core.schema")
+    parser = parsers.TokenTextSplitter(
+        chunk_size=token_budget,
+        chunk_overlap=0,
+        include_metadata=False,
+        include_prev_next_rel=False,
+    )
+    nodes = parser.get_nodes_from_documents([schema.Document(text=page.text)])
+    return map_nodes(page, nodes, f"llama-token-v1-{token_budget}")
+
+
 def map_nodes(page: Page, nodes: list[Any], chunker: str) -> tuple[Chunk, ...]:
     """Preserve physical-page spans for either parser and fail on lost or altered evidence."""
     result = []
@@ -75,6 +91,7 @@ class SemanticChunker:
             raise ValueError("Semantic breakpoint percentile must be between 50 and 99")
         embeddings = importlib.import_module("llama_index.embeddings.huggingface")
         parsers = importlib.import_module("llama_index.core.node_parser")
+        importlib.import_module("torch").set_num_threads(4)
         snapshot = model_snapshot(EMBED_MODEL, EMBED_REVISION, cache / "embedding")
         model = embeddings.HuggingFaceEmbedding(
             model_name=snapshot,
