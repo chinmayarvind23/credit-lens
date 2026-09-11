@@ -55,6 +55,13 @@ Use DeepEval and RAGAS for semantic quality metrics.
 
 Use an LLM judge only where judgment is required. Version its rubric.
 
+The [isolated DeepEval runner](../infra/evaluation/README.md) now executes actual
+source-grounded FaithfulnessMetric judgments against a digest-pinned local model.
+Its first two-control screen failed: the judge scored a supported answer 0.5 after
+incorrectly marking a matching policy minimum as contradictory. The failed run
+is retained and does not establish a semantic quality baseline. Judge calibration,
+RAGAS, the full 240-case semantic run and associated regression gates remain open.
+
 ## Execution-path grade
 
 Inspect the ordered event log.

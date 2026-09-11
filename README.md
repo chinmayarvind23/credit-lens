@@ -39,6 +39,10 @@ do not establish semantic metrics or real lending impact. Evaluation definitions
 are in [evaluation documentation](docs/evaluation.md); private raw runs and failure
 records are maintained outside this repository.
 
+DeepEval now has an [isolated local judge runner](infra/evaluation/README.md).
+Its first supported/contradicted control screen failed, so its judgments have not
+been promoted to semantic quality scores. RAGAS and judge calibration remain open.
+
 The optional neural runtime passed real loopback HTTP checks for five financial
 scenarios, exact source access, denied scope, abstention, overload and revocation,
 with no observed external connections. Its complete local suite passes 440 tests
