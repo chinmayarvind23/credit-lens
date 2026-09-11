@@ -332,3 +332,25 @@ Run the model experiment with `python -m scripts.benchmark_grounding`, passing
 fresh private `--output` directory. Raw V1 outputs are preserved in
 `resources/credit_lens/evals/query-grounding-94db2cb`; the V2 selector replay is in
 `resources/credit_lens/evals/query-grounding-selector-9573d00`.
+
+## RAGAS calibration
+
+At `da7b751`, RAGAS 0.4.3 was integrated into the isolated local evaluation
+environment using the same digest-pinned Qwen3 model and transport bounds.
+Four RAGAS protocol tests and ten existing DeepEval transport tests pass.
+The actual model passed all twelve frozen V3 controls. The 24 raw responses
+match the retained extraction and verdict outputs, with stable input/source hashes.
+
+The two saved DSCR claims used exactly the same input bytes as the earlier
+DeepEval pilot. RAGAS returned .5 for the 1.5000 claim and 0 for the 1.1000 claim.
+Both explanations computed the correct ratio, then rejected it because the value
+was not explicitly written in the source. The first extraction also added a DSCR
+definition absent from the original answer. All four raw responses are retained.
+The process completed with stable provenance; judge validation failed.
+
+The wrapper checks coverage of extracted statements by verdicts. It cannot prove
+that extraction faithfully represents the original answer, as this pilot shows.
+These scores do not establish packet groundedness, citation precision or an
+unsupported-claim rate. Arithmetic remains independently checked with Decimal.
+Further calibration must test supported derivation, wrong calculations and
+extraction fidelity before a population semantic run.

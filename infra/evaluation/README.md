@@ -76,6 +76,14 @@ rewritten verdict statements, nonbinary values and inconsistent scores fail the
 run. These checks validate score structure, not the judge's semantic correctness
 or complete extraction of the original answer. Calibration remains required.
 
+The actual Qwen3 run passed all twelve frozen V3 controls. The two saved DSCR
+claims then scored .5 and 0 using inputs identical to the DeepEval pilot. Both
+verdict explanations calculated the correct ratio but rejected it because the
+derived value was not stated literally in the context. The first extraction also
+added a definition absent from the answer. The run completed with stable
+provenance, but judge validation failed. These are diagnostic pilot scores, not
+project quality estimates. Neither framework is validated for population metrics.
+
 The lock pins `langchain-community==0.4.1` because RAGAS imports VertexAI classes
 removed in 0.4.2, even when the selected judge is local. No VertexAI client is
 created. The runner disables telemetry before imports and restricts sockets to

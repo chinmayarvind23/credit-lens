@@ -46,8 +46,10 @@ supported/contradicted controls covering amounts, entities, dates, missing evide
 currency and approval authority. This is authored screening, not a project quality
 score. Actual packet pilots then exposed omitted fields, incomplete generation
 and incorrect verdicts on valid calculations. The judge is not validated for
-project quality claims. RAGAS, human calibration and the full semantic baseline
-remain open.
+project quality claims. RAGAS 0.4.3 is also integrated and passed the same twelve
+controls, but its two-calculation pilot rejected correctly derived ratios and
+added a claim absent from one answer. Human calibration and the full semantic
+baseline remain open; neither framework establishes project groundedness yet.
 
 The optional neural runtime passed real loopback HTTP checks for five financial
 scenarios, exact source access, denied scope, abstention, overload and revocation,
