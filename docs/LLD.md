@@ -49,6 +49,30 @@ underwriter receives 403. An authorized admin receives 503 when ingestion is
 disabled. Submissions share the process-local authenticated request limiter;
 these controls do not yet establish distributed quotas or source upload isolation.
 
+`source_store.py` hashes the tenant namespace and accepts at most 25 MB per PDF.
+It fsyncs a temporary file, atomically links the immutable object and verifies
+regular-file type, containment, size and SHA-256 on every read. Its configured
+root is trusted host storage. Interrupted submission can leave unreferenced
+objects; automatic garbage collection is not implemented.
+
+`ingestion_worker.py` claims digital jobs only. It checks the current SQL grant
+before source access and on each heartbeat. Docker receives one read-only input
+directory, a pinned local image ID, no network, user 1000, dropped capabilities,
+a read-only root, 512 MiB, one CPU and 64 PIDs. Parent supervision and an inner
+GNU timeout bound parsing to 1..120 seconds. The parent polls stdout/stderr sizes
+every 100 ms and rejects more than 8 MiB/1 MB; these are detection thresholds,
+not a filesystem quota. Docker logging is disabled and only the owned random
+container is removed. Temporary files are deleted on normal cleanup; host failure
+and source-store retention require operator maintenance.
+
+`pdf_worker.py` reads and hashes the exact bytes passed to `ingest_pdf_bytes`.
+It discards metadata text and returns actual text, hashes and pypdf provenance.
+Digital extraction confidence 1 means text extraction succeeded, not measured
+semantic accuracy. The parent verifies source identity and immutable metadata
+again before atomic publication. Malformed or altered sources fail; missing
+objects, timeouts and Docker launch failures retry. Lease loss cannot acknowledge
+another worker's work. OCR stays queued for its separate reviewed path.
+
 ## Core domain schemas
 
 Illustrative contracts:

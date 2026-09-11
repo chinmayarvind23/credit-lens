@@ -10,6 +10,7 @@ import pytest
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
 from sqlalchemy import create_engine, select, update
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.engine import make_url
 from sqlalchemy.exc import OperationalError
 
@@ -34,6 +35,12 @@ def store():
         raise ValueError("Job tests require the loopback creditlens_test database")
     engine = open_database(url)
     initialize_jobs(engine)
+    with engine.begin() as connection:
+        connection.execute(
+            insert(grants)
+            .values(**admin().model_dump(mode="json"), enabled=True)
+            .on_conflict_do_nothing()
+        )
     try:
         yield JobStore(engine, "test-" + uuid4().hex)
     finally:

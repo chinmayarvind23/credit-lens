@@ -53,6 +53,14 @@ jobs:
           uv run ruff check src tests scripts infra/huggingface infra/postgres .github/scripts .github/tests
           uv run ruff format --check src tests scripts infra/huggingface infra/postgres .github/scripts .github/tests
           uv run mypy src scripts/deploy_space.py infra/huggingface/demo_entrypoint.py infra/huggingface/smoke_container.py .github/scripts/check_coverage.py
+      - name: Verify the sanitized deployment snapshot
+        run: |
+          uv run python scripts/deploy_space.py stage --output "${{ runner.temp }}/creditlens-space"
+          uv run python scripts/deploy_space.py verify --stage "${{ runner.temp }}/creditlens-space"
+      - name: Build the demo and isolated parser image
+        run: |
+          docker build --tag creditlens-demo:ci "${{ runner.temp }}/creditlens-space"
+          echo "CREDITLENS_TEST_PARSER_IMAGE=$(docker image inspect --format '{{.Id}}' creditlens-demo:ci)" >> "$GITHUB_ENV"
       - name: Python and package boundary tests
         run: uv run pytest tests infra/huggingface/tests infra/postgres .github/tests --ignore=tests/test_retrieval_lab.py --cov=creditlens --cov-report=term-missing --cov-report=xml --cov-report=json:${{ runner.temp }}/coverage.json
       - name: Enforce reviewed line coverage
@@ -76,12 +84,6 @@ jobs:
           uv run --locked python scripts/evaluate.py --pages "${{ runner.temp }}/creditlens-corpus/pages.jsonl" --output "${{ runner.temp }}/creditlens-control" --outcomes
       - name: Run frozen local evaluation gates
         run: uv run python scripts/evaluate.py --pages "${{ runner.temp }}/creditlens-corpus/pages.jsonl" --output "${{ runner.temp }}/creditlens-eval" --outcomes --baseline "${{ runner.temp }}/creditlens-control/summary.json"
-      - name: Verify the sanitized deployment snapshot
-        run: |
-          uv run python scripts/deploy_space.py stage --output "${{ runner.temp }}/creditlens-space"
-          uv run python scripts/deploy_space.py verify --stage "${{ runner.temp }}/creditlens-space"
-      - name: Build the synthetic demo image
-        run: docker build --tag creditlens-demo:ci "${{ runner.temp }}/creditlens-space"
       - name: Exercise the built container
         run: |
           docker run --detach --name creditlens-demo-ci --publish 127.0.0.1:17860:7860 --cap-drop ALL --security-opt no-new-privileges --read-only --tmpfs /app/data:rw,noexec,nosuid,size=64m,uid=1000,gid=1000 --tmpfs /tmp:rw,noexec,nosuid,size=32m --cpus 1 --memory 512m --pids-limit 128 creditlens-demo:ci

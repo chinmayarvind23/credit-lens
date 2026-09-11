@@ -37,6 +37,7 @@ src/creditlens/*
 !src/creditlens/intent.py
 !src/creditlens/limits.py
 !src/creditlens/local_search.py
+!src/creditlens/pdf_worker.py
 !src/creditlens/retrieval.py
 !src/creditlens/retrieval_cache.py
 !src/creditlens/runtime.py

@@ -2,6 +2,7 @@
 
 from collections.abc import Sequence
 from hashlib import sha256
+from io import BytesIO
 from pathlib import Path
 
 from pypdf import PdfReader, __version__
@@ -36,10 +37,25 @@ def ingest_pdf(
 ) -> tuple[Page, ...]:
     """Extract real PDF text; metadata supplies provenance but never substitutes source content."""
     _validate_metadata(metadata)
+    if not 1 <= max_bytes <= 25_000_000:
+        raise ExtractionError("PDF exceeds configured input size limit")
     try:
-        if path.stat().st_size > max_bytes:
+        with path.open("rb") as stream:
+            data = stream.read(max_bytes + 1)
+        return ingest_pdf_bytes(data, metadata, max_bytes=max_bytes)
+    except OSError as error:
+        raise ExtractionError("PDF could not be read") from error
+
+
+def ingest_pdf_bytes(
+    data: bytes, metadata: Sequence[Page], max_bytes: int = 25_000_000
+) -> tuple[Page, ...]:
+    """Parse verified bytes, preventing source replacement between hashing and extraction."""
+    _validate_metadata(metadata)
+    try:
+        if not 1 <= max_bytes <= 25_000_000 or len(data) > max_bytes:
             raise ExtractionError("PDF exceeds configured input size limit")
-        reader = PdfReader(path, strict=True)
+        reader = PdfReader(BytesIO(data), strict=True)
         if reader.is_encrypted:
             raise ExtractionError("Encrypted documents require an explicit decryption workflow")
         if len(reader.pages) != len(metadata):
@@ -58,6 +74,7 @@ def ingest_pdf(
                         "text": text,
                         "content_hash": text_hash(text),
                         "parser_version": f"pypdf-{__version__}",
+                        "extraction_confidence": 1,
                     }
                 )
             )

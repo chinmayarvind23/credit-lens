@@ -58,6 +58,7 @@ select = ["E", "F", "I", "B", "UP", "S", "C90"]
 "infra/redis/test_integration.py" = ["S101"]
 "infra/postgres/test_catalog.py" = ["S101"]
 "infra/postgres/test_ingestion_jobs.py" = ["S101"]
+"infra/postgres/test_ingestion_execution.py" = ["S101"]
 "infra/huggingface/sdk_tests/test_publish_sdk.py" = ["S101"]
 "infra/ocr/tests/test_experiments.py" = ["S101"]
 

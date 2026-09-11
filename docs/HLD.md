@@ -26,9 +26,12 @@ The durable ingestion store now uses PostgreSQL for intent, idempotency, leases,
 retries, review state and completion. A worker's expired token cannot publish.
 Digital evidence and completed job status share one transaction, with the current
 admin grant locked through commit. Opt-in admin HTTP routes register staged source
-hashes and read durable status with current grants. Source storage, worker execution
-and SQS integration remain separate work. Queue messages will identify jobs; the database
-will remain authoritative for their source and permissions.
+hashes and read durable status with current grants. Local source storage separates
+tenants and verifies immutable PDF bytes. Digital workers parse one source in a
+network-disabled Docker container, recheck grants on heartbeats and publish only
+validated output. SQS delivery and managed object storage remain unfinished.
+Queue messages will identify jobs; the database remains authoritative for source
+identity and permissions.
 
 ## User flow
 

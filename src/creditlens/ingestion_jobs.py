@@ -41,6 +41,7 @@ FailureCode = Literal[
     "extraction_failed",
     "permission_changed",
     "worker_timeout",
+    "worker_unavailable",
     "attempts_exhausted",
     "publication_failed",
 ]
@@ -50,6 +51,7 @@ FAILURES = {
     "extraction_failed",
     "permission_changed",
     "worker_timeout",
+    "worker_unavailable",
     "attempts_exhausted",
     "publication_failed",
 }
@@ -277,7 +279,9 @@ class JobStore:
                 select(jobs.c.job_id).where(jobs.c.queue_id == self.queue_id).limit(1)
             )
 
-    def claim(self, job_id: str | None = None) -> JobLease | None:
+    def claim(
+        self, job_id: str | None = None, *, parser: Literal["digital", "ocr"] | None = None
+    ) -> JobLease | None:
         """Skip locked jobs and reclaim expired work with a fresh token and bounded attempts."""
         available = or_(
             and_(
@@ -286,6 +290,8 @@ class JobStore:
             and_(jobs.c.state == "RUNNING", jobs.c.lease_until <= func.clock_timestamp()),
         )
         statement = select(jobs).where(jobs.c.queue_id == self.queue_id, available)
+        if parser is not None:
+            statement = statement.where(jobs.c.input["parser"].as_string() == parser)
         if job_id is not None:
             statement = statement.where(jobs.c.job_id == job_id)
         with self._transaction() as connection:
@@ -360,9 +366,12 @@ class JobStore:
         )
 
     def heartbeat(self, lease: JobLease) -> None:
-        """Renew a valid token; late heartbeats cannot resurrect expired ownership."""
+        """Renew current ownership and grants; revoked submitters cannot keep extraction alive."""
         with self._transaction() as connection:
-            self._locked(connection, lease)
+            row = self._locked(connection, lease)
+            _current_publisher(
+                connection, row["subject"], IngestionInput.model_validate(row["input"])
+            )
             self._change(
                 connection,
                 lease.job_id,

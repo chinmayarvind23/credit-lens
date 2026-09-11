@@ -99,8 +99,25 @@ The public synthetic demo identity is an underwriter and cannot use these routes
 Do not elevate that public identity to expose administrative access.
 
 The POST registers a pre-staged PDF hash and manifest; it is not a raw file upload
-and does not yet execute extraction. The existing process-local request limit
+and does not execute extraction in the request. The existing process-local request limit
 applies to submissions; distributed admission quotas remain unfinished. Readiness
-checks the configured job table. Source-object handling, executable workers and
-SQS delivery are the next integration work. These endpoints alone do not implement
-the complete async ingestion path or an AWS deployment.
+checks the configured job table. A separate `IngestionWorker` now reads staged
+objects through `LocalSourceStore`, supervises `DockerPdfExtractor` and atomically
+publishes valid digital pages. Current grants are checked during extraction.
+OCR admission, SQS delivery and managed object storage remain unfinished.
+
+Build the local parser image and require its immutable ID for the actual Docker
+execution tests. No image is pulled by the worker:
+
+```powershell
+docker build --tag creditlens-pdf-parser:local .
+$env:CREDITLENS_TEST_PARSER_IMAGE=(docker image inspect --format '{{.Id}}' creditlens-pdf-parser:local)
+.venv\Scripts\pytest.exe infra/postgres/test_ingestion_execution.py
+```
+
+These tests inspect real container isolation, enforce timeout cleanup and reject
+malformed input, tampered hashes, changed scope, revoked grants and expired leases.
+Explicit fault injection tests are distinguished from actual container parsing.
+The source store assumes a trusted local root and retains immutable objects;
+capacity quotas and garbage collection are not yet implemented. Worker output
+size limits are polled detection thresholds, not hard host filesystem quotas.
