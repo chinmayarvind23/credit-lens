@@ -316,7 +316,16 @@ The provider wraps the existing rankers and preserves the original request for
 workflow checks, audits and cache identity. Its internal source result retains
 the transformed model request; verification reconstructs that transformation
 under current grants and catalog revision. The grounding version participates
-in cache keys. Linux container validation and public deployment remain separate.
+in cache keys. The corrected Linux package at `d09b713` passes five financial HTTP
+scenarios with exact source inspection, denied-scope and abstention checks. Seven
+desktop/mobile browser checks pass against the local candidate, with a recording
+and audit evidence confirming the grounding provider. This is a smoke test, not a
+Linux replay of the full benchmark. Public promotion remains pending.
+
+The first image failed startup because the staging inventory included the new
+module but `.dockerignore` excluded it. The corrected whitelist and deployment
+inventory guard pass 15 packaging tests. The guard compares exact file exceptions;
+it does not interpret every Docker pattern or replace actual container checks.
 
 Run the model experiment with `python -m scripts.benchmark_grounding`, passing
 `--gold`, `--pages`, `--models`, the verified candidate run as `--baseline` and a
