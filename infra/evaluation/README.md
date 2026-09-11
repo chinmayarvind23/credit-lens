@@ -174,6 +174,22 @@ unrun units stay in the coverage ledger; failed expected extraction is distinct
 from scored coverage. Five adversarial tests pass, and it reproduces the original
 nine-unit pilot ledger. Within-field extraction completeness remains unproven.
 
+The first two additional batches bring the historical sample to 57/85 scored
+cited units, with 28 not run and 26 nonempty fields still awaiting rubrics.
+Inspection found four extraction/NLI false positives: a document-version header
+became an invented directory-location claim. The original answers did not contain
+that claim. Scores and source-linked findings are preserved; these scores cannot
+be promoted as validated project quality.
+
+`run_ragas.py --unit-mode verbatim` provides a separate experimental metric using
+RAGAS's NLI stage and score calculation. It passes the entire unchanged field as
+one statement, bypassing generative extraction. One binary verdict must cover the
+exact complete field. It uses one model call per unit and records a distinct
+metric identity; its denominator differs from atomic-claim faithfulness. The
+default remains `--unit-mode extracted`. Twelve frozen controls in
+`controls-field-support-v1.jsonl` test compound support and unsupported additions.
+Protocol and reconciliation checks pass; judge calibration is a separate step.
+
 Next: inspect real packet judgments and calibrate against human judgments before
 promoting semantic results. Public
 benchmarks, full RAGAS validation, online replay/alerts and regression gates remain required by

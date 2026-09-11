@@ -66,6 +66,35 @@ def read_cases(path: Path) -> tuple[bytes, list[dict[str, Any]]]:
     return inputs, cases
 
 
+def validate_field_score(score: float, outputs: list[dict], original: str) -> None:
+    """Require one binary verdict on the entire exact field; partial or rewritten units fail."""
+    if [o["schema"] for o in outputs] != ["NLIStatementOutput"]:
+        raise ValueError("Verbatim mode requires exactly one NLI output")
+    verdicts = outputs[0]["output"]["statements"]
+    if len(verdicts) != 1 or verdicts[0]["statement"] != original:
+        raise ValueError("NLI must judge the complete original field exactly once")
+    verdict = verdicts[0]["verdict"]
+    if type(verdict) is not int or verdict not in (0, 1):
+        raise ValueError("The whole-field verdict must be binary")
+    if not math.isfinite(score) or score != verdict:
+        raise ValueError("Field score differs from the retained verdict")
+
+
+def validate_result(result: dict, case: dict, score: float, outputs: list[dict], mode: str) -> None:
+    """Distinguish generated atomic claims from one exact field without repairing either output."""
+    if mode == "verbatim":
+        validate_field_score(score, outputs, case["actual_output"])
+        statements = [case["actual_output"]]
+        result.update(verbatim_statement=case["actual_output"], text_preserved=True)
+    else:
+        validate_score(score, outputs)
+        statements = outputs[0]["output"]["statements"]
+    result["structure_valid"] = True
+    expected = case.get("expected_statements")
+    result["expected_statements"] = expected
+    result["extraction_matches"] = Counter(expected) == Counter(statements) if expected else None
+
+
 def run(args: argparse.Namespace, loop: asyncio.AbstractEventLoop) -> None:
     """Journal library outputs and failures separately from unvalidated project quality claims."""
     repo = Path(__file__).resolve().parents[2]
@@ -88,6 +117,7 @@ def run(args: argparse.Namespace, loop: asyncio.AbstractEventLoop) -> None:
             "ragas_profiles.py",
             "local_judge.py",
             "run_deepeval.py",
+            "verbatim_faithfulness.py",
             "uv.lock",
         )
     ]
@@ -100,7 +130,12 @@ def run(args: argparse.Namespace, loop: asyncio.AbstractEventLoop) -> None:
         "input_sha256": sha256(inputs).hexdigest(),
         "model": args.model,
         "digest": args.digest,
-        "metric": "ragas.metrics.collections.Faithfulness",
+        "metric": (
+            "custom.VerbatimFieldSupport using RAGAS NLI"
+            if args.unit_mode == "verbatim"
+            else "ragas.metrics.collections.Faithfulness"
+        ),
+        "unit_mode": args.unit_mode,
         "profile": args.profile,
         "human_calibrated": False,
         "network": "127.0.0.1:11434 only; stdlib loop initialized before restriction",
@@ -111,7 +146,12 @@ def run(args: argparse.Namespace, loop: asyncio.AbstractEventLoop) -> None:
     judge = RagasJudge(transport)
     (args.output / "summary.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
     try:
-        metric = Faithfulness(llm=judge)
+        if args.unit_mode == "verbatim":
+            from verbatim_faithfulness import VerbatimFieldSupport
+
+            metric = VerbatimFieldSupport(llm=judge, name="verbatim_field_support")
+        else:
+            metric = Faithfulness(llm=judge)
         manifest["instruction_sha256"] = configure(metric, args.profile)
         for case in cases:
             judge.outputs.clear()
@@ -131,16 +171,7 @@ def run(args: argparse.Namespace, loop: asyncio.AbstractEventLoop) -> None:
                     ).value
                 )
                 result["score"] = score if math.isfinite(score) else None
-                validate_score(score, judge.outputs)
-                result["structure_valid"] = True
-                expected_statements = case.get("expected_statements")
-                result["expected_statements"] = expected_statements
-                result["extraction_matches"] = (
-                    Counter(expected_statements)
-                    == Counter(judge.outputs[0]["output"]["statements"])
-                    if expected_statements is not None
-                    else None
-                )
+                validate_result(result, case, score, judge.outputs, args.unit_mode)
             finally:
                 result["outputs"] = list(judge.outputs)
                 (args.output / "summary.json").write_text(
@@ -184,6 +215,7 @@ def main() -> None:
     parser.add_argument("--model", required=True)
     parser.add_argument("--digest", required=True)
     parser.add_argument("--profile", choices=("stock", "lending-v1"), default="stock")
+    parser.add_argument("--unit-mode", choices=("extracted", "verbatim"), default="extracted")
     args = parser.parse_args()
     loop = asyncio.new_event_loop()
     try:

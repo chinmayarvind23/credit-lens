@@ -8,7 +8,7 @@ from hashlib import sha256
 from pathlib import Path
 from typing import Any
 
-from run_ragas import validate_score
+from run_ragas import validate_field_score, validate_score
 
 IDENTITY = ("model", "digest", "profile", "metric", "source_hashes", "instruction_sha256")
 
@@ -40,19 +40,31 @@ def reconcile_run(cases: list[dict], summary: dict, raw: list[dict]) -> dict[str
             raise ValueError("Retained outputs differ from the raw model journal")
     ledger = {identity: {"status": "unrun", "score": None} for identity in ids}
     for case, result in zip(cases, results, strict=False):
-        ledger[result["id"]] = result_row(case, result, complete)
+        ledger[result["id"]] = result_row(
+            case, result, complete, summary.get("unit_mode", "extracted")
+        )
     return ledger
 
 
-def result_row(case: dict, result: dict, complete: bool) -> dict[str, Any]:
+def result_row(case: dict, result: dict, complete: bool, mode: str) -> dict[str, Any]:
     """Keep failed extraction separate even when the judge emits a plausible score."""
     if not result.get("structure_valid"):
         if complete:
             raise ValueError("Completed runs require structurally valid results")
         return {"status": "failed", "score": None}
-    validate_score(result["score"], result["outputs"])
+    if mode == "verbatim":
+        if result.get("verbatim_statement") != case["actual_output"] or not result.get(
+            "text_preserved"
+        ):
+            raise ValueError("Verbatim result differs from the original field")
+        validate_field_score(result["score"], result["outputs"], case["actual_output"])
+        statements = [case["actual_output"]]
+    elif mode == "extracted":
+        validate_score(result["score"], result["outputs"])
+        statements = result["outputs"][0]["output"]["statements"]
+    else:
+        raise ValueError("Unknown scoring unit mode")
     expected = case.get("expected_statements")
-    statements = result["outputs"][0]["output"]["statements"]
     extraction = Counter(expected) == Counter(statements) if expected else None
     if result.get("extraction_matches") != extraction:
         raise ValueError("Saved extraction check differs from the frozen expectation")
@@ -113,6 +125,7 @@ def reconcile(args: argparse.Namespace) -> dict:
         if any(indexed.get(case["id"]) != case or case["id"] in judged for case in cases):
             raise ValueError("Cases differ from the export or repeat a scheduled unit")
         current = {key: summary[key] for key in IDENTITY}
+        current["unit_mode"] = summary.get("unit_mode", "extracted")
         if identity is not None and current != identity:
             raise ValueError("Model, profile or evaluator sources differ across runs")
         identity = current

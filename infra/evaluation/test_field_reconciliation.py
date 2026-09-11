@@ -106,6 +106,21 @@ class ReconciliationTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "extraction check"):
             reconcile_run(cases, summary, raw)
 
+    def test_verbatim_mode_requires_one_exact_original_field(self) -> None:
+        """One raw NLI response counts only when it covers the exact preserved field."""
+        cases, summary, raw = fixture()
+        cases[0]["actual_output"] = "Supported fact."
+        summary["unit_mode"] = "verbatim"
+        result = summary["results"][0]
+        result.update(verbatim_statement="Supported fact.", text_preserved=True)
+        result["outputs"] = result["outputs"][1:]
+        row = reconcile_run(cases, summary, raw[1:])[cases[0]["id"]]
+        self.assertEqual(row["status"], "scored")
+        self.assertEqual(row["extracted_statement_count"], 1)
+        cases[0]["actual_output"] += " Unsupported addition."
+        with self.assertRaisesRegex(ValueError, "original field"):
+            reconcile_run(cases, summary, raw[1:])
+
     def test_aggregate_checks_membership_hashes_and_remaining_fields(self) -> None:
         """Hash-valid files still cannot repeat a unit or silently drop the export inventory."""
         cases, summary, raw = fixture()
