@@ -1,7 +1,7 @@
 # Local Redis verification
 
-The retrieval cache is an optional provider wrapper. The HTTP workflow does not
-enable it yet. It signs opaque request keys and source IDs, reauthorizes every
+The retrieval cache is an optional provider wrapper enabled explicitly in the
+demo HTTP workflow. It signs opaque request keys and source IDs, reauthorizes every
 read and hydrates from the current canonical catalog. Redis is never a grant store.
 
 The verified server is Redis7.4.11, image digest
@@ -25,3 +25,21 @@ The private-repository hosted workflow is manual under the user's no-spend rule.
 Do not dispatch it unless account settings guarantee no charge. Equivalent local
 checks remain runnable without hosted minutes. No paid Redis or cloud resource
 is required for these tests. No response-cache latency or cost improvement is claimed.
+
+To enable the cache for the local demo, keep the isolated Redis container running
+and configure both process variables. Generate a fresh signing key locally:
+
+```powershell
+$env:CREDITLENS_REDIS_URL='redis://127.0.0.1:16389/15'
+$env:CREDITLENS_CACHE_SIGNING_KEY=(uv run python -c "import secrets; print(secrets.token_hex(32))")
+uv run uvicorn creditlens.api:create_app --factory --host 127.0.0.1 --port 8000
+```
+
+`CREDITLENS_CACHE_TTL_SECONDS` defaults to 60 and accepts 1 through 3600 seconds.
+Keep the signing key out of source control. Remote Redis requires TLS. A cache
+outage records `cache.retrieval.unavailable` and recomputes the same authorized
+search. Hits report `cache_hit: true` and `cache.retrieval.hit`; every hit still
+recomputes finance, validates citations and writes a fresh audit record. Packet
+generation remains `local-extractive`, preserving the DSCR-only UI description.
+Production cache integration remains unavailable until the production catalog
+and search workflow are initialized.

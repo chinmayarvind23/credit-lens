@@ -13,6 +13,8 @@ from creditlens.errors import ServiceError
 from creditlens.finance import FinanceResult, calculate_review
 from creditlens.intent import classify_intent, topic_supported
 from creditlens.retrieval import EvidenceCatalog, lexical_rank
+from creditlens.retrieval_cache import CachedResult, CanonicalProvider
+from creditlens.search_provider import SearchResult
 from creditlens.storage import GrantStore
 
 ACTIONS = {
@@ -75,10 +77,15 @@ def collect_context(
 class QueryWorkflow:
     """The initial workflow guarantees quoted support without claiming an LLM quality score."""
 
-    def __init__(self, catalog: EvidenceCatalog, store: GrantStore) -> None:
+    def __init__(
+        self, catalog: EvidenceCatalog, store: GrantStore, provider: CanonicalProvider | None = None
+    ) -> None:
         """Inject authoritative evidence and grants for failure and revocation testing."""
         self.catalog = catalog
         self.store = store
+        if provider is not None and provider.catalog is not catalog:
+            raise ValueError("Workflow and provider must share the canonical catalog")
+        self.provider = provider
 
     def query(self, query: QueryRequest, principal: Principal) -> Packet:
         """Authorize, retrieve, calculate, validate, recheck grants, then acknowledge audit."""
@@ -92,8 +99,12 @@ class QueryWorkflow:
             candidates, revision = self.catalog.snapshot(
                 current, query.borrower_id, query.effective_at
             )
-        with trace.span("retrieval.local_bm25"):
-            ranked = lexical_rank(query.question, candidates)
+        with trace.span("retrieval.local_bm25" if self.provider is None else "retrieval.provider"):
+            search = self._search(query, current, candidates, revision)
+            ranked = search.chunks
+        if isinstance(search, CachedResult):
+            with trace.span(f"cache.retrieval.{search.cache_state}"):
+                pass
         with trace.span("intent.classify_question"):
             intent = classify_intent(query.question)
             finance = intent.financial_review
@@ -110,9 +121,19 @@ class QueryWorkflow:
                     result, disposition="INSUFFICIENT_EVIDENCE", missing=("relevant evidence",)
                 )
         packet = self._packet(query, result, evidence)
+        if self.provider is not None:
+            packet = packet.model_copy(
+                update={
+                    "cache_hit": isinstance(search, CachedResult) and search.cache_state == "hit",
+                }
+            )
         with trace.span("citation.validate_exact_extracts"):
             validate_packet(packet)
         with trace.span("authorization.recheck"):
+            if self.provider is not None:
+                if self.provider.catalog is not self.catalog:
+                    raise ServiceError("access_changed", "Access changed; retry the request", 409)
+                self.provider.verify(search)
             self.catalog.verify_revision(revision)
             if self.store.resolve(principal.subject) != current:
                 raise ServiceError("access_changed", "Access changed; retry the request", 409)
@@ -129,6 +150,7 @@ class QueryWorkflow:
                     "disposition": result.disposition,
                     "stages": [s.name for s in trace.stages],
                     "provider_mode": packet.provider_mode,
+                    "search_provider_mode": search.provider_mode,
                     "corpus_version": packet.corpus_version,
                     "query_hash": sha256(query.model_dump_json().encode()).hexdigest(),
                     "packet_hash": sha256(packet.model_dump_json().encode()).hexdigest(),
@@ -140,6 +162,35 @@ class QueryWorkflow:
         return packet.model_copy(
             update={"stages": tuple(trace.stages), "latency_ms": (perf_counter() - started) * 1000}
         )
+
+    def _search(
+        self,
+        query: QueryRequest,
+        principal: Principal,
+        candidates: tuple[Chunk, ...],
+        revision: int,
+    ) -> SearchResult:
+        """Keep the measured local control and validate injected rankings against current scope."""
+        if self.provider is None:
+            return SearchResult(
+                lexical_rank(query.question, candidates), principal, query, revision, "local-bm25"
+            )
+        if self.provider.catalog is not self.catalog:
+            raise ServiceError("access_changed", "Access changed; retry the request", 409)
+        result = self.provider.search(query, principal)
+        self.provider.verify(result)
+        allowed = {chunk.chunk_id: chunk for chunk in candidates}
+        if (
+            result.principal != principal
+            or result.request != query
+            or result.catalog_revision != revision
+            or len(result.chunks) > 10
+            or len({chunk.chunk_id for chunk in result.chunks}) != len(result.chunks)
+            or any(allowed.get(chunk.chunk_id) != chunk for chunk in result.chunks)
+        ):
+            raise ServiceError("invalid_search_result", "Search result is unavailable", 503)
+        self.catalog.verify_revision(revision)
+        return result
 
     def _packet(
         self, query: QueryRequest, result: FinanceResult, evidence: tuple[Chunk, ...]

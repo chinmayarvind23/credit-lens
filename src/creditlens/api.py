@@ -17,11 +17,11 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from creditlens import __version__
 from creditlens.auth import Authenticator
-from creditlens.corpus import build_demo_borrowers, build_demo_pages
+from creditlens.corpus import build_demo_borrowers
 from creditlens.domain import Borrower, Chunk, Packet, Principal, QueryRequest, StrictModel
 from creditlens.errors import ServiceError
 from creditlens.limits import BodyLimit, PrivateResponses, QueryLimiter
-from creditlens.retrieval import EvidenceCatalog
+from creditlens.runtime import open_workflow
 from creditlens.settings import Settings
 from creditlens.storage import GrantStore, open_database
 from creditlens.workflow import QueryWorkflow
@@ -42,22 +42,21 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         """Open resources once and always close them when server or tests shut down."""
         engine = open_database(config.database_url)
-        store = GrantStore(engine)
-        if config.mode == "demo":
-            store.seed_demo()
-        app.state.store = store
-        app.state.auth = Authenticator(config, store)
-        app.state.workflow = (
-            QueryWorkflow(EvidenceCatalog(build_demo_pages()), store)
-            if config.mode == "demo"
-            else None
-        )
-        with httpx.Client(timeout=config.request_timeout_seconds, follow_redirects=False) as client:
-            app.state.http = client
-            try:
-                yield
-            finally:
-                engine.dispose()
+        try:
+            store = GrantStore(engine)
+            if config.mode == "demo":
+                store.seed_demo()
+            app.state.store = store
+            app.state.auth = Authenticator(config, store)
+            with open_workflow(config, store) as workflow:
+                app.state.workflow = workflow
+                with httpx.Client(
+                    timeout=config.request_timeout_seconds, follow_redirects=False
+                ) as client:
+                    app.state.http = client
+                    yield
+        finally:
+            engine.dispose()
 
     app = FastAPI(title="CreditLens", version=__version__, lifespan=lifespan)
     app.state.settings = config
