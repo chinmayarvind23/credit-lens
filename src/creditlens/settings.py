@@ -5,6 +5,8 @@ from typing import Literal
 from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from creditlens.sqs_queue import queue_origin
+
 
 class Settings(BaseSettings):
     """Explicit demo isolation prevents a convenient local identity reaching real providers."""
@@ -24,6 +26,8 @@ class Settings(BaseSettings):
     cache_ttl_seconds: int = 60
     catalog_backend: Literal["memory", "postgres"] = "memory"
     ingestion_enabled: bool = False
+    ingestion_sqs_endpoint: str = Field(default="", max_length=2048)
+    ingestion_sqs_queue_url: str = Field(default="", max_length=2048)
     ingestion_queue_id: str = Field(
         default="synthetic-ingestion-v1", pattern=r"^synthetic-[a-z0-9-]{1,64}$"
     )
@@ -45,6 +49,12 @@ class Settings(BaseSettings):
         """Expose staged synthetic jobs only with the explicitly enabled shared catalog."""
         if self.ingestion_enabled and self.catalog_backend != "postgres":
             raise ValueError("Ingestion requires the shared PostgreSQL catalog")
+        if bool(self.ingestion_sqs_endpoint) != bool(self.ingestion_sqs_queue_url):
+            raise ValueError("SQS endpoint and queue URL must be configured together")
+        if self.ingestion_sqs_endpoint:
+            if not self.ingestion_enabled:
+                raise ValueError("SQS notifications require enabled ingestion")
+            queue_origin(self.ingestion_sqs_endpoint, self.ingestion_sqs_queue_url)
         return self
 
     @model_validator(mode="after")

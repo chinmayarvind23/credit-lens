@@ -3,6 +3,7 @@
 import re
 import time
 from collections.abc import Callable
+from threading import Lock
 from typing import TYPE_CHECKING, TypeVar
 from urllib.parse import urlsplit
 from uuid import UUID
@@ -71,6 +72,20 @@ def local_client(endpoint: str) -> "SQSClient":
     )
 
 
+def queue_origin(endpoint: str, queue_url: str) -> str:
+    """Validate configured destinations without importing the optional SDK or opening a client."""
+    origin = local_endpoint(endpoint)
+    parsed = urlsplit(queue_url)
+    if (
+        f"{parsed.scheme}://{parsed.netloc}" != origin
+        or parsed.query
+        or parsed.fragment
+        or not re.fullmatch(r"/000000000000/creditlens-[A-Za-z0-9_-]{1,69}", parsed.path)
+    ):
+        raise ValueError("Queue URL must identify a local synthetic CreditLens queue")
+    return origin
+
+
 class SqsQueue:
     """Bound broker calls and stop repeated outages without confusing delivery with job state."""
 
@@ -78,33 +93,29 @@ class SqsQueue:
         self, endpoint: str, queue_url: str, *, clock: Callable[[], float] = time.monotonic
     ) -> None:
         """Reject a queue on another origin before creating the client or reading credentials."""
-        origin = local_endpoint(endpoint)
-        parsed = urlsplit(queue_url)
-        if (
-            f"{parsed.scheme}://{parsed.netloc}" != origin
-            or parsed.query
-            or parsed.fragment
-            or not re.fullmatch(r"/000000000000/creditlens-[A-Za-z0-9_-]{1,69}", parsed.path)
-        ):
-            raise ValueError("Queue URL must identify a local synthetic CreditLens queue")
+        origin = queue_origin(endpoint, queue_url)
         self.client = local_client(origin)
         self.queue_url, self.clock = queue_url, clock
         self.failures, self.blocked_until = 0, 0.0
+        self._lock = Lock()
 
     def _call(self, operation: Callable[[], T]) -> T:
         """Curate SDK failures; three failed operations open a 30-second process-local breaker."""
         from botocore.exceptions import BotoCoreError, ClientError
 
-        if self.clock() < self.blocked_until:
-            raise ServiceError("queue_circuit_open", "Queue is temporarily unavailable", 503)
+        with self._lock:
+            if self.clock() < self.blocked_until:
+                raise ServiceError("queue_circuit_open", "Queue is temporarily unavailable", 503)
         try:
             result = operation()
         except (BotoCoreError, ClientError) as error:
-            self.failures += 1
-            if self.failures >= 3:
-                self.blocked_until = self.clock() + 30
+            with self._lock:
+                self.failures += 1
+                if self.failures >= 3:
+                    self.blocked_until = self.clock() + 30
             raise ServiceError("queue_unavailable", "Queue is unavailable", 503) from error
-        self.failures, self.blocked_until = 0, 0.0
+        with self._lock:
+            self.failures, self.blocked_until = 0, 0.0
         return result
 
     def send(self, job_id: str) -> None:

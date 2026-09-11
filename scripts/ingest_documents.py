@@ -2,9 +2,11 @@
 
 import argparse
 import json
+import signal
 import subprocess
 from hashlib import sha256
 from pathlib import Path
+from threading import Event
 
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -17,6 +19,7 @@ from creditlens.source_store import LocalSourceStore
 from creditlens.sql_catalog import SqlEvidenceCatalog
 from creditlens.sqs_queue import SqsQueue
 from creditlens.storage import GrantStore, open_database
+from creditlens.worker_loop import WorkerLoop
 
 
 def bounded_read(path: Path, limit: int) -> bytes:
@@ -59,13 +62,15 @@ def execute(args: argparse.Namespace, settings: Settings) -> str:
     """Use the existing configured schema; this tool neither seeds identities nor creates grants."""
     if not settings.ingestion_enabled or settings.catalog_backend != "postgres":
         raise ValueError("Enable the configured PostgreSQL ingestion path first")
-    if bool(args.queue_endpoint) != bool(args.queue_url):
+    endpoint = args.queue_endpoint or settings.ingestion_sqs_endpoint
+    queue_url = args.queue_url or settings.ingestion_sqs_queue_url
+    if bool(endpoint) != bool(queue_url):
         raise ValueError("Queue endpoint and URL must be configured together")
     engine = open_database(settings.database_url)
     queue = None
     try:
-        if args.queue_endpoint:
-            queue = SqsQueue(args.queue_endpoint, args.queue_url)
+        if endpoint:
+            queue = SqsQueue(endpoint, queue_url)
         store = JobStore(engine, settings.ingestion_queue_id)
         sources = LocalSourceStore(args.source_root)
         if args.command == "submit":
@@ -76,6 +81,8 @@ def execute(args: argparse.Namespace, settings: Settings) -> str:
             SqlEvidenceCatalog(engine, settings.demo_catalog_id),
             DockerPdfExtractor(args.image, timeout_seconds=args.timeout),
         )
+        if args.command == "work-loop":
+            return run_loop(args, worker, queue)
         if args.command == "work-queue":
             if queue is None:
                 raise ValueError("Queue processing requires an explicit local queue")
@@ -86,6 +93,25 @@ def execute(args: argparse.Namespace, settings: Settings) -> str:
         if queue:
             queue.close()
         engine.dispose()
+
+
+def run_loop(args: argparse.Namespace, worker: IngestionWorker, queue: SqsQueue | None) -> str:
+    """Handle operator shutdown without killing a parser or acknowledging incomplete work."""
+    stop = Event()
+
+    def request_stop(signum: int, frame: object) -> None:
+        """Mark stop intent; normal cleanup owns clients, leases and child processes."""
+        stop.set()
+
+    previous = {sig: signal.signal(sig, request_stop) for sig in (signal.SIGINT, signal.SIGTERM)}
+    try:
+        count = WorkerLoop(
+            worker, QueueWorker(queue, worker) if queue else None, interval=args.interval
+        ).run(stop, stop_file=args.stop_file, max_iterations=args.max_iterations)
+        return json.dumps({"state": "STOPPED", "iterations": count})
+    finally:
+        for sig, handler in previous.items():
+            signal.signal(sig, handler)
 
 
 def main() -> None:
@@ -100,14 +126,18 @@ def main() -> None:
     staging.add_argument("--manifest", type=Path, required=True)
     staging.add_argument("--subject", required=True)
     staging.add_argument("--key", required=True)
-    for command in ("work-one", "work-queue"):
+    for command in ("work-one", "work-queue", "work-loop"):
         worker = commands.add_parser(command)
         worker.add_argument("--image", required=True)
         worker.add_argument("--timeout", type=float, default=60)
         if command == "work-one":
             worker.add_argument("--job-id")
-        else:
+        elif command == "work-queue":
             worker.add_argument("--wait", type=int, default=10)
+        else:
+            worker.add_argument("--interval", type=float, default=1)
+            worker.add_argument("--stop-file", type=Path)
+            worker.add_argument("--max-iterations", type=int)
     args = parser.parse_args()
     try:
         print(execute(args, Settings()))

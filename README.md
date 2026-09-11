@@ -83,6 +83,9 @@ An operator with a private admin grant submits a hash-addressed source, then run
 `scripts/ingest_documents.py work-one` to extract and atomically publish its pages.
 The public demo identity cannot administer ingestion. The [local SQS-compatible
 integration](infra/sqs/README.md) supports notifications and duplicate recovery.
+The opt-in API sends notifications after accepting durable intent. `work-loop`
+processes jobs continuously, recovers through SQL during broker outages and
+supports graceful stopping through a signal or an operator stop file.
 OCR review, managed SQS deployment and managed source storage remain unfinished.
 
 ## Core product loop

@@ -30,8 +30,10 @@ hashes and read durable status with current grants. Local source storage separat
 tenants and verifies immutable PDF bytes. Digital workers parse one source in a
 network-disabled Docker container, recheck grants on heartbeats and publish only
 validated output. An optional boto3 adapter now sends and consumes job notifications
-through a local SQS-compatible broker. Duplicate notifications are acknowledged
-from durable terminal state; an empty broker poll recovers missed SQL jobs.
+through a local SQS-compatible broker. The opt-in API sends notifications after
+committing intent. A persistent worker consumes them, acknowledges terminal jobs
+and recovers SQL work on empty polls or broker outages. Shutdown intent prevents
+a new claim after a pending broker poll and preserves its notification.
 Managed SQS deployment and object storage remain unfinished. The database remains
 authoritative for source identity and permissions.
 

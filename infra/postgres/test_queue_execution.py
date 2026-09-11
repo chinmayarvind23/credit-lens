@@ -4,6 +4,7 @@ import json
 import os
 import subprocess
 import sys
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from uuid import uuid4
 
@@ -60,6 +61,19 @@ def test_actual_send_visibility_redelivery_and_delete(queue) -> None:
     assert again.body == first.body and again.receipt != first.receipt
     queue.delete(again)
     assert queue.receive(wait_seconds=0) is None
+
+
+def test_shared_client_sends_concurrent_notifications_without_loss(queue) -> None:
+    """API background tasks can share the SDK pool and synchronized circuit state."""
+    identifiers = {str(uuid4()) for _ in range(8)}
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        list(pool.map(queue.send, identifiers))
+    received = set()
+    for _ in identifiers:
+        delivery = queue.receive(wait_seconds=0)
+        received.add(str(Notification.model_validate_json(delivery.body).job_id))
+        queue.delete(delivery)
+    assert received == identifiers
 
 
 def test_duplicate_delivery_and_lost_notification_publish_once(queue, execution, image) -> None:

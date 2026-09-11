@@ -43,6 +43,7 @@ FILES = (
     "src/creditlens/runtime.py",
     "src/creditlens/search_provider.py",
     "src/creditlens/settings.py",
+    "src/creditlens/sqs_queue.py",
     "src/creditlens/sql_catalog.py",
     "src/creditlens/storage.py",
     "src/creditlens/workflow.py",

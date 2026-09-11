@@ -32,6 +32,7 @@
     "sql_catalog.py",
     "sqs_queue.py",
     "storage.py",
+    "worker_loop.py",
     "workflow.py"
   ],
   "critical_files": [
@@ -54,7 +55,8 @@
     "source_store.py",
     "sql_catalog.py",
     "sqs_queue.py",
-    "storage.py"
+    "storage.py",
+    "worker_loop.py"
   ],
   "excluded_files": {
     "__init__.py": "Package version declaration only.",

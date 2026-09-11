@@ -1,5 +1,6 @@
 """Acknowledge broker delivery only after durable SQL state proves work is terminal."""
 
+from collections.abc import Callable
 from typing import Literal
 
 from creditlens.domain import StrictModel
@@ -10,7 +11,9 @@ from creditlens.sqs_queue import Notification, SqsQueue
 class QueueResult(StrictModel):
     """Report delivery disposition without exposing message bodies or receipt handles."""
 
-    disposition: Literal["ACKNOWLEDGED", "RECOVERED", "IDLE", "INVALID", "PENDING", "UNKNOWN"]
+    disposition: Literal[
+        "ACKNOWLEDGED", "RECOVERED", "IDLE", "INVALID", "PENDING", "UNKNOWN", "STOPPING"
+    ]
     result: WorkerResult | None = None
 
 
@@ -21,9 +24,13 @@ class QueueWorker:
         """Keep transport separate from source authority and parser execution."""
         self.queue, self.worker = queue, worker
 
-    def run_one(self, *, wait_seconds: int = 10) -> QueueResult:
+    def run_one(
+        self, *, wait_seconds: int = 10, stop_requested: Callable[[], bool] | None = None
+    ) -> QueueResult:
         """Poll SQL when the broker is empty; never acknowledge unknown or malformed work."""
         delivery = self.queue.receive(wait_seconds=wait_seconds)
+        if stop_requested and stop_requested():
+            return QueueResult(disposition="STOPPING")
         if delivery is None:
             result = self.worker.run_one()
             return QueueResult(disposition="RECOVERED" if result else "IDLE", result=result)

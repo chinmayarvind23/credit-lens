@@ -87,11 +87,20 @@ only a job UUID; bounded `Delivery` bodies and receipt handles are not logged.
 `queue_worker.py` runs the existing fenced worker, deletes only terminal jobs and
 defers active/retry notifications. Queue-scoped status reads cannot select a job
 from another configured SQL queue. Unknown or malformed messages remain for a
-dead-letter policy. Empty polls recover SQL work; broker outages require the
-separate SQL polling command. Three consecutive broker failures open a 30-second
-process-local circuit. Operator submission sends after SQL commit and reports
-`PENDING` if notification sending fails. API notification sending and managed AWS
-configuration remain unfinished. See [queue integration](../infra/sqs/README.md).
+dead-letter policy. Three consecutive broker failures open a 30-second process-local
+circuit. A lock protects circuit updates across concurrent API background tasks;
+network calls run outside that lock. Operator submission sends after SQL commit
+and reports `PENDING` on failure. The opt-in API schedules sending after its 202
+response; a failure logs a curated code and leaves durable intent unchanged.
+
+`worker_loop.py` reuses clients, paces iterations and automatically polls SQL
+when notifications are absent or the broker is unavailable. Invalid notifications
+and storage failures produce curated events without acknowledgment. SIGINT,
+SIGTERM or a trusted stop-file requests stopping after current work. The consumer
+checks stop intent after a broker poll before claiming any job, leaving a received
+message unacknowledged. The loop is not an OS service or crash supervisor. The
+synthetic local-only queue configuration remains opt-in; managed AWS configuration
+is unfinished. See [queue integration](../infra/sqs/README.md).
 
 ## Core domain schemas
 

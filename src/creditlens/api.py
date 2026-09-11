@@ -1,5 +1,6 @@
 """Versioned HTTP boundary for authorized underwriting evidence."""
 
+import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import date
@@ -8,7 +9,7 @@ from typing import Annotated
 from uuid import UUID
 
 import httpx
-from fastapi import Depends, FastAPI, Header, Request
+from fastapi import BackgroundTasks, Depends, FastAPI, Header, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -25,6 +26,7 @@ from creditlens.ingestion_jobs import IngestionInput, JobStatus, JobStore, initi
 from creditlens.limits import BodyLimit, PrivateResponses, QueryLimiter
 from creditlens.runtime import open_workflow
 from creditlens.settings import Settings
+from creditlens.sqs_queue import SqsQueue
 from creditlens.storage import GrantStore, open_database
 from creditlens.workflow import QueryWorkflow
 
@@ -44,7 +46,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         """Open resources once and always close them when server or tests shut down."""
         engine = open_database(config.database_url)
+        queue = None
         try:
+            if config.ingestion_sqs_endpoint:
+                queue = SqsQueue(config.ingestion_sqs_endpoint, config.ingestion_sqs_queue_url)
+            app.state.ingestion_queue = queue
             store = GrantStore(engine)
             if config.mode == "demo":
                 store.seed_demo()
@@ -62,6 +68,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     app.state.http = client
                     yield
         finally:
+            if queue:
+                queue.close()
             engine.dispose()
 
     app = FastAPI(title="CreditLens", version=__version__, lifespan=lifespan)
@@ -224,6 +232,7 @@ def get_jobs(request: Request, principal: Principal) -> JobStore:
 def submit_document(
     body: IngestionInput,
     request: Request,
+    background_tasks: BackgroundTasks,
     principal: Annotated[Principal, Depends(current_principal)],
     idempotency_key: Annotated[
         str,
@@ -233,7 +242,19 @@ def submit_document(
     """Register a pre-staged PDF hash and manifest; this route does not accept raw file uploads."""
     store = get_jobs(request, principal)
     request.app.state.limiter.check(principal.subject)
-    return store.submit(body, principal, idempotency_key)
+    job = store.submit(body, principal, idempotency_key)
+    queue: SqsQueue | None = request.app.state.ingestion_queue
+    if queue:
+        background_tasks.add_task(notify_job, queue, job.job_id)
+    return job
+
+
+def notify_job(queue: SqsQueue, job_id: str) -> None:
+    """Failed post-response notification leaves committed intent available for SQL polling."""
+    try:
+        queue.send(job_id)
+    except ServiceError as error:
+        logging.getLogger(__name__).warning("Ingestion notification pending: %s", error.code)
 
 
 def ingestion_status(

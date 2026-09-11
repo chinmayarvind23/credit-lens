@@ -38,8 +38,25 @@ circuit recovery and separate operator processes. SDK response injection covers
 malformed broker fields and is labeled separately from actual-server evidence.
 
 For operator use, create a local standard queue through the SDK and supply its
-returned URL. Give it a deliberate dead-letter policy and retention configuration;
-the test suite demonstrates the API calls. The adapter does not create queues.
+returned URL. This Python setup creates a queue and dead-letter policy locally;
+the adapter itself does not create queues:
+
+```python
+import json
+from creditlens.sqs_queue import local_client
+
+client = local_client("http://127.0.0.1:19324")
+dead = client.create_queue(QueueName="creditlens-local-dead")["QueueUrl"]
+arn = client.get_queue_attributes(QueueUrl=dead, AttributeNames=["QueueArn"])["Attributes"][
+    "QueueArn"
+]
+queue = client.create_queue(
+    QueueName="creditlens-local",
+    Attributes={"RedrivePolicy": json.dumps({"deadLetterTargetArn": arn, "maxReceiveCount": 10})},
+)["QueueUrl"]
+print(queue)
+client.close()
+```
 Use the database/subject/manifest setup in the PostgreSQL guide, then add the two
 global options before the command:
 
@@ -50,11 +67,36 @@ global options before the command:
 
 Submission returns durable job status and `notification: SENT` or `PENDING`.
 Failed notification sending leaves the SQL job committed. An empty broker poll
-recovers one eligible SQL job. During a broker outage, `work-one` without queue
-options remains available for direct SQL recovery. Each invocation processes at
-most one job; a long-running scheduler is not implemented. Admin HTTP submissions
-currently register SQL intent and rely on this polling recovery rather than
-sending notifications directly.
+recovers one eligible SQL job. `work-one` remains available for direct SQL recovery.
+To connect both API and worker to the same local queue, configure:
+
+```powershell
+$env:CREDITLENS_INGESTION_SQS_ENDPOINT='http://127.0.0.1:19324'
+$env:CREDITLENS_INGESTION_SQS_QUEUE_URL='http://127.0.0.1:19324/000000000000/creditlens-local'
+.venv\Scripts\python.exe scripts/ingest_documents.py --source-root C:/creditlens-sources work-loop --image $env:CREDITLENS_TEST_PARSER_IMAGE --stop-file C:/creditlens-sources/STOP
+```
+
+The PostgreSQL/ingestion settings in the other guide must still be enabled.
+The CLI uses these queue settings when explicit arguments are absent. The opt-in
+API commits a job, returns 202 and sends its notification as a FastAPI background
+task. Failed sending logs only a curated code. A crash can lose a background task;
+the database job remains recoverable. Readiness depends on the authoritative
+database, not the optional notification path.
+
+`work-loop` retains clients and circuit state and processes one bounded job at a
+time. It waits one second between iterations by default and polls SQL when the
+broker is empty or unavailable. Invalid broker responses produce a curated
+failure event rather than a SQL claim. `--interval` accepts 0.1..30 seconds;
+`--max-iterations` optionally bounds a verification run to 1..10000 iterations.
+It emits JSON lifecycle and outcome events without source text or receipt handles.
+
+Create the configured stop file, or send SIGINT/SIGTERM, to stop after the current
+iteration. A stop received during a broker poll leaves its message unacknowledged
+and prevents a new claim. A current parser can finish bounded execution and
+publication checks. A preexisting stop file causes an immediate stop; use a fresh
+path for a later run. The loop is not an installed OS service or crash-restart
+supervisor. Transport limits and the current parser bound shutdown latency;
+stopping is not always immediate.
 
 Receive visibility is 180 seconds, longer than the digital parser's 120-second
 limit plus cleanup. An active lease or delayed retry defers the message 30 seconds;
