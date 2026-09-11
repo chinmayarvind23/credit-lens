@@ -90,6 +90,12 @@ class ReconciliationTests(unittest.TestCase):
         bad_raw[0]["response"]["message"]["content"] = '{"statements": ["Different."]}'
         with self.assertRaisesRegex(ValueError, "raw model"):
             reconcile_run(cases, summary, bad_raw)
+        bool_raw = copy.deepcopy(raw)
+        verdict = json.loads(bool_raw[1]["response"]["message"]["content"])
+        verdict["statements"][0]["verdict"] = True
+        bool_raw[1]["response"]["message"]["content"] = json.dumps(verdict)
+        with self.assertRaisesRegex(ValueError, "raw model"):
+            reconcile_run(cases, summary, bool_raw)
         summary["results"][0]["score"] = 0.0
         with self.assertRaisesRegex(ValueError, "score"):
             reconcile_run(cases, summary, raw)

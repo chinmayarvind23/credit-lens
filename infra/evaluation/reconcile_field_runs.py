@@ -36,7 +36,8 @@ def reconcile_run(cases: list[dict], summary: dict, raw: list[dict]) -> dict[str
             or call["response"].get("done_reason") != "stop"
         ):
             raise ValueError("Parsed output came from an incomplete raw generation")
-        if json.loads(call["response"]["message"]["content"]) != output["output"]:
+        actual = json.loads(call["response"]["message"]["content"])
+        if json.dumps(actual, sort_keys=True) != json.dumps(output["output"], sort_keys=True):
             raise ValueError("Retained outputs differ from the raw model journal")
     ledger = {identity: {"status": "unrun", "score": None} for identity in ids}
     for case, result in zip(cases, results, strict=False):
