@@ -29,6 +29,12 @@ RELEVANCE_GLUE = TOPIC_GLUE | frozenset(
     "when where who whom whose why how what which whether explain describe discuss summarize "
     "summary prepare provide find answer question tell according relevant available".split()
 )
+ASSESSMENT_CUES = frozenset(
+    "calculate calculated compute computed assess assessing evaluate compare compared "
+    "satisfy satisfies meet meets met miss missed below above exceed exceeds shortfall "
+    "result results imply issue raise cover covers need needs needed sufficient insufficient "
+    "packet underwriting".split()
+)
 
 
 @dataclass(frozen=True)
@@ -64,9 +70,16 @@ def classify_intent(question: str) -> QueryIntent:
     )
     financial = (
         bool(words & (FINANCIAL_SUBJECTS | EVIDENCE_REVIEW)) or source_request or borrower_threshold
-    ) and not policy_only
+    ) and not (policy_only or policy_threshold_lookup(words))
     sensitive = bool(words & SENSITIVE_REQUEST)
     return QueryIntent(financial, sensitive, words - TOPIC_GLUE if sensitive else frozenset())
+
+
+def policy_threshold_lookup(words: frozenset[str]) -> bool:
+    """Reference thresholds need policy evidence, while assessment/readiness cues retain finance."""
+    return bool(words & {"minimum", "threshold"}) and not bool(
+        words & (ASSESSMENT_CUES | EVIDENCE_REVIEW)
+    )
 
 
 def topic_supported(intent: QueryIntent, ranked: tuple[Chunk, ...]) -> bool:
