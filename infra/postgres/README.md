@@ -61,3 +61,32 @@ must configure finite connection/pool timeouts; application PostgreSQL engines u
 a three-second connect timeout, five-second pool wait and bounded statements.
 A whole-workflow deadline and production migration orchestration
 remain separate work.
+
+## Durable ingestion state
+
+`creditlens.ingestion_jobs` now stores immutable, hash-addressed PDF intent and
+bounded metadata in PostgreSQL. `initialize_jobs` explicitly creates its schema;
+`JobStore` binds operations to a named queue. A current administrator must also
+hold the tenant, borrower and every page ACL. Repeating the same subject-scoped
+idempotency key returns the existing job; changed input returns a conflict.
+Prefilled metadata text is discarded before storing the job.
+
+Workers claim using `FOR UPDATE SKIP LOCKED`, database time and a fresh fencing
+token. A 10..900-second lease defaults to 600 seconds. Heartbeats cannot revive an
+expired lease. Retryable failures wait 10 seconds times the attempt number; a
+third failure or expired third attempt becomes terminal. Public status contains
+curated error codes, never source content, raw exceptions or lease tokens.
+
+Digital publication locks the current submitter grant, validates the extracted
+manifest and publishes through the catalog's transaction entry point. The page
+inserts, catalog epoch and completed status commit together. A final lease check
+rolls back publication if ownership expires during work. The shared grant lock
+prevents concurrent revocation between authorization and commit. An OCR job can
+record a hashed review artifact but cannot automatically complete or publish.
+
+`test_ingestion_jobs.py` has 15 actual-database cases, including concurrent claim,
+restart/retry recovery, permission changes, post-insert failure/expiry rollback
+and a real conflicting grant lock. These tests currently invoke the job store
+directly. HTTP submission/status, source-object handling, executable workers and
+SQS delivery are the next integration work; the store alone does not implement
+the complete async ingestion path or an AWS deployment.

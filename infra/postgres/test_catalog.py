@@ -89,6 +89,25 @@ def test_requires_postgresql() -> None:
         other.dispose()
 
 
+def test_external_publication_requires_same_pool_active_transaction_and_isolation(
+    engine: Engine, catalog: SqlEvidenceCatalog
+) -> None:
+    """Reject transaction misuse that could separate job completion from its catalog writes."""
+    with engine.connect() as connection:
+        with pytest.raises(ValueError):
+            catalog.publish_in_transaction(connection, (page(),))
+    with engine.execution_options(isolation_level="REPEATABLE READ").begin() as connection:
+        with pytest.raises(ValueError):
+            catalog.publish_in_transaction(connection, (page(),))
+    other = create_engine("sqlite://")
+    try:
+        with other.begin() as connection:
+            with pytest.raises(ValueError):
+                catalog.publish_in_transaction(connection, (page(),))
+    finally:
+        other.dispose()
+
+
 def test_explicit_bootstrap_and_missing_state(engine: Engine, catalog: SqlEvidenceCatalog) -> None:
     """Readers cannot create authority; deleted authority stays unavailable even when empty."""
     with pytest.raises(ServiceError, match="catalog_unavailable"):

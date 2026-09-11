@@ -31,6 +31,17 @@ completion, invalid geometry and blank content produce an `ExtractionError`.
 The experiment supervisor bounds elapsed time and logs and kills the complete
 owned Windows process tree. This is not yet an untrusted-file production worker.
 
+`ingestion_jobs.py` stores sanitized `IngestionInput` and a fingerprint behind a
+unique queue/tenant/subject/idempotency key. `JobLease` is internal and holds a
+random token; `JobStatus` exposes only state, attempt count, curated error and
+timestamps. Claims use `FOR UPDATE SKIP LOCKED`, database clock and at most three
+attempts. Mutations require the current token and unexpired lease, checked after
+lock acquisition. Publication holds the job lock, locks the submitter grant for
+share, validates all immutable page metadata and calls
+`SqlEvidenceCatalog.publish_in_transaction`. The connection must use the same
+pool, an active transaction and READ COMMITTED isolation. A final lease check
+precedes completion; failure rolls back both page insertion and job state.
+
 ## Core domain schemas
 
 Illustrative contracts:

@@ -153,6 +153,17 @@ class SqlEvidenceCatalog:
 
     def publish(self, batch: tuple[Page, ...]) -> int:
         """Commit an immutable batch atomically; duplicates are no-ops and conflicts roll back."""
+        with self._transaction() as connection:
+            return self.publish_in_transaction(connection, batch)
+
+    def publish_in_transaction(self, connection: Connection, batch: tuple[Page, ...]) -> int:
+        """Let durable jobs commit publication and completion together on the same database."""
+        if (
+            connection.engine.pool is not self.engine.pool
+            or not connection.in_transaction()
+            or connection.get_isolation_level() != "READ COMMITTED"
+        ):
+            raise ValueError("Publication requires an active transaction on the catalog engine")
         if not batch or len(batch) > 1000:
             raise ValueError("Publish requires between 1 and 1000 physical pages")
         if sum(len(page.text.encode()) for page in batch) > 8_388_608:
@@ -161,10 +172,9 @@ class SqlEvidenceCatalog:
             encoded = page.text.encode()
             if len(encoded) > 1_048_576 or sha256(encoded).hexdigest() != page.content_hash:
                 raise ValueError("Canonical page text must match its bounded content hash")
-        with self._transaction() as connection:
-            revision = self._state(connection, lock=True)
-            added = sum(self._publish_page(connection, page) for page in batch)
-            return self._advance(connection, revision) if added else revision
+        revision = self._state(connection, lock=True)
+        added = sum(self._publish_page(connection, page) for page in batch)
+        return self._advance(connection, revision) if added else revision
 
     def _publish_page(self, connection: Connection, page: Page) -> bool:
         """Generate canonical chunks only after confirming the page's immutable identity."""

@@ -22,6 +22,13 @@ and scope but receive zero extraction confidence until reviewed; they cannot ent
 the current retrieval path automatically. Public uploads and durable ingestion
 orchestration remain unfinished. See [OCR experiments](../infra/ocr/README.md).
 
+The durable ingestion store now uses PostgreSQL for intent, idempotency, leases,
+retries, review state and completion. A worker's expired token cannot publish.
+Digital evidence and completed job status share one transaction, with the current
+admin grant locked through commit. HTTP, source storage, worker execution and SQS
+integration remain separate work. Queue messages will identify jobs; the database
+will remain authoritative for their source and permissions.
+
 ## User flow
 
 ```text
