@@ -1,0 +1,26 @@
+{
+  "settings": {
+    "number_of_shards": 1,
+    "number_of_replicas": 0,
+    "similarity": {"creditlens_bm25": {"type": "BM25", "k1": 1.2, "b": 0.75}}
+  },
+  "mappings": {
+    "dynamic": "strict",
+    "properties": {
+      "SEARCH_TEXT": {"type": "text", "analyzer": "standard", "similarity": "creditlens_bm25"},
+      "CHUNK_ID": {"type": "keyword"},
+      "TENANT_ID": {"type": "keyword"},
+      "BORROWER_SCOPE": {"type": "keyword"},
+      "ACL_GROUPS": {"type": "keyword"},
+      "VALID_FROM": {"type": "date", "format": "strict_date"},
+      "VALID_TO_EXCLUSIVE": {"type": "date", "format": "strict_date"},
+      "DOCUMENT_ID": {"type": "keyword"},
+      "DOCUMENT_VERSION": {"type": "keyword"},
+      "PAGE": {"type": "integer"},
+      "CONTENT_HASH": {"type": "keyword"},
+      "START_CHAR": {"type": "integer"},
+      "END_CHAR": {"type": "integer"},
+      "RECORD_SHA256": {"type": "keyword"}
+    }
+  }
+}
