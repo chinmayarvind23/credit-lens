@@ -1,5 +1,24 @@
 # CreditLens Security Design
 
+## Implemented identity boundary
+
+`src/creditlens/auth.py` validates Cognito access JWTs with RS256, configured
+issuer, expiry, issue time, token_use, client_id and required scope. JWK selection
+uses the configured issuer endpoint. Subject lookup reads the current SQL grant
+for every request; caller-supplied tenant and groups never establish permission.
+Disabled or unknown subjects receive the same denial. Tests use real RSA keys
+and local JWK fixtures. Live Cognito login is not yet verified.
+
+Demo mode grants a fixed public synthetic identity access to five synthetic
+borrowers. Startup rejects Cortex credentials in demo mode. Production requires
+Cognito and Cortex settings and never seeds a demo grant. Local SQLite metadata
+is supported; shared Postgres deployment remains to be verified.
+
+Every factual output contract carries citations, including summaries and metric
+inputs. Query models reject extra fields. Canonical pages use half-open policy
+date windows. These are implemented contracts; retrieval and generated-output
+enforcement are subsequent work and not yet proven by this identity slice.
+
 ## Objective
 
 Unauthorized evidence must never enter retrieval or model context.

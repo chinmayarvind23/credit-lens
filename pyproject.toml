@@ -4,10 +4,25 @@ version = "0.1.0"
 description = "Permission-aware lending evidence and underwriting preparation"
 readme = "README.md"
 requires-python = ">=3.11,<3.13"
-dependencies = []
+dependencies = [
+    "fastapi>=0.115,<1",
+    "httpx>=0.28,<1",
+    "pydantic-settings>=2.8,<3",
+    "pyjwt[crypto]>=2.10,<3",
+    "pypdf>=6,<7",
+    "reportlab>=4,<5",
+    "sqlalchemy>=2.0,<3",
+    "uvicorn>=0.34,<1",
+]
 
 [dependency-groups]
-dev = ["pytest>=8.3,<9", "pytest-cov>=6,<7", "ruff>=0.12,<1", "mypy>=1.17,<2"]
+dev = [
+    "pytest>=8.3,<9",
+ "pytest-cov>=6,<7",
+ "ruff>=0.12,<1",
+ "mypy>=1.17,<2",
+ "types-reportlab>=4,<5",
+]
 
 [build-system]
 requires = ["hatchling>=1.27,<2"]
