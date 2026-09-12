@@ -1,5 +1,7 @@
 import { parseBorrowers, parseChunk, parsePacket } from "./contracts";
 import type { BorrowerList, Chunk, Packet, QueryRequest } from "./contracts";
+import { demoDirectory } from "./demo-directory";
+import type { DirectoryConfig } from "./demo-directory";
 
 interface Pending { resolve: (value: unknown) => void; reject: (reason: Error) => void }
 
@@ -10,11 +12,14 @@ export class BrowserApi {
   private sequence = 0;
   private pending = new Map<number, Pending>();
   /** Startup progress belongs in the existing accessible status area. */
-  constructor(private readonly progress: (message: string) => void) {}
+  constructor(private readonly progress: (message: string) => void, private readonly directory?: DirectoryConfig) {}
   /** Browser demos cannot accept managed production credentials. */
   setToken(token: string): void { if (token.trim()) throw new Error("This public browser demo does not accept credentials."); }
   /** Retry startup through the normal borrower refresh action after a failed download. */
-  async borrowers(signal: AbortSignal): Promise<BorrowerList> { return parseBorrowers(await this.request("borrowers", {}, signal)); }
+  async borrowers(signal: AbortSignal): Promise<BorrowerList> {
+    const local = parseBorrowers(await this.request("borrowers", {}, signal));
+    return demoDirectory(local, this.directory, signal);
+  }
   /** Decimal calculation stays in Python and each query creates a fresh session audit. */
   async query(request: QueryRequest, signal: AbortSignal): Promise<Packet> { return parsePacket(await this.request("query", { request }, signal)); }
   /** Source lookup uses the same borrower/date filters as the completed packet. */

@@ -39,6 +39,7 @@ approve a loan or establish compliance with every policy requirement.
 - Provisioned [local Grafana dashboards](infra/monitoring/README.md) for actual synthetic API traffic, latency, errors, cache hits and dispositions.
 - Actual DeepEval and RAGAS runners using a local judge; validation limits are listed below.
 - Optional read-only [GraphQL admin inspection](docs/graphql-admin.md) for catalog, jobs and own audit metadata.
+- Optional [Supabase public directory](infra/supabase/README.md) for fictional borrower labels, with read-only RLS and bundled offline fallback.
 
 ## Measured results
 

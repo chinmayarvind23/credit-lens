@@ -1,5 +1,6 @@
 import { CreditLensApi, apiBase } from "./api";
 import { BrowserApi } from "./browser-api";
+import { directoryConfig } from "./demo-directory";
 import type { Borrower, Chunk, Packet, QueryRequest } from "./contracts";
 import { element, renderPacket, renderSource } from "./render";
 
@@ -11,7 +12,14 @@ function required<T extends HTMLElement>(selector: string): T {
 }
 
 const browserMode = document.documentElement.dataset.runtime === "browser";
-const api = browserMode ? new BrowserApi(message => { required("#request-status").textContent = message; }) : new CreditLensApi(apiBase(window.location));
+/** Only public browser mode reads operator directory configuration; server identity stays separate. */
+function optionalDirectory() {
+  if (!browserMode) return undefined;
+  try {
+    return directoryConfig(document.querySelector<HTMLMetaElement>('meta[name="creditlens-supabase-origin"]')?.content ?? "", document.querySelector<HTMLMetaElement>('meta[name="creditlens-supabase-key"]')?.content ?? "");
+  } catch { return undefined; }
+}
+const api = browserMode ? new BrowserApi(message => { required("#request-status").textContent = message; }, optionalDirectory()) : new CreditLensApi(apiBase(window.location));
 const borrowerSelect = required<HTMLSelectElement>("#borrower");
 const effectiveDate = required<HTMLInputElement>("#effective-date");
 const question = required<HTMLTextAreaElement>("#question");
