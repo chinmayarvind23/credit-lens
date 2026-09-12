@@ -1,417 +1,167 @@
-# CreditLens System Design
+# CreditLens system design
 
-## 1. Problem restatement
+## Scope and deployed system
 
-Design a permission-aware commercial-lending RAG system that combines borrower documents, structured borrower data, and versioned lender policy to produce a cited underwriting-preparation packet without allowing the model to make the final lending decision.
+CreditLens prepares cited evidence for a commercial-loan underwriter. The request contains a
+borrower, question and effective policy date. The workflow computes financial metrics, reports
+missing or conflicting evidence and leaves the lending decision with the underwriter.
 
-## 2. Functional and non-functional requirements
+The live free Hugging Face release serves static TypeScript assets and a pinned Pyodide worker.
+Public synthetic evidence and session SQLite run in the browser; queries and source inspection work
+offline after startup. Release `e964da2860f2ff4f7f5987e1986adb9457563fbd` was built from source
+`3960981`. The browser has no server credentials and cannot protect downloaded evidence. The
+optional Supabase client reads only public fictional directory labels; the current release uses
+bundled labels. Hosted Supabase remains operator setup.
 
-See `PRD.md`.
+The FastAPI modular monolith is a separate server path. It owns token verification, current SQL
+grants, scoped retrieval, deterministic Decimal calculations, exact citation validation and
+protected audits. The governed Cortex composition is implemented and tested with real local SQL and
+signed synthetic tokens, with simulated remote search. No live managed identity/search or AWS
+deployment is claimed. The expanded PRD still contains unverified and operator-only work.
 
-Key non-functional constraints:
+## Request and authority flow
 
-- retrieval-time ACL enforcement,
-- page-level provenance,
-- version-aware policy lookup,
-- deterministic financial calculations,
-- reproducible RAG evaluation,
-- explicit latency/cost measurement,
-- dependency resilience.
-
-## 3. Assumptions
-
-- Small underwriting-team workload.
-- Synthetic borrower data.
-- One primary AWS region for the deployment.
-- Snowflake is externally managed.
-- Final loan decision remains human-controlled.
-- Search index refresh may be eventually consistent.
-- Authorization changes cannot rely on stale cached scope.
-
-## 4. Back-of-the-envelope workload
-
-Modeled:
-
-- 50 registered underwriters,
-- 10 active concurrently,
-- 25 queries per underwriter per day,
-- 1,250 queries/day.
-
-The core backend does not need Kubernetes or separate microservices for this load.
-
-The backend stays stateless so an ALB plus additional ECS tasks is the first horizontal-scaling step.
-
-## 5. API contracts
-
-### Public query API
-
-`POST /api/v1/query`
-
-Input:
-
-- borrower ID,
-- natural-language question,
-- optional effective date.
-
-Identity and ACL come from trusted authentication state.
-
-Output:
-
-- structured underwriting response,
-- request ID,
-- evidence references,
-- policy disposition,
-- abstention state.
-
-### Underwriting packet
-
-`POST /api/v1/underwriting-packet`
-
-### Ingestion
-
-`POST /api/v1/admin/documents`
-
-MVP may process synchronously for a small corpus. Productionized path returns a job ID.
-
-### Job status
-
-`GET /api/v1/admin/index-jobs/{job_id}`
-
-### Health
-
-- `/health`
-- `/ready`
-- `/metrics`
-
-## 6. Data model
-
-### Durable source of truth
-
-S3:
-
-- original borrower documents,
-- original policy documents,
-- benchmark artifacts.
-
-Snowflake:
-
-- governed structured borrower data,
-- canonical document/chunk metadata,
-- searchable evidence,
-- Snowpark transformations.
-
-RDS/Postgres:
-
-- application metadata,
-- indexing jobs,
-- selected eval metadata,
-- operational state needing OLTP semantics.
-
-Redis:
-
-- embedding cache,
-- retrieval cache,
-- short-lived state.
-
-OpenSearch:
-
-- lexical retrieval benchmark/support path,
-- operational/audit search where appropriate.
-
-Weaviate:
-
-- HNSW benchmark path.
-
-## 7. Chosen high-level architecture
-
-```text
-                               +--------------------+
-                               |   Vercel Web App   |
-                               | TypeScript + Bun   |
-                               +---------+----------+
-                                         |
-                                       HTTPS
-                                         |
-                               +---------v----------+
-                               |      FastAPI       |
-                               |  Modular Monolith  |
-                               +---------+----------+
-                                         |
-             +---------------------------+---------------------------+
-             |                           |                           |
-      +------v------+             +------v------+             +------v------+
-      | Cognito/OIDC |             | Snowflake   |             |     S3      |
-      | auth identity|             | Cortex/SQL  |             | raw docs    |
-      +-------------+             +------+------+             +-------------+
-                                         |
-                                  +------+------+
-                                  | Snowpark    |
-                                  | calculations|
-                                  +-------------+
-
-After MVP:
-FastAPI -> Redis
-FastAPI -> RDS
-FastAPI -> OpenSearch
-FastAPI -> SQS workers
-FastAPI -> OTel/LangSmith/CloudWatch
+```mermaid
+flowchart LR
+  Request[Strict query request] --> Auth[Authenticate and resolve current SQL grants]
+  Auth --> Quota[Configured local or shared Redis quota]
+  Quota --> Scope[Canonical borrower, ACL and effective-date candidates]
+  Scope --> Cache[Optional scoped response cache]
+  Cache --> Search[Lexical or configured retrieval]
+  Search --> Finance[Extract facts and calculate with Decimal]
+  Finance --> Validate[Validate exact citations and current authority]
+  Validate --> Audit[Commit protected audit]
+  Audit --> Packet[Underwriting packet]
 ```
 
-## 8. Why modular monolith
-
-The query path is tightly coupled:
-
-`auth -> retrieval -> deterministic tools -> generation -> validation`
-
-Splitting it early would create network calls, service auth, distributed tracing complexity, retry semantics, and version mismatch risk with no present scale justification.
-
-Extract a service only if it develops independent scaling, availability, ownership, or deployment requirements.
-
-## 9. Retrieval architecture
-
-### Production path
-
-Snowflake Cortex Search with mandatory metadata filters.
-
-### Shadow retrieval laboratory
-
-Same canonical chunks feed:
-
-- exact NumPy vector search,
-- FAISS,
-- OpenSearch BM25,
-- Weaviate HNSW.
-
-This separates production governance from retrieval-learning experiments.
-
-## 10. Retrieval-time authorization
-
-Required order:
-
-```text
-authenticate
--> resolve tenant/borrower/ACL
--> construct mandatory metadata filter
--> retrieve
--> rerank
--> context build
--> LLM
-```
-
-Forbidden:
-
-```text
-retrieve broad corpus
--> rerank
--> filter unauthorized evidence
-```
-
-Hard invariant:
-
-`UnauthorizedRetrievedChunks == 0`
-
-## 11. Hybrid retrieval
-
-Dense retrieval handles semantic similarity.
-
-BM25 handles exact policy terms, forms, codes, identifiers, and uncommon domain phrases.
-
-RRF is the default fusion baseline because it combines rank positions without requiring raw BM25 and vector-score calibration.
-
-`RRF(d) = sum_r 1 / (k + rank_r(d))`
-
-RRF discards score magnitude, so the cross-encoder reranker performs final fine-grained relevance ordering.
-
-## 12. Query transformations
-
-Selective HyDE is used only if the query is semantically vague and lacks exact identifiers.
-
-Follow-up rewriting handles conversational references.
-
-MMR remains benchmark-only until it proves useful.
-
-## 13. Context construction
-
-Context builder must:
-
-- preserve top evidence,
-- deduplicate near-identical chunks,
-- preserve relevant exception text,
-- stay within token budget,
-- carry page/source metadata,
-- reject unauthorized evidence,
-- track exact context presented to the model.
-
-## 14. Deterministic calculation path
-
-Financial calculations run outside the LLM.
-
-Example:
-
-`DSCR = Net Operating Income / Total Debt Service`
-
-The LLM receives typed results and may explain them.
-
-Execution-path eval fails if a case requiring deterministic arithmetic is answered through unverified model arithmetic.
-
-## 15. Structured generation
-
-Output contains:
-
-- borrower summary,
-- metrics,
-- requirements,
-- policy disposition,
-- exceptions,
-- missing evidence,
-- conflicts,
-- recommended next actions,
-- citations,
-- human-review questions,
-- abstention state.
-
-## 16. Citation validation
-
-For each claim:
-
-1. citation exists,
-2. document exists,
-3. page exists,
-4. chunk exists,
-5. chunk was retrieved,
-6. chunk was authorized,
-7. policy version is applicable,
-8. evidence supports the claim.
-
-Steps 1-7 are deterministic where possible. Step 8 may use deterministic rules plus an LLM judge.
-
-## 17. Consistency choices
-
-Require current/strong semantics for:
-
-- ACL and permission changes,
-- structured data used for calculations,
-- policy effective-date resolution,
-- durable audit writes.
-
-Eventual consistency is acceptable for:
-
-- search refresh,
-- dashboards,
-- aggregate metrics.
-
-Index freshness is surfaced explicitly.
-
-## 18. Durability choices
-
-Durable:
-
-- source documents,
-- document versions,
-- structured borrower data,
-- audit events,
-- gold eval data,
-- benchmark artifacts.
-
-Rebuildable:
-
-- embeddings,
-- indexes,
-- caches,
-- temporary OCR artifacts.
-
-## 19. Caching
-
-Embedding cache is keyed by content hash plus embedding version.
-
-Retrieval cache is scoped by tenant, borrower, ACL fingerprint, query, index version, and retrieval configuration.
-
-Final-answer caching is disabled by default.
-
-Redis failure degrades to uncached behavior where safe.
-
-## 20. Async ingestion
-
-```text
-upload
--> persist source
--> enqueue SQS job
--> parse/OCR
--> chunk
--> embed
--> load
--> refresh index
--> verify
--> mark complete
-```
-
-The interactive query path remains synchronous.
-
-## 21. Failure handling
-
-### Cortex unavailable
-
-Bounded retry, timeout, optional authorized fallback only if its freshness/security contract is satisfied, otherwise explicit unavailable response.
-
-Never generate without evidence.
-
-### Redis unavailable
-
-Treat as cache miss and emit degraded telemetry.
-
-### LLM unavailable
-
-Return retryable error or evidence-only result. Do not fabricate.
-
-### OCR failure
-
-Mark extraction failed and do not silently index corrupted output.
-
-### Index lag
-
-Expose `indexed_at`, `index_version`, and freshness status.
-
-### Traffic spike
-
-Scale stateless ECS tasks behind ALB before redesigning the application.
-
-## 22. Observability
-
-Trace stages:
-
-- auth,
-- query classification,
-- query rewrite,
-- retrieval,
-- rerank,
-- calculation,
-- generation,
-- citation validation,
-- policy validation.
-
-Do not put raw borrower PII into general telemetry by default.
-
-## 23. Scale evolution
-
-1. tune current service,
-2. vertical scale,
-3. cache repeated expensive work,
-4. async expensive work,
-5. horizontal FastAPI scaling,
-6. read replicas or service extraction if measured bottlenecks justify them.
-
-## 24. Architecture alternatives rejected
-
-### All-Snowflake
-
-Simple governance, but weak first-principles retrieval/HNSW learning surface.
-
-### Fully self-managed search stack
-
-Maximum retrieval control, but more infrastructure and weaker governed-enterprise primary path.
-
-### Early microservices
-
-Independent deployment/scaling, but unjustified complexity for a tightly coupled, low-QPS portfolio workload.
-
-Chosen design uses Snowflake as primary governed path plus a shadow retrieval lab and modular monolith.
+A response-cache hit still validates current evidence and authority, receives a fresh request ID and
+writes a new audit. Source inspection repeats authorization; a citation ID grants no access. A
+failed audit or changed authority rejects the result. Search indexes provide candidate IDs and
+ranking, while the canonical catalog supplies trusted source text and scope.
+
+The API serves query and packet aliases, scoped evidence, borrower choices, privileged
+staged-ingestion/review routes, health/readiness and admin-only metrics. An omitted effective date
+defaults to today. Admin submissions require an idempotency key and return a durable job ID with
+HTTP 202. They accept staged source intent rather than a public PDF upload.
+
+Optional gRPC reuses the same authenticator, workflow, quota and audit contract through bounded
+versioned protobuf messages. The local transport has actual socket tests for signed tokens,
+deadlines, scope, revocation, quotas and serialization. Optional read-only GraphQL bounds query
+expansion, checks current admin grants and returns scoped catalog/job metadata and the caller's
+audit metadata. Document text, protected packets and other subjects' audits are excluded.
+
+## Storage, caching and shared admission
+
+SQLite supports isolated demos and browser sessions. Optional PostgreSQL stores current grants,
+canonical evidence, catalog epochs, protected audits and durable job state. Publication and
+revocation invalidate old epochs across instances. Immutable local PDF storage binds tenant, source
+hash and exact staged bytes. Managed object storage is an operator deployment requirement.
+
+The per-workflow response LRU holds at most 512 immutable packets. Redis retrieval caching stores
+signed evidence IDs and rehydrates current canonical pages. Both are optional acceleration; neither
+supplies permission authority. Response-cache stampede suppression is not implemented.
+
+A separate quota Redis URL enables shared fixed-window admission. One atomic Lua script
+checks/increments a full SHA-256 subject key and attaches its initial TTL. Workers must share
+namespace, limit and window settings. A bounded Redis memory configuration with noeviction rejects
+capacity pressure instead of evicting allowance state. Quota errors return 503 with no local
+fallback or ambiguous-write retry; exhausted allowances return 429. TTL expiry and reconnection
+recover without application restart. Nonpersistent Redis restarts reset counters, so this is not a
+durable billing ledger. Retrieval-cache errors may recompute authorized work.
+
+## Retrieval and deterministic output
+
+The default server and public browser use lexical retrieval. The optional local CPU workflow
+verifies pinned embedding/reranker files, fuses lexical and dense ranks with RRF, reranks bounded
+candidates and applies selective query grounding. It preserves canonical evidence and current grants
+through every model boundary. The serving packet remains extractive and rule based. Local language
+models are used for evaluation rather than final lending decisions.
+
+The 220 eligible development questions measured 74.05% Recall@10 and .6775 nDCG@10 for lexical
+retrieval, compared with 86.54% and .7878 for the composed local workflow. The corpus has 3,840
+physical pages from 203 synthetic PDFs and 98 short templates. Labels were exposed during
+development. Original resume targets and production generalization are not established by this
+experiment.
+
+FAISS, exact NumPy and Weaviate HNSW have separate retained-ID comparisons. FAISS matched exact
+top-10 sets on all 235 permitted searches. Four Weaviate settings completed with lower relevance and
+recorded duplicate IDs; they were not promoted. Spark local backfill and serial Python matched
+canonical metadata on the corpus and tenfold replay. Python was faster at this scale. These are
+measured experiment paths, not services used by every live browser query.
+
+## Durable ingestion and reviewed OCR
+
+SQL holds immutable intent, idempotency, bounded retries and fenced leases. A digital worker
+receives one read-only source in a network-disabled container, checks current grants on heartbeats
+and validates extracted output before commit. Canonical pages, the catalog epoch and completed
+status publish in one transaction. Lease loss or changed grants prevent stale publication.
+
+Optional local SQS-compatible notifications identify jobs; SQL remains recovery authority when
+delivery is duplicated, missing or unavailable. Managed AWS queue configuration has not been
+deployed.
+
+The opt-in native OCR worker renders staged PDFs in the bounded Poppler container, supervises
+PaddleOCR-VL recognition and independently verifies observed EOS tokens. Successful recognition
+commits REVIEW_REQUIRED with zero admission confidence. A scoped reviewer may correct text and
+approve or reject a hash-bound artifact; reviewer and original submitter grants remain locked
+through publication. The native Windows model process is supervised but lacks a filesystem sandbox,
+so this path accepts trusted synthetic/operator inputs. Public untrusted-file upload and automatic
+approval remain unavailable. One retained financial fixture matched 15/15 table cells and 8/8
+numeric cells; this is not a general OCR accuracy result.
+
+## Measurement and operations
+
+Local OTel exports allowlisted traces and finite metric labels. Admin-only Prometheus scraping feeds
+20 operational, six evaluation and six indexing Grafana panels, plus six alert rules. Four SQL
+gauges cover retained job counts, attempts, oldest state age and expired leases. A local drill
+returned SQL-backed data through all five ingestion panels and fired backlog/expired-lease alerts
+after explicit timestamp injection. Hosted alert delivery, production incident response, drift
+review and human feedback remain operator or evaluation work. Runtime cost counters/histograms
+distinguish known and unknown values; unknown costs never enter the histogram as zero. Evaluation
+dashboards expose recorded diagnostics separately from operational transport observations.
+
+Two Python API processes sharing PostgreSQL were measured at concurrency 1, 4 and
+8. HTTP p95 was 86.40, 99.20 and 300.17 ms, with 360 unique audited successes across
+warmups and measured traffic. Throughput fell at concurrency eight. Shared-quota verification is a
+later separate test, not a reinterpretation of that load run. The response-cache repeat measured
+23.14 ms disabled and 22.67 ms warm serial loopback p95. Neither test establishes the original cloud
+latency/cost targets.
+
+The 240 authored workflow checks are deterministic outcomes. The separate completed RAGAS
+field-support run accounts for 235 packets and five denials: 2,963/2,965 supported occurrences from
+441 unique actual prompts. One arithmetic judge error accounts for both rejected occurrences; raw
+verdicts remain intact. This measure omits question relevance, advice and human calibration. The
+completed whole-packet DeepEval v2 reconciliation accounts for all 240 ledger cases: 235 packets
+graded and five authorization denials. It retains 102/235 raw passes (43.4%) and 8/8 controls, with
+`human_calibrated=false` and `validated_project_quality=false`. A recorded recovery reused 192
+completed packet judgments and graded 43 previously unstarted cases after allowing their unchanged
+empty evidence lists. No completed verdict was replaced. The 12-case agent review found disputed
+omissions, period checks and overlooked structured fields. This is a raw diagnostic rate, not
+reliable accuracy or a resume quality claim.
+
+Actual RAGAS journal counts total 538,444 prompt and 65,932 completion tokens; these are
+model-reported observations, not cloud dollar cost. The local indexing drill acknowledged 3,840
+chunks in 0.957 seconds and observed a canary searchable 0.990 seconds after acknowledgement
+processing. One deliberately invalid write was rejected separately. This snapshot does not measure
+full-index freshness or embedding failures.
+
+A separate PostgreSQL backup/restore drill passed one test, preserving 330 canonical rows, protected
+audits and revocations present in the snapshot. Revocations made after the backup can be lost on
+restore; reconciliation before reopening service is required by the [recovery runbook](recovery.md).
+Shared Redis admission/recovery has separate 24-test evidence; it does not restore authoritative
+database state.
+
+## Deployment decisions and references
+
+A modular monolith keeps authority, calculation, validation and audit ordering inspectable. More
+replicas require measured SQL/provider contention and consistent shared quota configuration. AWS
+ECS/ALB, Cognito, S3 and managed service guides are optional operator paths under the no-spending
+instruction, not existing resources. The modeled 50-underwriter workload is a design assumption, not
+observed adoption.
+
+See [HLD](HLD.md), [LLD](LLD.md), [performance](performance.md), [multi-instance
+verification](multi-instance.md), [delivery](delivery.md), [Redis](../infra/redis/README.md),
+[OCR](../infra/ocr/README.md), [monitoring](../infra/monitoring/README.md),
+[retrieval](../infra/retrieval/README.md), [Weaviate](../infra/weaviate/README.md),
+[Spark](../infra/spark/README.md), [gRPC](../infra/rpc/README.md) and
+[Supabase](../infra/supabase/README.md).

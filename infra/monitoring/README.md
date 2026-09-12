@@ -161,3 +161,31 @@ verification checked all six Grafana queries; RAGAS support, both token directio
 cost-unknown and absent-human-calibration appeared. Whole-packet panels remained
 empty pending full reconciliation. Raw verification is retained privately in
 `evals/semantic-monitoring-v1`; no source text or case IDs appear in metric labels.
+
+### Completed local verification
+
+The operations dashboard now has20 panels, with two added cost panels. Actual
+HTTP packets incremented the unknown-cost observation count while the established
+mean-cost query returned no series. No zero dollar value was substituted. The
+retained-scrape check uses an explicit recorded query timestamp after the bounded
+90-second fixture exited (`evals/monitoring-cost-v1/cost-panel-verification.json`).
+
+The six-panel indexing dashboard uses the [isolated indexing drill](indexing.md).
+Serve its reviewed metrics on19104. The actual Prometheus scrape initially rejected
+Windows CRLF lines, despite the Python parser accepting them. The writer now emits
+LF bytes, its test asserts no carriage returns, and an explicitly recorded LF-only
+derivative preserves the original report/bulk bytes. All six corrected queries
+returned actual data through Grafana. No indexing workload was rerun for this fix.
+
+The full DeepEval reconciliation now accounts for235 graded packets and five
+permission denials. Its snapshot reports102 raw passes and passing synthetic
+controls. Those two panels were verified through Grafana/Prometheus. The raw43.4%
+rate is a judge diagnostic: a fixed sample review found contradicted/ambiguous
+reasons, and independent human calibration is absent. No metric was changed to
+match r?sum? targets. The RAGAS and DeepEval observations remain separate.
+
+Final query evidence is retained privately in
+`evals/deepeval-monitoring-v1/grafana-verification.json`. All dashboard values are
+local observations or explicitly labeled retained snapshots. End-to-end indexing
+lag, embedding failures, production alert routing and hosted dollar costs are not
+established by these fixtures.
