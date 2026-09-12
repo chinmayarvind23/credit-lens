@@ -24,7 +24,7 @@ from creditlens.corpus import build_demo_borrowers
 from creditlens.domain import Borrower, Chunk, Packet, Principal, QueryRequest, StrictModel
 from creditlens.errors import ServiceError
 from creditlens.ingestion_jobs import IngestionInput, JobStatus, JobStore, initialize_jobs
-from creditlens.limits import BodyLimit, PrivateResponses, QueryLimiter
+from creditlens.limits import BodyLimit, PrivateResponses, create_query_limiter
 from creditlens.ocr import OcrReview, OcrReviewSnapshot
 from creditlens.runtime import open_workflow
 from creditlens.settings import Settings
@@ -101,6 +101,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     app.state.http = client
                     yield
         finally:
+            app.state.limiter.close()
             if app.state.telemetry is not None:
                 app.state.telemetry.close()
             if queue:
@@ -110,7 +111,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app = FastAPI(title="CreditLens", version=__version__, lifespan=lifespan)
     app.state.settings = config
     app.state.telemetry = None
-    app.state.limiter = QueryLimiter()
+    app.state.limiter = create_query_limiter(config)
     app.add_middleware(BodyLimit)
     app.add_middleware(PrivateResponses)
     app.add_middleware(

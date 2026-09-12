@@ -9,7 +9,7 @@ import grpc
 
 from creditlens.auth import Authenticator
 from creditlens.domain import Packet
-from creditlens.limits import QueryLimiter
+from creditlens.limits import create_query_limiter
 from creditlens.runtime import open_workflow
 from creditlens.settings import Settings
 from creditlens.storage import GrantStore, open_database
@@ -26,13 +26,12 @@ def serve_demo(port: int, duration: int) -> None:
         engine = open_database(settings.database_url)
         store = GrantStore(engine)
         store.seed_demo()
+        limiter = create_query_limiter(settings)
         try:
             with open_workflow(settings, store) as workflow:
                 if workflow is None:
                     raise RuntimeError("Demo workflow unavailable")
-                service = UnderwritingService(
-                    Authenticator(settings, store), workflow, QueryLimiter()
-                )
+                service = UnderwritingService(Authenticator(settings, store), workflow, limiter)
                 with serve_local(service, port) as target:
                     print(
                         f"Synthetic gRPC demo: {target}; expires after {duration} seconds",
@@ -42,6 +41,7 @@ def serve_demo(port: int, duration: int) -> None:
         except KeyboardInterrupt:
             pass
         finally:
+            limiter.close()
             engine.dispose()
 
 

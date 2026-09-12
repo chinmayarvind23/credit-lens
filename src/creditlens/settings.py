@@ -28,6 +28,10 @@ class Settings(BaseSettings):
     telemetry_enabled: bool = False
     trace_file: str = Field(default="", max_length=2048)
     redis_url: SecretStr = SecretStr("")
+    quota_redis_url: SecretStr = SecretStr("")
+    quota_namespace: str = Field(default="creditlens", pattern=r"^[A-Za-z0-9_-]{1,64}$")
+    query_limit: int = Field(default=60, ge=1, le=10000)
+    query_window_seconds: int = Field(default=60, ge=1, le=3600)
     cache_signing_key: SecretStr = SecretStr("")
     cache_ttl_seconds: int = 60
     catalog_backend: Literal["memory", "postgres"] = "memory"

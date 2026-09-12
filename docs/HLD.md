@@ -16,10 +16,11 @@ AWS is an optional documented deployment and no resources have been provisioned.
 The cloud flows below describe the broader planned architecture.
 
 The local demo can opt into PostgreSQL on its grant/audit database. That path
-shares canonical evidence and revocation between API instances; Redis remains
-optional acceleration. Actual-service tests cover cross-instance cache reuse,
-revocation, restart and audit rejection during a concurrent change. Process-local
-quotas and demo bootstrap privileges still limit production scaling.
+shares canonical evidence and revocation between API instances. Redis integrations
+remain optional. Actual-service tests cover cross-instance cache reuse,
+revocation, restart and audit rejection during a concurrent change. Optional shared
+Redis quotas enforce admission across API instances with fail-closed outage behavior and expiring opaque identity counters. Demo bootstrap privileges and
+production deployment validation still limit production scaling.
 
 Scanned-document work runs in a separate local CPU environment. A bounded Poppler
 container renders physical pages, and pinned PaddleOCR-VL 1.6 with PP-DocLayoutV3

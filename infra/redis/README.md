@@ -43,3 +43,49 @@ recomputes finance, validates citations and writes a fresh audit record. Packet
 generation remains `local-extractive`, preserving the DSCR-only UI description.
 Production cache integration remains unavailable until the production catalog
 and search workflow are initialized.
+
+## Shared request quotas
+
+`CREDITLENS_QUOTA_REDIS_URL` opts HTTP and the local RPC launcher into a shared
+fixed-window allowance. It is independent of the retrieval cache URL/signing key.
+The free browser runtime and default demo need no Redis. Defaults are 60 admitted
+requests per authenticated subject per 60 seconds. Configure `QUERY_LIMIT` (1-10000),
+`QUERY_WINDOW_SECONDS` (1-3600), and `QUOTA_NAMESPACE` (1-64 alphanumeric, underscore
+or hyphen characters), all with the `CREDITLENS_` prefix. Every worker in the same
+deployment must use the same values and database. Query aliases and admin mutations
+already using the limiter consume the same subject allowance. Denied/failed work
+after admission still consumes a slot; denied admissions do not extend the window.
+
+Use a separate quota instance or configure the shared instance with bounded
+`maxmemory` and **noeviction**. The cache fixture above uses `allkeys-lru` and is not
+appropriate for enforcing quotas: evicting a counter resets its allowance. Keys
+contain full SHA-256 subject digests and a configured namespace, never raw subject,
+query or evidence text. Authenticated grants bound access, each identity has one
+fixed-size counter with a finite server TTL, and memory exhaustion fails closed.
+The Lua script atomically checks, increments and attaches the initial expiry.
+Missing TTL, invalid state, transport timeouts and capacity errors return curated
+503; exhaustion returns 429. There is no local fallback or ambiguous-write retry.
+Remote connections require TLS; operators must restrict Redis ACL/network access.
+
+Application restarts retain server counters. Redis reconnection and TTL expiry
+recover automatically. Redis restart without persisted counters resets allowance;
+persistence/HA and a production rollout remain deployment work. This is an abuse
+quota, not a durable billing ledger. Lua EVAL includes its source on each request,
+so server script-cache loss does not require application recovery.
+
+For local evidence, create an owned disposable container using the command above
+with a fresh name, port 16390 and `--maxmemory-policy noeviction`, then run:
+
+```powershell
+$env:CREDITLENS_TEST_QUOTA_REDIS_URL='redis://127.0.0.1:16390/15'
+.venv/Scripts/python.exe -m pytest tests/test_shared_quotas.py -q
+```
+
+Only point this test variable at that owned fixture: the recovery test briefly
+pauses the entire Redis server with `CLIENT PAUSE`. It does not flush data or
+change server configuration. Remove only the fixture container afterward.
+Tests verify 30 concurrent admissions through independent pools grant exactly 7,
+23 receive 429, another subject remains independent, client restart retains the
+budget, expiry resets it, corrupt/no-TTL counters return 503, a real 600 ms server
+pause returns 503, and the same client recovers afterward. Two separate HTTP app
+lifecycles share one allowance. No production service was provisioned or tested.

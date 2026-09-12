@@ -27,7 +27,11 @@ Concurrent cold requests may both compute; stampede suppression is not implement
 
 Redis caches signed evidence IDs, separately from response caching. Its hits hydrate
 current canonical pages. PostgreSQL serializes catalog changes and invalidates old
-epochs across instances. The local response cache and request quotas are per process.
+epochs across instances. The local response cache is per process. Request quotas
+default to per process; an explicit quota Redis URL enables shared atomic counters with finite TTL and 503 on
+unavailability. All instances must share namespace, limit and window configuration.
+Full identity digests avoid raw identity keys; bounded maxmemory with noeviction is
+required so memory pressure rejects admission instead of resetting counters.
 `TelemetryMiddleware` creates an OTel request root; workflow stages become child
 spans. An allowlisted local exporter rotates JSONL files, and aggregate Prometheus
 metrics require an admin grant. No query text or exception payload is exported.
@@ -58,8 +62,8 @@ The admin POST requires `Idempotency-Key` and returns a `JobStatus` with HTTP 20
 the status GET parses a UUID and reauthorizes every read. Ingestion requires the
 opt-in PostgreSQL demo catalog and a synthetic queue namespace. The default public
 underwriter receives 403. An authorized admin receives 503 when ingestion is
-disabled. Submissions share the process-local authenticated request limiter;
-these controls do not yet establish distributed quotas or source upload isolation.
+disabled. Submissions share the configured authenticated request limiter, including
+optional shared Redis quotas. These controls do not establish source upload isolation.
 
 `source_store.py` hashes the tenant namespace and accepts at most 25 MB per PDF.
 It fsyncs a temporary file, atomically links the immutable object and verifies

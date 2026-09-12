@@ -1,14 +1,21 @@
 """Bound HTTP input before JSON parsing and limit repeat work per current identity."""
 
 from collections import OrderedDict
+from hashlib import sha256
 from threading import Lock
 from time import monotonic
+from typing import TYPE_CHECKING, cast
 
 import anyio
+from redis.exceptions import RedisError
 from starlette.responses import JSONResponse
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
+from creditlens.cache import RedisBytes
 from creditlens.errors import ServiceError
+
+if TYPE_CHECKING:
+    from creditlens.settings import Settings
 
 
 class BodyLimit:
@@ -117,3 +124,72 @@ class QueryLimiter:
             self._entries.move_to_end(subject)
             if len(self._entries) > 10000:
                 self._entries.popitem(last=False)
+
+    def close(self) -> None:
+        """Match shared limiter lifecycle without allocating transport resources for demos."""
+
+
+QUOTA_SCRIPT = """
+local value = redis.call('GET', KEYS[1])
+if value then
+    local count = tonumber(value)
+    if not count or count < 1 or count % 1 ~= 0 or redis.call('PTTL', KEYS[1]) < 1 then
+        return -1
+    end
+    if count >= tonumber(ARGV[1]) then return 0 end
+    redis.call('INCR', KEYS[1])
+else
+    redis.call('SET', KEYS[1], 1, 'PX', ARGV[2])
+end
+return 1
+"""
+
+
+class RedisQueryLimiter(QueryLimiter):
+    """Share expiring per-identity counters, with deployment memory bounded by noeviction."""
+
+    def __init__(self, url: str, namespace: str, limit: int, window_seconds: int) -> None:
+        """Reuse bounded TLS transport, but fail closed rather than bypassing a quota outage."""
+        self.backend = RedisBytes(url)
+        self.namespace = namespace
+        self.limit = limit
+        self.window_seconds = window_seconds
+
+    def key(self, subject: str) -> str:
+        """Opaque identity keys expire; only operators configure the namespace."""
+        digest = sha256(subject.encode()).hexdigest()
+        return f"creditlens:quota:v1:{self.namespace}:{digest}"
+
+    def check(self, subject: str) -> None:
+        """One atomic EVAL includes expiration; no retry can double-count an ambiguous write."""
+        try:
+            result = cast(
+                int,
+                self.backend.client.eval(
+                    QUOTA_SCRIPT, 1, self.key(subject), self.limit, self.window_seconds * 1000
+                ),
+            )
+        except RedisError as error:
+            raise ServiceError(
+                "quota_unavailable", "Request quota temporarily unavailable", 503
+            ) from error
+        if result == 0:
+            raise ServiceError("rate_limited", "Request limit reached; retry later", 429)
+        if result != 1:
+            raise ServiceError("quota_unavailable", "Request quota temporarily unavailable", 503)
+
+    def close(self) -> None:
+        """Release only the application-owned Redis connection pool during shutdown."""
+        self.backend.close()
+
+
+def create_query_limiter(config: "Settings") -> QueryLimiter:
+    """Use the same explicit shared quota policy across HTTP and local RPC entry points."""
+    if config.quota_redis_url.get_secret_value():
+        return RedisQueryLimiter(
+            config.quota_redis_url.get_secret_value(),
+            config.quota_namespace,
+            config.query_limit,
+            config.query_window_seconds,
+        )
+    return QueryLimiter(config.query_limit, config.query_window_seconds)
