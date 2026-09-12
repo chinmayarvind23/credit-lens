@@ -45,12 +45,13 @@ approve a loan or establish compliance with every policy requirement.
 | Lexical retrieval | Recall@10 74.05%, nDCG@10 .6775 | 220 eligible questions; unchanged in the latest full replay |
 | Hybrid + reranking + selective query grounding | Recall@10 86.54%, nDCG@10 .7878 | Local composed workflow; separate from the browser's lexical mode |
 | Structured workflow outcomes | 240/240 fixture passes | Deterministic checks, not semantic groundedness |
-| Response cache, disabled / warm | HTTP p95 35.78 / 29.21 ms | 150 requests per mode, serial loopback, disk audit and telemetry enabled |
-| Cache improvement | 18.35% lower p95 | Same five-borrower workload; 330 distinct audits including warmups |
+| Response cache, disabled / warm | HTTP p95 23.14 / 22.67 ms (repeat) | 150 requests per mode, serial loopback, disk audit and telemetry enabled |
+| Cache variability | 18.35% first run; 2.04% repeat | Same five-borrower workload; 330 distinct audits per run including warmups |
 | Custom RAGAS field support | 85/85 fields supported; 24/24 controls | Six selected historical packets, exact fields preserved, local judge |
 | Public browser verification | 12 checks passed | Desktop/mobile, all five dispositions, sources and questions with network disabled after startup |
 
-The response-cache comparison preserves every substantive packet field and creates
+Cache gains varied across runs on this shared workstation; a reliable production
+speedup is not established. The response-cache comparison preserves every substantive packet field and creates
 a fresh audit for every request. These timings do not establish production latency
 or cloud cost savings. The corpus uses 98 short templates and is not a real lender dataset.
 

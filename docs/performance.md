@@ -7,6 +7,9 @@ measured serial loopback HTTP requests per mode produced p95 35.78 ms uncached a
 29.21 ms warm: an 18.35% reduction. Three blocks alternate mode order. All 330
 requests including warmups had distinct acknowledged audits and equal substantive
 packets. The workload covers five fictional borrowers with lexical retrieval.
+The committed-code gate repeat measured 23.14 ms uncached and 22.67 ms cached,
+only 2.04% lower. Both runs are retained; the variability prevents treating the
+first 18.35% as a stable performance improvement.
 Cold-start/model loading and production/cloud latency are outside this measurement.
 
 Reproduce with `python -m scripts.benchmark_response_cache --output FRESH_PRIVATE_DIR`.
