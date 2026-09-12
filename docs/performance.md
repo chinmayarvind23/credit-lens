@@ -1,5 +1,21 @@
 # CreditLens Performance, Capacity, and Cost
 
+## Measured response-cache comparison
+
+With disk-backed SQLite audit and local telemetry enabled in both modes, 150
+measured serial loopback HTTP requests per mode produced p95 35.78 ms uncached and
+29.21 ms warm: an 18.35% reduction. Three blocks alternate mode order. All 330
+requests including warmups had distinct acknowledged audits and equal substantive
+packets. The workload covers five fictional borrowers with lexical retrieval.
+Cold-start/model loading and production/cloud latency are outside this measurement.
+
+Reproduce with `python -m scripts.benchmark_response_cache --output FRESH_PRIVATE_DIR`.
+The report records raw packets, timings, hashes, audits, traces and metrics. CI
+rejects changed answers, incorrect hit state, missing audits, source drift or a
+cached HTTP p95 above the separately declared 2.7-second budget. That ceiling is
+not the observed result. No paid calls occurred; infrastructure cost/request is
+unknown and is not reported as zero or a cloud saving.
+
 ## Modeled workload
 
 - 50 registered users,
@@ -45,6 +61,8 @@ Record throughput, p50, p95, p99, error rate, saturation, dependency behavior, a
 ## Cost
 
 Track LLM tokens, embedding cost, Snowflake/search cost where measurable, AWS compute, cache/database cost, and logging cost.
+
+Unmeasured target values:
 
 - average cost/request: $0.043,
 - 31% reduction from measured baseline.

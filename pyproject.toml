@@ -18,6 +18,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+observability = ["opentelemetry-sdk>=1.30,<2", "prometheus-client>=0.21,<1"]
 queue = ["boto3>=1.43.92,<2", "boto3-stubs[sqs]>=1.43.92,<2"]
 retrieval = [
     "faiss-cpu>=1.12,<2",

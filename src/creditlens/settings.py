@@ -21,6 +21,11 @@ class Settings(BaseSettings):
     cortex_token: SecretStr = SecretStr("")
     cors_origins: list[str] = ["http://localhost:3000"]
     request_timeout_seconds: float = 5.0
+    response_cache_enabled: bool = False
+    response_cache_capacity: int = Field(default=128, ge=1, le=512)
+    response_cache_ttl_seconds: int = Field(default=60, ge=1, le=3600)
+    telemetry_enabled: bool = False
+    trace_file: str = Field(default="", max_length=2048)
     redis_url: SecretStr = SecretStr("")
     cache_signing_key: SecretStr = SecretStr("")
     cache_ttl_seconds: int = 60

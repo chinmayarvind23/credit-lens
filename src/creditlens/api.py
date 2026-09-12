@@ -12,7 +12,7 @@ import httpx
 from fastapi import BackgroundTasks, Depends, FastAPI, Header, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
@@ -60,7 +60,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             if config.ingestion_enabled:
                 initialize_jobs(engine)
                 app.state.jobs = JobStore(engine, config.ingestion_queue_id)
-            with open_workflow(config, store) as workflow:
+            if config.telemetry_enabled:
+                from creditlens.observability import Telemetry
+
+                app.state.telemetry = Telemetry(config.trace_file)
+            with open_workflow(config, store, app.state.telemetry) as workflow:
                 app.state.workflow = workflow
                 with httpx.Client(
                     timeout=config.request_timeout_seconds, follow_redirects=False
@@ -68,12 +72,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     app.state.http = client
                     yield
         finally:
+            if app.state.telemetry is not None:
+                app.state.telemetry.close()
             if queue:
                 queue.close()
             engine.dispose()
 
     app = FastAPI(title="CreditLens", version=__version__, lifespan=lifespan)
     app.state.settings = config
+    app.state.telemetry = None
     app.state.limiter = QueryLimiter()
     app.add_middleware(BodyLimit)
     app.add_middleware(PrivateResponses)
@@ -83,12 +90,17 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         allow_methods=["GET", "POST"],
         allow_headers=["Authorization", "Content-Type", "Idempotency-Key"],
     )
+    if config.telemetry_enabled:
+        from creditlens.observability import TelemetryMiddleware
+
+        app.add_middleware(TelemetryMiddleware, state=app.state)
     app.add_exception_handler(ServiceError, service_error)
     app.add_exception_handler(RequestValidationError, validation_error)
     app.add_exception_handler(SQLAlchemyError, storage_error)
     app.get("/health")(health)
     app.get("/ready")(ready)
     app.get("/api/v1/borrowers", response_model=BorrowerList)(borrowers)
+    app.get("/api/v1/metrics")(metrics)
     app.post("/api/v1/query", response_model=Packet)(query)
     app.post("/api/v1/underwriting-packet", response_model=Packet)(query)
     app.get("/api/v1/evidence/{chunk_id}", response_model=Chunk)(evidence)
@@ -208,7 +220,10 @@ def query(
     """Expose the same verified query workflow to question and packet routes."""
     workflow = get_workflow(request)
     request.app.state.limiter.check(principal.subject)
-    return workflow.query(body, principal)
+    packet = workflow.query(body, principal)
+    if request.app.state.telemetry is not None:
+        request.app.state.telemetry.packet(packet)
+    return packet
 
 
 def get_workflow(request: Request) -> QueryWorkflow:
@@ -283,3 +298,15 @@ def evidence(
     if workflow.store.resolve(principal.subject) != principal:
         raise ServiceError("access_changed", "Access changed; retry the request", 409)
     return chunk
+
+
+def metrics(
+    request: Request, principal: Annotated[Principal, Depends(current_principal)]
+) -> Response:
+    """Protect aggregate operational metrics behind an explicit current administrator grant."""
+    telemetry = request.app.state.telemetry
+    if telemetry is None:
+        raise ServiceError("metrics_disabled", "Metrics are not enabled", 404)
+    if principal.role != "admin":
+        raise ServiceError("access_denied", "Metrics access is not authorized", 403)
+    return Response(telemetry.render(), media_type="text/plain; version=0.0.4; charset=utf-8")

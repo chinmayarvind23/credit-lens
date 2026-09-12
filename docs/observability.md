@@ -1,5 +1,35 @@
 # CreditLens Observability
 
+## Implemented local telemetry
+
+Enable `CREDITLENS_TELEMETRY_ENABLED=true` after installing the `observability`
+extra. Each app owns an OpenTelemetry SDK provider and a Prometheus registry.
+`CREDITLENS_TRACE_FILE` optionally selects a private JSONL file; rotation retains
+at most three 5 MB files. There is no remote exporter or telemetry subscription.
+
+HTTP root spans contain only a bounded route, method and response status. Workflow
+spans cover current grants, scoped retrieval, cache hits, calculations, citations,
+permission rechecks and audit persistence. Question text, documents, credentials,
+borrower/tenant IDs and exception messages are excluded from the exporter. SQL
+still owns the complete protected audit, including evidence identity.
+
+Implemented metrics are `creditlens_requests_total` by finite route/method/status
+class, `creditlens_request_duration_seconds` histogram by route, and
+`creditlens_packets_total` by disposition/cache state. The HTTP metrics endpoint is
+`/api/v1/metrics` and requires a current admin grant; it is disabled when telemetry
+is off. A Prometheus operator can scrape it using their managed administrator access
+token. Never place credentials in source or a public Space.
+
+Real SDK integration checks establish stage/root trace correlation across FastAPI's
+thread boundary, error status without exception text, cache-hit counters and denied
+metrics access. Actual loopback HTTP runs record metrics and rotating trace files.
+The free browser demo exposes its per-request stage trace, but does not load this
+server-only SDK or send telemetry anywhere.
+
+The broader signal catalog below remains a plan. LangSmith, CloudWatch, an OTLP
+collector and managed Grafana dashboards are not deployed.
+
+
 ## Goals
 
 Answer:

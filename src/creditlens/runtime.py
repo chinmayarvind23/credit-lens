@@ -3,19 +3,26 @@
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from creditlens.cache import RedisBytes
 from creditlens.corpus import build_demo_pages
 from creditlens.local_search import LocalSearchProvider
+from creditlens.response_cache import ResponseCache
 from creditlens.retrieval import CanonicalCatalog, EvidenceCatalog
 from creditlens.retrieval_cache import CanonicalProvider, RetrievalCache
 from creditlens.settings import Settings
 from creditlens.storage import GrantStore
 from creditlens.workflow import QueryWorkflow
 
+if TYPE_CHECKING:
+    from creditlens.observability import Telemetry
+
 
 @contextmanager
-def open_workflow(config: Settings, store: GrantStore) -> Iterator[QueryWorkflow | None]:
+def open_workflow(
+    config: Settings, store: GrantStore, telemetry: "Telemetry | None" = None
+) -> Iterator[QueryWorkflow | None]:
     """Close Redis on every exit; a remote outage stays an observable optional-cache miss."""
     if config.mode != "demo":
         yield None
@@ -30,7 +37,14 @@ def open_workflow(config: Settings, store: GrantStore) -> Iterator[QueryWorkflow
     else:
         catalog = EvidenceCatalog(build_demo_pages())
     with open_search(config, catalog, store) as provider:
-        yield QueryWorkflow(catalog, store, provider)
+        cache = (
+            ResponseCache(
+                capacity=config.response_cache_capacity, ttl=config.response_cache_ttl_seconds
+            )
+            if config.response_cache_enabled
+            else None
+        )
+        yield QueryWorkflow(catalog, store, provider, response_cache=cache, telemetry=telemetry)
 
 
 @contextmanager

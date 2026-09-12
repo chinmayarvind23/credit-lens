@@ -11,14 +11,26 @@ fetch with a 30-second deadline, and binds source GET requests to the completed
 packet's borrower/date. Native fetch is invoked as a standalone function to avoid
 the browser's invalid-receiver error. Source dialogs render literal text.
 
-The live HF entry page embeds the whole application, so UI and API share one
-tunnel origin. Its release manifest and exact remote inventory are checked before
-each parent-bound publication. Redis contains signed, bounded evidence IDs keyed
-by the complete current scope, query, policy date, catalog and provider version;
-hits rehydrate current evidence and produce a new audit. The optional PostgreSQL
-catalog joins state, canonical pages/chunks and normalized ACLs in one statement,
-serializes writers on a state row and invalidates old epochs across instances.
-Full response caching and the following broader pipeline remain unfinished.
+The free HF browser build hosts the existing Python workflow in a worker. The
+bridge receives JSON data and returns JSON strings, preserving null rather than
+Pyodide's direct None-to-undefined conversion. Only public synthetic pages are bundled.
+The worker has no managed credentials or server API. Its startup and query deadlines
+are 120 and 30 seconds; late responses are discarded after cancellation.
+
+`ResponseCache` is an opt-in per-workflow immutable packet LRU with at most 512
+entries, a maximum 200 KB packet and TTL up to one hour. Keys bind the complete
+principal grant, exact query/date and catalog revision. Runtime provider changes
+require a new workflow/cache. A hit verifies every source against current candidates,
+rechecks grants and revision, validates citations, assigns a fresh request ID and
+writes a new protected audit. Only successfully audited cold results are cached.
+Concurrent cold requests may both compute; stampede suppression is not implemented.
+
+Redis caches signed evidence IDs, separately from response caching. Its hits hydrate
+current canonical pages. PostgreSQL serializes catalog changes and invalidates old
+epochs across instances. The local response cache and request quotas are per process.
+`TelemetryMiddleware` creates an OTel request root; workflow stages become child
+spans. An allowlisted local exporter rotates JSONL files, and aggregate Prometheus
+metrics require an admin grant. No query text or exception payload is exported.
 
 `ocr.py` normalizes at most 1 MB of offline vendor JSON into an immutable
 `ScannedPage`. It validates image dimensions, up to 256 blocks, physical bounding

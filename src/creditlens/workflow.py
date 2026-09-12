@@ -1,10 +1,11 @@
 """Compose a locally verifiable evidence packet with an explicit extractive mode."""
 
 from collections.abc import Iterator
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 from dataclasses import replace
 from hashlib import sha256
 from time import perf_counter
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
 from creditlens.citations import quote, validate_citation, validate_extract
@@ -12,9 +13,13 @@ from creditlens.domain import Chunk, Packet, Principal, QueryRequest, Stage
 from creditlens.errors import ServiceError
 from creditlens.finance import FinanceResult, calculate_review
 from creditlens.intent import classify_intent, textual_support, topic_supported
+from creditlens.response_cache import ResponseCache
 from creditlens.retrieval import CanonicalCatalog, lexical_rank
 from creditlens.search_provider import CachedResult, CanonicalProvider, SearchResult
 from creditlens.storage import GrantStore
+
+if TYPE_CHECKING:
+    from creditlens.observability import Telemetry
 
 ACTIONS = {
     "MEETS_POLICY": (
@@ -32,16 +37,18 @@ ACTIONS = {
 class Trace:
     """Keep per-request stage timing separate from raw questions and evidence text."""
 
-    def __init__(self) -> None:
+    def __init__(self, telemetry: "Telemetry | None" = None) -> None:
         """A request owns its timing list so concurrent queries cannot mix execution paths."""
         self.stages: list[Stage] = []
+        self.telemetry = telemetry
 
     @contextmanager
     def span(self, name: str) -> Iterator[None]:
         """Record failed stages too, preserving diagnostic timing when a dependency raises."""
         start = perf_counter()
         try:
-            yield
+            with self.telemetry.span(name) if self.telemetry else nullcontext():
+                yield
         finally:
             self.stages.append(Stage(name=name, duration_ms=(perf_counter() - start) * 1000))
 
@@ -81,6 +88,9 @@ class QueryWorkflow:
         catalog: CanonicalCatalog,
         store: GrantStore,
         provider: CanonicalProvider | None = None,
+        *,
+        response_cache: ResponseCache | None = None,
+        telemetry: "Telemetry | None" = None,
     ) -> None:
         """Inject authoritative evidence and grants for failure and revocation testing."""
         self.catalog = catalog
@@ -88,11 +98,13 @@ class QueryWorkflow:
         if provider is not None and provider.catalog is not catalog:
             raise ValueError("Workflow and provider must share the canonical catalog")
         self.provider = provider
+        self.response_cache = response_cache
+        self.telemetry = telemetry
 
     def query(self, query: QueryRequest, principal: Principal) -> Packet:
         """Authorize, retrieve, calculate, validate, recheck grants, then acknowledge audit."""
         started = perf_counter()
-        trace = Trace()
+        trace = Trace(self.telemetry)
         with trace.span("auth.resolve_current_grant"):
             current = self.store.resolve(principal.subject)
             if current != principal:
@@ -101,6 +113,70 @@ class QueryWorkflow:
             candidates, revision = self.catalog.snapshot(
                 current, query.borrower_id, query.effective_at
             )
+        key = ResponseCache.key(query, current, revision)
+        cached = self.response_cache.get(key) if self.response_cache else None
+        allowed = {c.chunk_id: c for c in candidates}
+        hit = cached is not None and all(allowed.get(c.chunk_id) == c for c in cached.evidence)
+        if hit and cached is not None:
+            with trace.span("cache.response.hit"):
+                packet = cached.model_copy(
+                    update={
+                        "request_id": str(uuid4()),
+                        "cache_hit": True,
+                        "stages": (),
+                        "latency_ms": 0,
+                    }
+                )
+            search = SearchResult((), current, query, revision, "response-cache")
+        else:
+            packet, search = self._generate(query, current, candidates, revision, trace)
+        with trace.span("citation.validate_exact_extracts"):
+            validate_packet(packet)
+        with trace.span("authorization.recheck"):
+            if self.provider is not None and not hit:
+                if self.provider.catalog is not self.catalog:
+                    raise ServiceError("access_changed", "Access changed; retry the request", 409)
+                self.provider.verify(search)
+            self.catalog.verify_revision(revision)
+            if self.store.resolve(principal.subject) != current:
+                raise ServiceError("access_changed", "Access changed; retry the request", 409)
+        with trace.span("audit.persist"):
+            self.store.record(
+                packet.request_id,
+                current,
+                {
+                    "borrower_id": query.borrower_id,
+                    "effective_at": query.effective_at.isoformat(),
+                    "chunk_ids": [c.chunk_id for c in packet.evidence],
+                    "catalog_revision": revision,
+                    "grant_revision": current.revision,
+                    "disposition": packet.policy_disposition,
+                    "stages": [s.name for s in trace.stages],
+                    "provider_mode": packet.provider_mode,
+                    "search_provider_mode": search.provider_mode,
+                    "corpus_version": packet.corpus_version,
+                    "query_hash": sha256(query.model_dump_json().encode()).hexdigest(),
+                    "packet_hash": sha256(packet.model_dump_json().encode()).hexdigest(),
+                    "packet_hash_scope": "packet-before-runtime-timings-v1",
+                    "protected_packet": packet.model_dump(mode="json"),
+                    "protected_query": query.model_dump(mode="json"),
+                },
+            )
+        if self.response_cache and not hit:
+            self.response_cache.put(key, packet)
+        return packet.model_copy(
+            update={"stages": tuple(trace.stages), "latency_ms": (perf_counter() - started) * 1000}
+        )
+
+    def _generate(
+        self,
+        query: QueryRequest,
+        current: Principal,
+        candidates: tuple[Chunk, ...],
+        revision: int,
+        trace: Trace,
+    ) -> tuple[Packet, SearchResult]:
+        """Reuse the original evidence and calculation path on every response-cache miss."""
         with trace.span("retrieval.local_bm25" if self.provider is None else "retrieval.provider"):
             search = self._search(query, current, candidates, revision)
             ranked = search.chunks
@@ -129,41 +205,7 @@ class QueryWorkflow:
                     "cache_hit": isinstance(search, CachedResult) and search.cache_state == "hit",
                 }
             )
-        with trace.span("citation.validate_exact_extracts"):
-            validate_packet(packet)
-        with trace.span("authorization.recheck"):
-            if self.provider is not None:
-                if self.provider.catalog is not self.catalog:
-                    raise ServiceError("access_changed", "Access changed; retry the request", 409)
-                self.provider.verify(search)
-            self.catalog.verify_revision(revision)
-            if self.store.resolve(principal.subject) != current:
-                raise ServiceError("access_changed", "Access changed; retry the request", 409)
-        with trace.span("audit.persist"):
-            self.store.record(
-                packet.request_id,
-                current,
-                {
-                    "borrower_id": query.borrower_id,
-                    "effective_at": query.effective_at.isoformat(),
-                    "chunk_ids": [c.chunk_id for c in evidence],
-                    "catalog_revision": revision,
-                    "grant_revision": current.revision,
-                    "disposition": result.disposition,
-                    "stages": [s.name for s in trace.stages],
-                    "provider_mode": packet.provider_mode,
-                    "search_provider_mode": search.provider_mode,
-                    "corpus_version": packet.corpus_version,
-                    "query_hash": sha256(query.model_dump_json().encode()).hexdigest(),
-                    "packet_hash": sha256(packet.model_dump_json().encode()).hexdigest(),
-                    "packet_hash_scope": "packet-before-runtime-timings-v1",
-                    "protected_packet": packet.model_dump(mode="json"),
-                    "protected_query": query.model_dump(mode="json"),
-                },
-            )
-        return packet.model_copy(
-            update={"stages": tuple(trace.stages), "latency_ms": (perf_counter() - started) * 1000}
-        )
+        return packet, search
 
     def _search(
         self,

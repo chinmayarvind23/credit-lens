@@ -1,81 +1,69 @@
 # CreditLens
 
-**Permission-aware lending evidence for human review**
+**Lending evidence with page-level citations, deterministic calculations and permission checks.**
 
-Implementation is in progress. The [live workbench](https://huggingface.co/spaces/chinmayarvind/creditlens)
-accepts questions, borrower selection and policy dates, and opens cited sources.
-Hugging Face serves the entry page; the API runs on the owner's computer through
-a free HTTPS tunnel. The computer, Docker and tunnel must stay running. Live AWS, Cognito and Snowflake
-integration, scanned-document ingestion and semantic answer evaluation remain unfinished.
+[Open the interactive demo](https://huggingface.co/spaces/chinmayarvind/creditlens)
 
-[![Live browser demonstration](https://huggingface.co/spaces/chinmayarvind/creditlens/resolve/main/demo.gif)](https://huggingface.co/spaces/chinmayarvind/creditlens)
+[![Recorded browser demonstration](https://huggingface.co/spaces/chinmayarvind/creditlens/resolve/main/demo.gif)](https://huggingface.co/spaces/chinmayarvind/creditlens)
 
-The animation records a live synthetic query and source inspection. Open the
-workbench to enter your own question.
+Select a fictional borrower, ask a question, change the policy date and open the
+cited pages. The free Hugging Face demo runs the Python evidence engine in your
+browser. It needs no API key, backend connection, tunnel or running owner computer.
+After startup, queries and source inspection work offline. The first load downloads
+about 18 MB of runtime assets from Hugging Face.
 
-CreditLens helps commercial-loan underwriters assemble policy-grounded borrower evidence, deterministic financial metrics, missing-document checks, policy exceptions, conflicts, and recommended next actions with page-level citations. The final lending decision remains human-controlled.
+## Why this exists
 
-Incorrect borrower scope, stale policy or unsupported arithmetic can invalidate
-an otherwise relevant answer. CreditLens filters current tenant, borrower, ACL and
-effective-date scope before ranking, checks exact cited evidence, computes DSCR
-with Decimal and records an audit before returning a packet. A passing synthetic
-DSCR threshold does not approve a loan or establish compliance with every policy.
+An underwriter needs to connect borrower facts to the right policy version. A
+relevant answer can still be wrong if it uses another borrower's document, overlooks
+a missing debt schedule or divides incompatible financial inputs. CreditLens
+prepares an evidence packet with source quotes, financial metrics, missing inputs,
+contradictions, exceptions and next actions. The underwriter makes the lending decision.
 
-## Measured local evidence
+The server resolves current grants before retrieval, filters tenant/borrower/ACL/date
+scope, computes DSCR with Decimal, checks exact citations, rechecks permissions and
+persists an audit before returning a packet. Passing a DSCR threshold does not
+approve a loan or establish compliance with every policy requirement.
 
-| Experiment | Result | Scope |
+## What works
+
+- Questions, borrower selection, historical policy dates and exact source inspection.
+- Deterministic DSCR, missing-input abstention, conflicting-source detection and exceptions.
+- FastAPI server with current SQL grants, tenant/ACL filters and protected audit records.
+- Optional local hybrid retrieval, cross-encoder reranking and selective query grounding.
+- Bounded full-response caching with fresh authorization, citations, request IDs and audits.
+- Optional Redis retrieval caching and a shared PostgreSQL canonical catalog.
+- Durable digital-PDF ingestion, fenced worker leases, atomic publication and SQS-compatible notifications.
+- Local OTel traces, Prometheus metrics, security/regression tests and CI quality/latency gates.
+- Actual DeepEval and RAGAS runners using a local judge; validation limits are listed below.
+
+## Measured results
+
+| Measurement | Result | Scope |
 | --- | --- | --- |
-| Corpus | 3,840 physical pages, 203 PDFs | 200 synthetic borrowers, three policy versions; 98 templates and short pages limit diversity |
-| Lexical control | Recall@10 74.05%, nDCG@10 .6775 | 220 positive-qrel cases from 240 exposed authored questions |
-| Original-query hybrid baseline | Recall@10 82.55%, nDCG@10 .7291 | Composed provider reproduces the original experiment's top ten on all 240 cases |
-| Selective borrower-query serving code | Recall@10 86.54%, nDCG@10 .7878 | Composed replay reproduces all 240 selector rankings and fixture outcomes; public deployment pending |
-| Structured fixture outcomes | 212/240 initially, 240/240 after intent/topic checks | Also reproduced through the composed model workflow; semantic groundedness remains unmeasured |
-| Complete HTTP, cache disabled | p95 18.13 ms | 330-page demo, 150 serial loopback requests, disk-backed SQLite audit |
-| Complete HTTP, warm Redis | p95 19.87 ms | Same workload, 150 hits; cache was slower and remains optional |
+| Corpus and evaluation set | 3,840 physical pages, 203 PDFs, 240 questions | Synthetic, authored and exposed during development |
+| Lexical retrieval | Recall@10 74.05%, nDCG@10 .6775 | 220 eligible questions; unchanged in the latest full replay |
+| Hybrid + reranking + selective query grounding | Recall@10 86.54%, nDCG@10 .7878 | Local composed workflow; separate from the browser's lexical mode |
+| Structured workflow outcomes | 240/240 fixture passes | Deterministic checks, not semantic groundedness |
+| Response cache, disabled / warm | HTTP p95 35.78 / 29.21 ms | 150 requests per mode, serial loopback, disk audit and telemetry enabled |
+| Cache improvement | 18.35% lower p95 | Same five-borrower workload; 330 distinct audits including warmups |
+| Custom RAGAS field support | 85/85 fields supported; 24/24 controls | Six selected historical packets, exact fields preserved, local judge |
+| Public browser verification | 12 checks passed | Desktop/mobile, all five dispositions, sources and questions with network disabled after startup |
 
-The requested 94.1% recall, .89 nDCG, 96.8% semantic citation precision, 92.5%
-groundedness, 1.7% unsupported claims, 13.4-point quality gain and cloud latency/cost
-improvements remain targets. Exact excerpt checks and synthetic fixture passes
-do not establish semantic metrics or real lending impact. Evaluation definitions
-are in [evaluation documentation](docs/evaluation.md); private raw runs and failure
-records are maintained outside this repository.
+The response-cache comparison preserves every substantive packet field and creates
+a fresh audit for every request. These timings do not establish production latency
+or cloud cost savings. The corpus uses 98 short templates and is not a real lender dataset.
 
-DeepEval now has an [isolated local judge runner](infra/evaluation/README.md).
-The first two local judges failed screening. Qwen3 8B then passed twelve frozen
-supported/contradicted controls covering amounts, entities, dates, missing evidence,
-currency and approval authority. This is authored screening, not a project quality
-score. Actual packet pilots then exposed omitted fields, incomplete generation
-and incorrect verdicts on valid calculations. The judge is not validated for
-project quality claims. RAGAS 0.4.3 is also integrated and passed the same twelve
-controls, but its two-calculation pilot rejected correctly derived ratios and
-added a claim absent from one answer. Human calibration and the full semantic
-baseline remain open; neither framework establishes project groundedness yet.
+Requested targets of 94.1% recall, .89 nDCG, 96.8% semantic citation precision,
+92.5% grounded answers and 1.7% unsupported claims are **not established results**.
+DeepEval/RAGAS are integrated and have real pilot runs, but human-calibrated,
+full-240 semantic grading remains open. The 85-field result uses a custom
+whole-field support rubric, not stock atomic-claim faithfulness or whole-packet accuracy.
+See [evaluation definitions](docs/evaluation.md) and [judge runners](infra/evaluation/README.md).
 
-A separate lending-specific RAGAS prompt passes 24 authored controls and preserves
-both saved DSCR claims correctly. Its full-packet pilot still omits a calculation
-and stops on an incomplete response, so whole-packet semantic scoring remains open.
+## Run the server locally
 
-An explicit field export accounts for all 19 packet fields. A separate custom
-RAGAS support check preserves each complete field verbatim and uses one NLI
-judgment per field. It passes 24 controls and marks all 85 cited fields from six
-saved packets supported, with exact text and raw outputs verified. The sample
-still has 26 nonempty operational/advice/question fields awaiting rubrics.
-This is whole-field support on a selected historical sample, not stock atomic-claim
-faithfulness, whole-packet quality or the full 240-question semantic baseline.
-
-The optional neural runtime passed real loopback HTTP checks for five financial
-scenarios, exact source access, denied scope, abstention, overload and revocation,
-with no observed external connections. The query-grounding integration passes 472
-checks across the main suite, actual service integrations and audit verification,
-with 98.51% core statement coverage. Its composed replay preserves all 240 fixture
-outcomes. The public Space currently uses the preceding Linux CPU release, which
-passed an offline 240-case replay and desktop/mobile browser checks. Deployment
-of the query-grounding change is pending. The UI's `local-extractive` label describes quoted answer
-assembly, while protected audit records identify hybrid retrieval and reranking.
-
-## Run locally
-
-Use Python 3.11, uv and Bun 1.3.10. No cloud credentials are required for the demo.
+Use Python 3.11, uv and Bun 1.3.10. The synthetic demo needs no cloud credentials.
 
 ```powershell
 uv sync --locked
@@ -83,140 +71,101 @@ cd apps/web
 bun install --frozen-lockfile
 bun run build
 cd ../..
-uv run uvicorn creditlens.api:create_app --factory --host 127.0.0.1 --port 8000
+uv run --no-sync uvicorn creditlens.api:create_app --factory --host 127.0.0.1 --port 8000
 ```
 
-Open http://127.0.0.1:8000 for the workbench and http://127.0.0.1:8000/docs for API
-documentation. The demo exposes only synthetic data through its public demo
-identity. Production mode requires separate configuration and remains unavailable
-until its real evidence workflow is initialized.
+Open http://127.0.0.1:8000 and http://127.0.0.1:8000/docs.
+For the free browser deployment, follow the [build and publish guide](infra/huggingface/browser/DEPLOYMENT.md).
 
-For local checks:
+To enable response caching and local telemetry:
 
 ```powershell
-uv sync --locked --extra queue --extra retrieval
+uv sync --locked --extra observability
+$env:CREDITLENS_RESPONSE_CACHE_ENABLED = 'true'
+$env:CREDITLENS_TELEMETRY_ENABLED = 'true'
+$env:CREDITLENS_TRACE_FILE = 'C:/private/creditlens/traces.jsonl'
+uv run --no-sync uvicorn creditlens.api:create_app --factory --host 127.0.0.1 --port 8000
+```
+
+Choose your own private trace directory. Traces contain stage timing and correlation,
+not questions, documents, tokens or borrower identities. `/api/v1/metrics` requires a
+current admin grant. [Observability](docs/observability.md) explains the exporter and metrics.
+
+Optional service instructions: [hybrid retrieval](infra/retrieval/README.md),
+[Redis](infra/redis/README.md), [PostgreSQL and digital ingestion](infra/postgres/README.md),
+[SQS-compatible workers](infra/sqs/README.md), [review-only OCR](infra/ocr/README.md).
+
+## Architecture
+
+```mermaid
+flowchart LR
+    HF[Free HF Static hosting] --> UI[TypeScript workbench]
+    UI --> Worker[Python in a browser worker]
+    Worker --> Demo[Public fictional evidence + session SQLite]
+    ServerUI[Server workbench] --> API[FastAPI]
+    API --> Scope[Current SQL grants + canonical evidence]
+    Scope --> Cache[Optional response cache]
+    Cache --> Retrieval[BM25 or local hybrid + reranking]
+    Retrieval --> Packet[Decimal finance + quoted evidence]
+    Packet --> Validate[Current permissions + citation checks]
+    Validate --> Audit[Fresh protected SQL audit]
+    API --> Telemetry[Local OTel + Prometheus]
+```
+
+Both deployments reuse the Python workflow. The browser distributes only public
+fictional pages; its scope checks cannot protect confidential assets against the
+visitor. The authenticated server is the path for protected data. Server production
+wiring to live Cognito/Cortex is not complete, so the public demo must never accept
+real borrower files.
+
+The stack is Python, FastAPI, Pydantic, SQLAlchemy, Decimal, TypeScript and Bun;
+Pyodide for the free demo; optional LlamaIndex, Sentence Transformers, Redis,
+PostgreSQL, OpenSearch, SQS, DeepEval/RAGAS, OTel and Prometheus for local experiments
+and service paths. Kubernetes is not used.
+
+## Checks and reproduction
+
+```powershell
+uv sync --locked --extra queue --extra retrieval --extra observability
 uv run --no-sync ruff check src
 uv run --no-sync ruff format --check src
 uv run --no-sync mypy src
 uv run --no-sync pytest tests infra/huggingface/tests .github/tests --ignore=tests/test_retrieval_lab.py
+uv run --no-sync python -m scripts.benchmark_response_cache --output ../creditlens-http-results
 ```
 
-Optional model experiments require `uv sync --locked --extra retrieval` and their
-pinned model snapshots. The [local hybrid runtime](infra/retrieval/README.md) can
-load verified models at startup and use scoped dense search and reranking in the
-API. Default local builds remain lexical; the public demo uses the optional CPU
-model container. [Redis instructions](infra/redis/README.md) cover the
-optional cache and actual-server tests. Hosted CI requires manual dispatch under
-the current no-spending restriction; local tests do not imply a hosted CI run.
+The benchmark records actual HTTP responses, packet equality, unique audits, local
+traces, metrics, source hashes and a 2.7-second p95 ceiling. Its observed latency is
+reported independently of that ceiling. CI also runs the frozen 240-question
+retrieval/security regression gate and coverage checks. Hosted CI is manual-dispatch
+only under the no-spending constraint; local checks do not imply a hosted run.
 
-[PostgreSQL instructions](infra/postgres/README.md) cover the shared canonical
-catalog and actual database checks. For the complete coverage gate, start the
-PostgreSQL, Redis and [queue fixtures](infra/sqs/README.md), set their test URLs and
-the parser image ID, and add `infra/postgres` to the pytest paths.
-The default demo uses its in-memory catalog. The documented PostgreSQL option
-shares canonical evidence, revocation, grants and audit across demo API instances.
-The same guide covers local PDF staging and isolated digital ingestion workers.
-An operator with a private admin grant submits a hash-addressed source, then runs
-`scripts/ingest_documents.py work-one` to extract and atomically publish its pages.
-The public demo identity cannot administer ingestion. The [local SQS-compatible
-integration](infra/sqs/README.md) supports notifications and duplicate recovery.
-The opt-in API sends notifications after accepting durable intent. `work-loop`
-processes jobs continuously, recovers through SQL during broker outages and
-supports graceful stopping through a signal or an operator stop file.
-OCR review, managed SQS deployment and managed source storage remain unfinished.
+## Optional AWS setup
 
-## Core product loop
+The demo is hosted on Hugging Face's free plan. AWS is optional, has not been
+provisioned, and is not required to use or develop CreditLens. The
+[AWS setup guide](infra/aws/README.md) covers the Docker image, IAM bootstrap,
+Terraform plan, `us-east-1`, health checks, cost considerations and teardown for
+operators who choose their own deployment. That reference is not guaranteed free.
 
-1. Authenticate an underwriter.
-2. Resolve tenant, borrower scope, role, and ACLs.
-3. Ingest policy and borrower documents with page-level provenance.
-4. Retrieve only authorized evidence.
-5. Compute financial metrics deterministically.
-6. Generate a structured underwriting packet.
-7. Validate every citation and policy version.
-8. Abstain or request more evidence when support is insufficient.
-9. Record trace, metrics, and audit evidence.
+## Remaining work and tradeoffs
 
-## Architecture principle
+The working demo is a prototype, not a finished production lending system.
+The main gaps are a calibrated full semantic benchmark, more diverse documents and
+unseen questions, reviewed OCR admission, live governed search/identity integrations
+and production operations. Process-local response caches and quotas require further
+coordination before horizontal scaling. LangSmith/CloudWatch and managed dashboards
+are not deployed. None of these planned components are presented as running services.
 
-The FastAPI modular monolith keeps authorization, finance, evidence validation and
-audit in one request path. The default catalog and quota are process-local.
-PostgreSQL can share evidence authority; coordinated quotas and production
-migration orchestration are still required before horizontal scaling.
-
-```mermaid
-flowchart LR
-    UI[TypeScript workbench] --> API[FastAPI]
-    API --> Grants[Current SQL grants]
-    Grants --> Scope[Authorized canonical pages]
-    Scope --> Rank[BM25 / optional local hybrid and reranker / Redis retrieval cache]
-    Rank --> Packet[Intent, context, Decimal finance and cited extracts]
-    Packet --> Check[Current permission and citation checks]
-    Check --> Audit[SQL audit]
-    Audit --> UI
-```
-
-The broader planned architecture is shown below. Cortex and OpenSearch provider
-contracts exist, and OpenSearch was tested locally; this diagram does not imply
-that every managed service is deployed.
-
-```text
-Browser / Vercel
-      |
-TypeScript + Bun
-      |
-     REST
-      |
-FastAPI modular monolith on AWS
-      |
-      +--> Cognito / OIDC identity
-      +--> Snowflake Cortex Search
-      +--> Snowpark / SQL calculations
-      +--> S3 source documents
-      +--> Redis cache
-      +--> RDS metadata
-      +--> OpenSearch lexical/operational search
-      +--> SQS async ingestion jobs
-      +--> OTel / LangSmith / Prometheus / CloudWatch
-```
-
-The retrieval lab has executed NumPy, FAISS, dense retrieval, local BM25 fusion,
-reranking and five chunking strategies. OpenSearch has a separate actual-service
-integration check. Weaviate and a combined managed retrieval path remain unfinished.
-
-## Deployment and remaining work
-
-The [Hugging Face live package](infra/huggingface/live/DEPLOYMENT.md) embeds the
-running synthetic workbench. It uses no paid HF runtime; the temporary tunnel
-changes address on restart and requires republishing the entry page. The
-[AWS reference](infra/aws/README.md) passes
-local Terraform validation and mocked plans but remains unapplied. AWS account
-no-charge eligibility is unverified; do not provision paid services or upgrade plans.
-
-Next product work is richer document layouts, unseen questions and semantic
-grading calibrated against human review. Engineering work includes managed queue deployment,
-reviewed OCR ingestion, live governed search, full response
-caching and observability. Native browser checks exposed and corrected a fetch
-receiver bug that API-only tests missed. Browser recordings and raw evidence are
-kept in the private resources directory.
-Synthetic templates, exact topical matching, process-local authority and limited
-live-provider evidence constrain the current results.
+The modular monolith keeps permission checks and audit close to evidence generation.
+That makes the current workflow easier to verify; a larger ingestion workload may
+justify independent workers and shared quotas before adding more service boundaries.
 
 ## Documentation
 
-- [PRD](PRD.md)
-- [System Design](docs/system-design.md)
-- [HLD](docs/HLD.md)
-- [LLD](docs/LLD.md)
-- [Evaluation](docs/evaluation.md)
-- [Security](docs/security.md)
-- [Observability](docs/observability.md)
-- [Performance](docs/performance.md)
-- [Failure Modes](docs/failure-modes.md)
-- [Deployment](docs/deployment.md)
-- [Commands](docs/commands.md)
+[System design](docs/system-design.md) ? [HLD](docs/HLD.md) ? [LLD](docs/LLD.md) ?
+[Security](docs/security.md) ? [Evaluation](docs/evaluation.md) ?
+[Performance](docs/performance.md) ? [Deployment](docs/deployment.md)
 
-Execution plans, agent instructions and private evidence are maintained in the
-parent workspace at `resources/credit_lens`.
-
-Frontend implementation details are in [apps/web](apps/web/README.md).
+Raw evidence, architecture decisions, the blog draft, interview notes and recordings
+are maintained outside the repository in `resources/credit_lens`.

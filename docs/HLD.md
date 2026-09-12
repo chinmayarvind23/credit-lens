@@ -2,12 +2,18 @@
 
 ## Implemented demonstration
 
-HF HTML entry page → embedded TypeScript workbench → HTTPS Quick Tunnel → local
-FastAPI demo → current SQL grant → scoped memory catalog → local lexical retrieval
-→ Decimal calculations and cited extracts → permission/citation checks → SQL audit.
-Redis retrieval caching is optional and disabled by default. The live synthetic
-demo requires the owner's computer, Docker and tunnel to remain running. No AWS
-resources are deployed. The cloud flows below describe the intended architecture.
+The free HF Space serves the TypeScript workbench and pinned Pyodide runtime.
+The Python lexical workflow runs in a browser worker with public fictional evidence
+and session SQLite. It needs no tunnel or owner computer. Browser scope checks are
+for demonstration only; confidential evidence must never be shipped as an asset.
+
+The FastAPI server shares the same core logic and adds managed identity, optional
+hybrid retrieval, shared SQL catalog, Redis ID caching and digital ingestion workers.
+An opt-in process-local response cache skips repeated retrieval/calculation while
+reauthorizing, validating exact current sources and recording a fresh audit.
+Local OTel spans and Prometheus metrics are implemented; remote monitoring is not.
+AWS is an optional documented deployment and no resources have been provisioned.
+The cloud flows below describe the broader planned architecture.
 
 The local demo can opt into PostgreSQL on its grant/audit database. That path
 shares canonical evidence and revocation between API instances; Redis remains

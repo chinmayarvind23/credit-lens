@@ -19,6 +19,7 @@ MODULES = (
     "errors",
     "finance",
     "intent",
+    "response_cache",
     "retrieval",
     "search_provider",
     "storage",

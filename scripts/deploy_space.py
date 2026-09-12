@@ -49,6 +49,8 @@ FILES = (
     "src/creditlens/retrieval.py",
     "src/creditlens/retrieval_cache.py",
     "src/creditlens/runtime.py",
+    "src/creditlens/response_cache.py",
+    "src/creditlens/observability.py",
     "src/creditlens/search_provider.py",
     "src/creditlens/settings.py",
     "src/creditlens/sqs_queue.py",
