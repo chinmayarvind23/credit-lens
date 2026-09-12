@@ -5,10 +5,7 @@ import json
 from hashlib import sha256
 from pathlib import Path
 
-from export_packets import FACT_FIELDS, export_case
 from run_advice_eval import run as run_batch
-
-from creditlens.evaluation import page_key, read_inputs
 
 BOUNDARY = (
     "Assess the actual question against the whole packet and canonical context. Do not infer "
@@ -24,6 +21,10 @@ def digest(path):
 
 def export(gold, pages, records, output):
     """Export every authored case before grading; denials and invalid outputs stay visible."""
+    from export_packets import FACT_FIELDS, export_case
+
+    from creditlens.evaluation import page_key, read_inputs
+
     repo = Path(__file__).resolve().parents[2]
     if output.exists() or output.resolve().is_relative_to(repo):
         raise ValueError("Choose a fresh private population export")
