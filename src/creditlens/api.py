@@ -5,7 +5,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import date
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import UUID
 
 import httpx
@@ -14,6 +14,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
+from pydantic import Field
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -33,6 +34,14 @@ from creditlens.storage import GrantStore, open_database
 from creditlens.workflow import QueryWorkflow
 
 
+class GraphQLRequest(StrictModel):
+    """Use the existing HTTP body bound as well as a bounded GraphQL document."""
+
+    query: str = Field(min_length=1, max_length=10000)
+    variables: dict[str, Any] = Field(default_factory=dict)
+    operationName: str | None = Field(default=None, max_length=80)
+
+
 class BorrowerList(StrictModel):
     """Mode and scoped choices make the synthetic boundary visible to the browser."""
 
@@ -40,9 +49,18 @@ class BorrowerList(StrictModel):
     mode: str
 
 
+def verify_optional_runtime(config: Settings) -> None:
+    """Fail explicitly at startup when an enabled optional endpoint lacks its installed SDK."""
+    if config.graphql_enabled:
+        from creditlens.graphql_admin import (
+            SCHEMA,  # noqa: F401 -- verifies optional SDK at startup
+        )
+
+
 def create_app(settings: Settings | None = None) -> FastAPI:
     """An application factory keeps configuration and dependency ownership testable."""
     config = settings or Settings()
+    verify_optional_runtime(config)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
@@ -112,6 +130,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         ocr_artifact
     )
     app.post("/api/v1/admin/index-jobs/{job_id}/review", response_model=JobStatus)(ocr_review)
+    app.post("/api/v1/admin/graphql")(admin_graphql)
     frontend = Path(__file__).resolve().parents[2] / "apps" / "web" / "dist"
     if frontend.is_dir():
         app.mount("/", StaticFiles(directory=frontend, html=True), name="web")
@@ -340,3 +359,26 @@ def ocr_review(
     if not isinstance(catalog, SqlEvidenceCatalog):
         raise ServiceError("review_unavailable", "Review requires the SQL catalog", 503)
     return store.review_ocr(str(job_id), principal, body, catalog)
+
+
+def admin_graphql(
+    body: GraphQLRequest,
+    request: Request,
+    principal: Annotated[Principal, Depends(current_principal)],
+) -> dict[str, Any]:
+    """Enable the optional explorer only behind the existing current administrator identity."""
+    if principal.role != "admin":
+        raise ServiceError("access_denied", "Administrator access is required", 403)
+    if not request.app.state.settings.graphql_enabled:
+        raise ServiceError("graphql_disabled", "GraphQL inspection is not enabled", 503)
+    request.app.state.limiter.check(principal.subject)
+    from creditlens.graphql_admin import execute_admin
+
+    return execute_admin(
+        body.query,
+        body.variables,
+        body.operationName,
+        get_workflow(request),
+        principal,
+        request.app.state.jobs,
+    )

@@ -404,6 +404,9 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
+admin = [
+    { name = "graphql-core" },
+]
 observability = [
     { name = "opentelemetry-sdk" },
     { name = "prometheus-client" },
@@ -436,6 +439,7 @@ requires-dist = [
     { name = "boto3-stubs", extras = ["sqs"], marker = "extra == 'queue'", specifier = ">=1.43.92,<2" },
     { name = "faiss-cpu", marker = "extra == 'retrieval'", specifier = ">=1.12,<2" },
     { name = "fastapi", specifier = ">=0.115,<1" },
+    { name = "graphql-core", marker = "extra == 'admin'", specifier = ">=3.2.12,<3.3" },
     { name = "httpx", specifier = ">=0.28,<1" },
     { name = "llama-index-core", marker = "extra == 'retrieval'", specifier = ">=0.14,<1" },
     { name = "llama-index-embeddings-huggingface", marker = "extra == 'retrieval'", specifier = ">=0.6,<1" },
@@ -452,7 +456,7 @@ requires-dist = [
     { name = "sqlalchemy", specifier = ">=2.0,<3" },
     { name = "uvicorn", specifier = ">=0.34,<1" },
 ]
-provides-extras = ["observability", "queue", "retrieval"]
+provides-extras = ["admin", "observability", "queue", "retrieval"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -722,6 +726,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/00/78/f34251dadb8f3921264a1d9b8946f5e542014ee2614b285261b4e40e6775/fsspec-2026.7.0.tar.gz", hash = "sha256:c803c40f4cf860b49dea58ee3e1c33cb9c790520e233537e1340049f89b82a88", size = 317040, upload-time = "2026-07-28T16:34:51.052Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/fd/3c/6a2bf344106328fd04963664a60b9bb6496fc25df8e962fcdc1367285fb9/fsspec-2026.7.0-py3-none-any.whl", hash = "sha256:b57ddbafedfaef7018c1ecab32aa200a9d7ca26b77965f64e48b70061249d279", size = 206583, upload-time = "2026-07-28T16:34:49.538Z" },
+]
+
+[[package]]
+name = "graphql-core"
+version = "3.2.12"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/11/7f/671c1046fe72ba5b62be2de3979ea9e61cb3dba8f1edfb880b811f8bdf8b/graphql_core-3.2.12.tar.gz", hash = "sha256:4579094d5fc8a1a59555a9b18e51b320779d9bbc63e2302c519af0c4919d9543", size = 531478, upload-time = "2026-08-27T20:25:48.607Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/4e/b6/304c572e79b9e82982dbd5091e26a89f5018e565868091d804c2142f6ba5/graphql_core-3.2.12-py3-none-any.whl", hash = "sha256:3d8f104532070485e13caa4092c1e71cda2ba6cffd96e98f285111ee10ed1e51", size = 216042, upload-time = "2026-08-27T20:25:47.234Z" },
 ]
 
 [[package]]

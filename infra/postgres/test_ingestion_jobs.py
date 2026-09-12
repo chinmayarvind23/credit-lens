@@ -709,3 +709,44 @@ def test_operator_ocr_handoff_verifies_pdf_and_retains_review(store):
         artifact_path.write_text(json.dumps(decision), encoding="utf-8")
         args.command = "review-ocr"
         assert json.loads(handle_ocr(args, store, sources, settings))["state"] == "COMPLETED"
+
+
+def test_graphql_explorer_uses_real_scoped_job_store(store):
+    """Read the actual durable job contract through GraphQL without exposing private fields."""
+    pytest.importorskip("graphql")
+    actor = admin().model_copy(update={"subject": uuid4().hex})
+    seed_current_admin(store, actor)
+    job = store.submit(spec(), actor, "graphql")
+    config = Settings(
+        database_url=store.engine.url.render_as_string(hide_password=False),
+        catalog_backend="postgres",
+        ingestion_enabled=True,
+        ingestion_queue_id=store.queue_id,
+        graphql_enabled=True,
+    )
+    app = create_app(config)
+    app.dependency_overrides[current_principal] = lambda: actor
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/v1/admin/graphql",
+            json={
+                "query": "query Job($id: ID!){ingestionJob(id:$id){"
+                "jobId state attempts errorCode}}",
+                "variables": {"id": job.job_id},
+            },
+        )
+        assert response.status_code == 200
+        assert response.json()["data"]["ingestionJob"] == {
+            "jobId": job.job_id,
+            "state": "QUEUED",
+            "attempts": 0,
+            "errorCode": None,
+        }
+        missing = client.post(
+            "/api/v1/admin/graphql",
+            json={
+                "query": "query Job($id: ID!){viewer{subject} ingestionJob(id:$id){state}}",
+                "variables": {"id": str(uuid4())},
+            },
+        )
+        assert missing.status_code == 404 and "data" not in missing.json()

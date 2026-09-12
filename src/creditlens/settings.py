@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     response_cache_enabled: bool = False
     response_cache_capacity: int = Field(default=128, ge=1, le=512)
     response_cache_ttl_seconds: int = Field(default=60, ge=1, le=3600)
+    graphql_enabled: bool = False
     telemetry_enabled: bool = False
     trace_file: str = Field(default="", max_length=2048)
     redis_url: SecretStr = SecretStr("")

@@ -37,6 +37,7 @@ approve a loan or establish compliance with every policy requirement.
 - Quarantined OCR review with scoped approval, text correction, rejection and retained provenance.
 - Local OTel traces, Prometheus metrics, security/regression tests and CI quality/latency gates.
 - Actual DeepEval and RAGAS runners using a local judge; validation limits are listed below.
+- Optional read-only [GraphQL admin inspection](docs/graphql-admin.md) for catalog, jobs and own audit metadata.
 
 ## Measured results
 
@@ -131,7 +132,7 @@ and service paths. Kubernetes is not used.
 ## Checks and reproduction
 
 ```powershell
-uv sync --locked --extra queue --extra retrieval --extra observability
+uv sync --locked --extra queue --extra retrieval --extra observability --extra admin
 uv run --no-sync ruff check src
 uv run --no-sync ruff format --check src
 uv run --no-sync mypy src

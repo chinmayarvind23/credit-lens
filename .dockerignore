@@ -34,6 +34,7 @@ src/creditlens/*
 !src/creditlens/domain.py
 !src/creditlens/errors.py
 !src/creditlens/finance.py
+!src/creditlens/graphql_admin.py
 !src/creditlens/hybrid_provider.py
 !src/creditlens/ocr.py
 !src/creditlens/ingestion.py

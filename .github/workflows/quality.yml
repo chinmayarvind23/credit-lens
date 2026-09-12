@@ -47,13 +47,13 @@ jobs:
           bun-version: "1.3.10"
       - name: Install locked dependencies
         run: |
-          uv sync --locked --extra queue --extra retrieval --extra observability
+          uv sync --locked --extra queue --extra retrieval --extra observability --extra admin
           bun install --cwd apps/web --frozen-lockfile
       - name: Python static checks
         run: |
           uv run --no-sync ruff check src tests scripts infra/huggingface infra/postgres infra/sqs .github/scripts .github/tests
           uv run --no-sync ruff format --check src tests scripts infra/huggingface infra/postgres infra/sqs .github/scripts .github/tests
-          uv run --no-sync mypy src scripts/deploy_space.py scripts/ingest_documents.py infra/sqs/wait_ready.py infra/huggingface/demo_entrypoint.py infra/huggingface/smoke_container.py .github/scripts/check_coverage.py
+          uv run --no-sync mypy src scripts/deploy_space.py scripts/ingest_documents.py scripts/inspect_admin.py infra/sqs/wait_ready.py infra/huggingface/demo_entrypoint.py infra/huggingface/smoke_container.py .github/scripts/check_coverage.py
       - name: Verify the sanitized deployment snapshot
         run: |
           uv run --no-sync python scripts/deploy_space.py stage --output "${{ runner.temp }}/creditlens-space"

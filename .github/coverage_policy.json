@@ -1,5 +1,5 @@
 {
-  "policy_version": "deterministic-core-v3",
+  "policy_version": "deterministic-core-v4",
   "measurement": "statement line coverage; branch coverage is not claimed",
   "core_minimum_percent": 85,
   "critical_minimum_percent": 95,
@@ -13,6 +13,7 @@
     "domain.py",
     "errors.py",
     "finance.py",
+    "graphql_admin.py",
     "hybrid_provider.py",
     "ingestion.py",
     "ingestion_jobs.py",
@@ -49,6 +50,7 @@
     "citations.py",
     "cortex_search.py",
     "finance.py",
+    "graphql_admin.py",
     "hybrid_provider.py",
     "ingestion_jobs.py",
     "ingestion_worker.py",
