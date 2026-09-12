@@ -45,6 +45,26 @@ class VerbatimFieldTests(unittest.TestCase):
         self.assertEqual(judge.outputs[0]["output"]["statements"][0]["statement"], text)
         validate_field_score(score.value, judge.outputs, text)
 
+    def test_identical_nli_prompts_ignore_question_but_preserve_context(self):
+        """Verify the exact prompt-reuse contract against the installed library, not a replica."""
+        from ragas.metrics.collections.faithfulness.util import NLIStatementInput
+
+        text = "Minimum is 1.25."
+        transport = Mock(spec=LocalJudge)
+        transport.generate.side_effect = lambda prompt, schema: schema.model_validate(
+            {"statements": [{"statement": text, "reason": "Protocol fixture", "verdict": 1}]}
+        )
+        judge = RagasJudge(transport)
+        metric = VerbatimFieldSupport(llm=judge, name="verbatim_field_support")
+        expected = metric.nli_statement_prompt.to_string(
+            NLIStatementInput(context="Minimum is 1.25.", statements=[text])
+        )
+        for question in ("Which threshold?", "A different question"):
+            asyncio.run(metric.ascore(question, text, ["Minimum is 1.25."]))
+            self.assertEqual(transport.generate.call_args.args[0], expected)
+        asyncio.run(metric.ascore("Which threshold?", text, ["Minimum is 1.50."]))
+        self.assertNotEqual(transport.generate.call_args.args[0], expected)
+
     def test_partial_and_nonbinary_verdicts_fail(self) -> None:
         """A high score cannot count when the judge drops a clause or changes the denominator."""
         text = "Supported statement. Unsupported addition."

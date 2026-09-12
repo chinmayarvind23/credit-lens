@@ -228,3 +228,32 @@ Contracts: [DeepEval custom models](https://deepeval.com/guides/guides-using-cus
 [Ollama chat API](https://docs.ollama.com/api/chat).
 RAGAS contracts: [Faithfulness pipeline](https://github.com/vibrantlabsai/ragas/tree/v0.4.3/src/ragas/metrics/collections/faithfulness)
 and [structured model interface](https://github.com/vibrantlabsai/ragas/blob/v0.4.3/src/ragas/llms/base.py).
+
+
+## Full population field evaluation
+
+`export_population.py` reads every gold case and its saved output. It validates
+canonical sources and citations with the existing field exporter. Missing outputs,
+denials and invalid packets stay in `coverage.json`; none silently disappear.
+The export writes bounded 24-unit shards with content hashes and a complete manifest.
+
+```powershell
+python infra/evaluation/export_population.py --gold evals/gold_cases.jsonl --pages <pages.jsonl> --records <benchmark-cases.jsonl> --output <fresh-private-input-directory>
+<semantic-python> infra/evaluation/run_population.py --population <input-directory> --controls <passing-verbatim-control-summary.json> --model qwen3:8b --digest <installed-digest> --output <fresh-private-results-directory>
+```
+
+The runner uses the unchanged `lending-v1` verbatim NLI rubric. It checks the
+passing control summary against current evaluator, SDK and model hashes. It
+constructs the actual NLI prompt and judges each distinct prompt once, recording
+all field IDs that reuse that verdict. The raw inference prompt must exactly match
+the reuse key. Repeated fields retain their weight in population counts, but they
+are not independent model judgments. Changing a question alone does not change
+this metric's prompt; question relevance remains outside its scope.
+
+Results and raw journals are written after each group. Errors remain ungraded.
+Three consecutive errors stop further inference; unfinished fields remain in the
+denominator. Use a fresh output directory and inspect the live process before
+starting another run. There is no automatic retry or resume. This is diagnostic
+field support, not a whole-packet groundedness or citation-precision estimate.
+Operational state, advice, question relevance and human calibration remain separate.
+The runner uses only the installed local model and never starts or downloads one.
