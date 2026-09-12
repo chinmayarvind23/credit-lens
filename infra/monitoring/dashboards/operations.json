@@ -661,6 +661,78 @@
           "placement": "bottom"
         }
       }
+    },
+    {
+      "id": 19,
+      "title": "Packet cost observation availability",
+      "type": "timeseries",
+      "description": "Only established costs enter the histogram. Missing cost is counted as unknown, never zero dollars.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "creditlens-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 72
+      },
+      "targets": [
+        {
+          "expr": "sum by (availability) (creditlens_packet_cost_observations_total)",
+          "refId": "A",
+          "legendFormat": "{{availability}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 20,
+      "title": "Mean established packet cost (empty when unknown)",
+      "type": "timeseries",
+      "description": "Only established costs enter the histogram. Missing cost is counted as unknown, never zero dollars.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "creditlens-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 72
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(creditlens_packet_cost_usd_sum[5m])) / (sum(rate(creditlens_packet_cost_usd_count[5m])) > 0)",
+          "refId": "A",
+          "legendFormat": "{{availability}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
     }
   ]
 }

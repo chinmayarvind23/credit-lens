@@ -1,0 +1,246 @@
+{
+  "uid": "creditlens-indexing",
+  "title": "CreditLens indexing drill snapshots",
+  "schemaVersion": 39,
+  "version": 1,
+  "timezone": "utc",
+  "refresh": "5s",
+  "time": {
+    "from": "now-15m",
+    "to": "now"
+  },
+  "tags": [
+    "creditlens",
+    "indexing-snapshot"
+  ],
+  "panels": [
+    {
+      "id": 1,
+      "title": "Acknowledged corpus upload duration",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "creditlens-prometheus"
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "targets": [
+        {
+          "expr": "creditlens_indexing_run_duration_seconds",
+          "refId": "A",
+          "instant": true,
+          "legendFormat": "{{phase}} {{unit}} {{state}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 2,
+      "title": "Fully acknowledged input units per second",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "creditlens-prometheus"
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      },
+      "targets": [
+        {
+          "expr": "creditlens_indexing_run_units_per_second",
+          "refId": "A",
+          "instant": true,
+          "legendFormat": "{{phase}} {{unit}} {{state}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 3,
+      "title": "Bulk failures (fault phase is deliberate)",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "creditlens-prometheus"
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 12,
+        "x": 0,
+        "y": 5
+      },
+      "targets": [
+        {
+          "expr": "creditlens_indexing_run_bulk_failures",
+          "refId": "A",
+          "instant": true,
+          "legendFormat": "{{phase}} {{unit}} {{state}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 4,
+      "title": "Acknowledged, rejected and unconfirmed chunks",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "creditlens-prometheus"
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 12,
+        "x": 12,
+        "y": 5
+      },
+      "targets": [
+        {
+          "expr": "creditlens_indexing_run_chunks",
+          "refId": "A",
+          "instant": true,
+          "legendFormat": "{{phase}} {{unit}} {{state}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 5,
+      "title": "Canary search visibility (not full index lag)",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "creditlens-prometheus"
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 12,
+        "x": 0,
+        "y": 10
+      },
+      "targets": [
+        {
+          "expr": "creditlens_indexing_canary_visibility_seconds",
+          "refId": "A",
+          "instant": true,
+          "legendFormat": "{{phase}} {{unit}} {{state}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 6,
+      "title": "Canary search verified",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "creditlens-prometheus"
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 12,
+        "x": 12,
+        "y": 10
+      },
+      "targets": [
+        {
+          "expr": "creditlens_indexing_canary_visible",
+          "refId": "A",
+          "instant": true,
+          "legendFormat": "{{phase}} {{unit}} {{state}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    }
+  ]
+}

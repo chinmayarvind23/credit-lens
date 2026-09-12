@@ -6,6 +6,17 @@ import time
 from hashlib import sha256
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
+from socket import socket
+
+
+class SnapshotServer(HTTPServer):
+    """Bound accepted sockets so incomplete local requests cannot hold the fixture open."""
+
+    def get_request(self) -> tuple[socket, tuple[str, int]]:
+        """Apply the scrape deadline to both request reads and response writes."""
+        connection, address = super().get_request()
+        connection.settimeout(3)
+        return connection, address
 
 
 def payload(directory: Path) -> bytes:
@@ -37,7 +48,7 @@ def serve(data: bytes, host: str, port: int, seconds: int) -> None:
         def log_message(self, format: str, *args: object) -> None:
             """Request URLs and peer addresses are unnecessary for aggregate verification."""
 
-    with HTTPServer((host, port), Handler) as server:
+    with SnapshotServer((host, port), Handler) as server:
         server.timeout = 0.5
         deadline = time.monotonic() + seconds
         while time.monotonic() < deadline:

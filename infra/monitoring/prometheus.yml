@@ -22,3 +22,9 @@ scrape_configs:
       - targets: [host.docker.internal:19103]
         labels:
           environment: local-evaluation-snapshot
+  - job_name: creditlens-indexing-snapshot
+    scrape_timeout: 3s
+    static_configs:
+      - targets: [host.docker.internal:19104]
+        labels:
+          environment: local-indexing-snapshot

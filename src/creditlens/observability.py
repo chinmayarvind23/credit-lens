@@ -5,6 +5,7 @@ import logging
 from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
 from logging.handlers import RotatingFileHandler
+from math import isfinite
 from pathlib import Path
 from time import perf_counter
 from typing import Any
@@ -149,6 +150,18 @@ class Telemetry:
             ["status"],
             registry=self.registry,
         )
+        self.cost_observations = Counter(
+            "creditlens_packet_cost_observations_total",
+            "Audited packets with known or unavailable monetary cost",
+            ["availability"],
+            registry=self.registry,
+        )
+        self.cost = Histogram(
+            "creditlens_packet_cost_usd",
+            "Established packet cost only; missing costs are excluded rather than zero-filled",
+            buckets=(0, 0.001, 0.005, 0.01, 0.025, 0.043, 0.05, 0.1, 0.5, 1),
+            registry=self.registry,
+        )
 
     @contextmanager
     def span(self, name: str) -> Iterator[None]:
@@ -172,6 +185,12 @@ class Telemetry:
         self.packets.labels(packet.policy_disposition, "hit" if packet.cache_hit else "miss").inc()
         if packet.abstained:
             self.abstentions.inc()
+        cost = packet.cost_usd
+        amount = float(cost) if cost is not None and cost.is_finite() else -1.0
+        known = isfinite(amount) and amount >= 0
+        self.cost_observations.labels("known" if known else "unknown").inc()
+        if known:
+            self.cost.observe(amount)
 
     def render(self) -> bytes:
         """Generate standard Prometheus exposition without private identifiers or source text."""

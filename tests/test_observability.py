@@ -2,6 +2,7 @@
 
 import json
 from collections.abc import Iterator
+from decimal import Decimal
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -9,6 +10,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from creditlens.api import create_app
+from creditlens.domain import Packet
 from creditlens.observability import Telemetry
 from creditlens.settings import Settings
 from creditlens.storage import grants
@@ -54,6 +56,8 @@ def test_http_traces_metrics_cache_and_privacy(trace_directory: Path) -> None:
         assert "creditlens_request_duration_seconds_bucket" in metrics
         assert 'creditlens_stage_duration_seconds_count{stage="audit.persist"} 2.0' in metrics
         assert 'creditlens_acl_denials_total{status="403"} 2.0' in metrics
+        assert 'creditlens_packet_cost_observations_total{availability="unknown"} 2.0' in metrics
+        assert "creditlens_packet_cost_usd_count 0.0" in metrics
         assert (
             client.get(
                 "/api/v1/evidence/private-document",
@@ -115,3 +119,28 @@ def test_abstention_counter_tracks_audited_outcome() -> None:
         metrics = app.state.telemetry.render().decode()
         assert "creditlens_abstentions_total 1.0" in metrics
         assert "creditlens_stage_errors_total{" not in metrics
+
+
+@pytest.mark.parametrize("value", ["0.043", "NaN", "Infinity", "1e900", "-1"])
+def test_cost_observations_exclude_unavailable_values(value: str) -> None:
+    """Synthetic metering inputs verify known costs and invalid values without claiming billing."""
+    app = create_app(Settings(database_url="sqlite:///:memory:", telemetry_enabled=True))
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/v1/query",
+            json={"borrower_id": "borrower-001", "question": "Calculate DSCR"},
+        )
+        assert response.status_code == 200
+        packet = Packet.model_validate(response.json()).model_copy(
+            update={"cost_usd": Decimal(value)}
+        )
+        app.state.telemetry.packet(packet)
+        metrics = app.state.telemetry.render().decode()
+        if value == "0.043":
+            assert "creditlens_packet_cost_usd_sum 0.043" in metrics
+            assert 'creditlens_packet_cost_observations_total{availability="known"} 1.0' in metrics
+        else:
+            assert "creditlens_packet_cost_usd_count 0.0" in metrics
+            assert (
+                'creditlens_packet_cost_observations_total{availability="unknown"} 2.0' in metrics
+            )
