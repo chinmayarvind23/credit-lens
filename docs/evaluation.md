@@ -502,3 +502,13 @@ The final GEval raw journals contain 243 calls including eight controls and repo
 and 12,690 completion tokens. Actual Grafana proxy checks verified the two whole-packet query
 expressions. This verifies the data path, not the judge's semantic correctness. Full results are
 retained privately in `evidence/deepeval-whole-v2-results.md`.
+
+
+A later 30-case agent review used three frozen packets per category and retained
+27 passes and three failures after two agent-adjudicated relevance cases. The raw
+DeepEval judge passed 13 of those same 30 packets; agreement was 16/30. This is an
+agent diagnostic sample, not human calibration, a representative population rate,
+or a replacement for the historical 102/235 DeepEval score. Original labels and
+adjudication notes remain separate. The three observed failures exposed missing
+refusals for unsupported scope/hidden-topic requests; their code fix has separate
+regression evidence and does not retroactively change frozen outputs or scores.
