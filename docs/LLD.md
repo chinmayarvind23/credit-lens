@@ -203,3 +203,11 @@ labels. The local SQL-publication experiment separately verifies every expected 
 searchable text and metadata in one successful sweep, with no union of incomplete sweeps.
 See [neural monitoring](../infra/monitoring/neural.md) and
 [publication visibility](../infra/monitoring/publication-visibility.md).
+
+General policy-procedure lookups use the extractive path rather than calculating
+DSCR from the selected borrower. The question-only rule requires procedural and
+policy-topic cues; explicit borrower, assessment, or missing-document cues retain
+financial review. Procedural cues use raw question words because retrieval
+tokenization removes interrogatives.
+This fixes irrelevant numerical dispositions, but does not add answer synthesis.
+Frozen DeepEval results predate this change and remain unchanged.

@@ -70,7 +70,9 @@ def classify_intent(question: str) -> QueryIntent:
     )
     financial = (
         bool(words & (FINANCIAL_SUBJECTS | EVIDENCE_REVIEW)) or source_request or borrower_threshold
-    ) and not (policy_only or policy_threshold_lookup(words))
+    ) and not (
+        policy_only or policy_threshold_lookup(words) or policy_procedure_lookup(words, question)
+    )
     sensitive = bool(words & SENSITIVE_REQUEST)
     return QueryIntent(financial, sensitive, words - TOPIC_GLUE if sensitive else frozenset())
 
@@ -80,6 +82,17 @@ def policy_threshold_lookup(words: frozenset[str]) -> bool:
     return bool(words & {"minimum", "threshold"}) and not bool(
         words & (ASSESSMENT_CUES | EVIDENCE_REVIEW)
     )
+
+
+def policy_procedure_lookup(words: frozenset[str], question: str) -> bool:
+    """General policy procedures quote rules without assessing an unrelated borrower ratio."""
+    procedural = bool(
+        set(re.findall(r"[a-z]+", question.lower()))
+        & {"how", "explain", "describe", "procedure", "process", "rule", "rules"}
+    )
+    subject = bool(words & {"policy", "policies", "exception", "exceptions", "treatment"})
+    assessment = bool(words & (ASSESSMENT_CUES | {"borrower", "missing", "absent", "incomplete"}))
+    return procedural and subject and not assessment
 
 
 def topic_supported(intent: QueryIntent, ranked: tuple[Chunk, ...]) -> bool:

@@ -202,3 +202,69 @@ def test_actual_topic_anchor_and_empty_ranking() -> None:
     chunks = tuple(chunk_page(page)[0] for page in build_demo_pages())
     assert textual_support("Explain the DSCR threshold", chunks)
     assert not textual_support("Explain the DSCR threshold", ())
+
+
+@pytest.mark.parametrize(
+    "question",
+    [
+        "Explain the procedure for a debt coverage exception.",
+        "How should a debt repayment exception be reviewed?",
+        "How should conflicting source amounts be handled under policy?",
+        "Describe the policy treatment of cash flow reporting periods.",
+        "What rules govern currency treatment of debt repayments?",
+    ],
+)
+def test_policy_procedures_do_not_assess_borrower(question: str) -> None:
+    """Reference questions must not acquire a DSCR disposition from unrelated financial facts."""
+    assert not classify_intent(question).financial_review
+    with TestClient(create_app(Settings(database_url="sqlite:///:memory:"))) as client:
+        response = client.post(
+            "/api/v1/query",
+            json={
+                "borrower_id": "borrower-001",
+                "question": question,
+                "effective_at": "2026-06-01",
+            },
+        )
+        assert response.status_code == 200
+        packet = response.json()
+        assert packet["calculated_metrics"] == []
+        assert packet["policy_disposition"] == "HUMAN_JUDGMENT_REQUIRED"
+        assert packet["applicable_policy"]
+        stages = [stage["name"] for stage in packet["stages"]]
+        assert "answer.extractive" in stages
+        assert "finance.deterministic" not in stages
+        assert stages[-1] == "audit.persist"
+
+
+@pytest.mark.parametrize(
+    "question",
+    [
+        "Explain whether borrower-002 needs a debt coverage exception.",
+        "Calculate DSCR and explain the policy exception process.",
+        "Compare cash flow with the policy rules for debt repayments.",
+        "Identify missing debt source documents.",
+        "Reconcile conflicting cash flow amounts.",
+    ],
+)
+def test_policy_reference_words_preserve_assessment(question: str) -> None:
+    """Mixed assessment and evidence-readiness requests still run financial safety checks."""
+    assert classify_intent(question).financial_review
+
+
+def test_policy_procedure_does_not_hide_missing_documents() -> None:
+    """Source-readiness requests retain missing-evidence state despite policy wording."""
+    with TestClient(create_app(Settings(database_url="sqlite:///:memory:"))) as client:
+        response = client.post(
+            "/api/v1/query",
+            json={
+                "borrower_id": "borrower-003",
+                "question": "Explain which debt documents are missing for this policy exception.",
+                "effective_at": "2026-06-01",
+            },
+        )
+        assert response.status_code == 200
+        packet = response.json()
+        assert packet["policy_disposition"] == "INSUFFICIENT_EVIDENCE"
+        assert "annual_debt_service" in packet["missing_documents"]
+        assert packet["abstained"]
