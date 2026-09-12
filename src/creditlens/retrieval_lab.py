@@ -112,10 +112,17 @@ class DenseLab:
 
     def faiss_agreement(
         self, question: str, candidates: tuple[Chunk, ...], k: int = 10
-    ) -> dict[str, float | None]:
+    ) -> dict[str, Any]:
         """Compare scoped HNSW to exact NumPy and report scope-index construction overhead."""
         if not candidates:
-            return {"agreement_at_10": None, "scope_index_ms": 0.0, "search_ms": 0.0}
+            return {
+                "agreement_at_10": None,
+                "scope_index_ms": 0.0,
+                "search_ms": 0.0,
+                "approximate_chunk_ids": [],
+                "exact_chunk_ids": [],
+                "candidate_count": 0,
+            }
         faiss = importlib.import_module("faiss")
         faiss.omp_set_num_threads(1)
         vectors = self.vectors[[self.indices[chunk.chunk_id] for chunk in candidates]]
@@ -126,14 +133,20 @@ class DenseLab:
         index.add(vectors)
         indexed = perf_counter()
         query = self.encode_query(question)
-        _, identifiers = index.search(query, min(k, len(candidates)))
+        distances, identifiers = index.search(query, min(k, len(candidates)))
         searched = perf_counter()
-        approximate = {
+        approximate_ids = [
             candidates[i].chunk_id for i in cast(list[int], identifiers[0].tolist()) if i >= 0
-        }
-        exact = {chunk.chunk_id for chunk in self.rank(question, candidates, limit=k)}
+        ]
+        exact_ids = [chunk.chunk_id for chunk in self.rank(question, candidates, limit=k)]
+        approximate, exact = set(approximate_ids), set(exact_ids)
         return {
             "agreement_at_10": len(approximate & exact) / len(exact),
             "scope_index_ms": (indexed - started) * 1000,
             "search_ms": (searched - indexed) * 1000,
+            "approximate_chunk_ids": approximate_ids,
+            "exact_chunk_ids": exact_ids,
+            "inner_products": distances[0].tolist(),
+            "candidate_count": len(candidates),
+            "requested_k": k,
         }

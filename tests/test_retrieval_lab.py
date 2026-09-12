@@ -48,6 +48,12 @@ def test_exact_hnsw_agreement() -> None:
     lab.query_vectors = {"query": np.array([[1.0, 0.0]], dtype="float32")}
     result: dict[str, Any] = lab.faiss_agreement("query", chunks, k=2)
     assert result["agreement_at_10"] == 1.0
+    assert result["approximate_chunk_ids"] == result["exact_chunk_ids"]
+    assert result["approximate_chunk_ids"] == [chunk.chunk_id for chunk in chunks[:2]]
+    assert result["inner_products"] == pytest.approx([1.0, 0.8])
+    scoped = lab.faiss_agreement("query", chunks[1:], k=2)
+    assert chunks[0].chunk_id not in scoped["approximate_chunk_ids"]
+    assert scoped["candidate_count"] == 2
     assert lab.faiss_agreement("query", ())["agreement_at_10"] is None
 
 
