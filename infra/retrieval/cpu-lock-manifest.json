@@ -6,8 +6,8 @@
   "torch_backend": "cpu",
   "source_encoding": "UTF-8 with LF newlines",
   "source_hashes": {
-    "pyproject.toml": "77c20ddc54e878ed8cd9364922b3fd0d996a2da9d16e15b5041f20d0ed4b1e20",
-    "uv.lock": "294606a766dce7e052ddf9b79706b1acf87108c4f17833551abeed86589c6e76",
+    "pyproject.toml": "3c2ed516bf16b091d3ab4b6acd130ccc54b9601dafe573e0c9c761ed05193d1c",
+    "uv.lock": "692c4bf830636f8d1269bb45182c9e77f0cdafabdd3ebe584b4de93234f7fa28",
     "scripts/lock_neural_runtime.py": "58d595244a3e627b4c5203610f18f8604eb83271306abf48ee3e6436ca3b06dc"
   },
   "lock_sha256": "a0d7902a301d5680533bcb369e021a3a0dad4a8783103df8ef297046d23f2c1f"
