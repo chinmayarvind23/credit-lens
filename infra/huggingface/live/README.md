@@ -27,8 +27,6 @@ running. The temporary tunnel address changes when restarted. This is a live
 demonstration, not an always-available managed deployment.
 
 Only synthetic lending data is available. Financial checks use the synthetic
-policy, and the underwriter retains the final lending decision. Live model-based
-generation, production identity integration and semantic quality grading remain
-unfinished. No GPU, paid runtime, inference job or persistent HF storage is requested.
+policy, and the underwriter retains the final lending decision. No GPU, paid runtime, inference job or persistent HF storage is requested.
 
 [Source code](https://github.com/chinmayarvind23/credit-lens)

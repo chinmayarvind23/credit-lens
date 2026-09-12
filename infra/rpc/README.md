@@ -21,9 +21,7 @@ The demo creates an isolated temporary SQLite database and binds only 127.0.0.1.
 It uses public synthetic identity, needs no credentials and expires after the
 specified duration. It is not an authenticated remote deployment. An embedding
 host supplies `UnderwritingService` with its existing Authenticator, QueryWorkflow
-and QueryLimiter. Signed-token tests exercise the production authenticator with
-a fixture issuer and actual RSA signatures. Remote TLS/service deployment remains
-an operator integration task.
+and QueryLimiter. Configure TLS and the existing Authenticator when embedding it in a remote service.
 
 Clients must set a deadline of at most 30 seconds. The listener limits request
 bytes to 16 KiB, response bytes to approximately 1 MiB, workers to four and
@@ -32,11 +30,6 @@ SQL grants and borrower scope are checked even for response-cache hits. Curated
 status codes keep dependency exception text off the wire. Cancellation prevents
 response delivery; synchronous work may finish and retain its audit after the
 client deadline. Do not assume cancellation rolls back an acknowledged audit.
-
-Actual socket tests cover all five lending dispositions, Decimal serialization,
-fresh audits, warm-cache revocation, invalid credentials, wrong borrower, malformed
-input, missing deadlines, duplicate metadata, size limits, quotas, private errors
-and cancellation. Nine tests passed; service branch-inclusive coverage was 88%.
 
 ```powershell
 uv run --no-sync pytest tests/test_grpc.py

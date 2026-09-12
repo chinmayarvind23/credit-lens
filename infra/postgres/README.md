@@ -8,8 +8,7 @@ invalidates results held by another process. Duplicate publication and repeated
 revocation are idempotent; a revoked page cannot be restored by replaying a batch.
 
 The default runtime still uses the in-memory catalog. Demo mode can opt into the
-shared catalog on its existing PostgreSQL grant/audit engine; it does not enable
-the unfinished production path. Startup idempotently publishes the synthetic
+shared catalog on its existing PostgreSQL grant/audit engine. Startup idempotently publishes the synthetic
 corpus under a synthetic-prefixed catalog ID and never restores revoked pages.
 Bootstrap with `initialize_catalog(engine, catalog_id)` using an administrator
 connection to an owned database. Readers construct `SqlEvidenceCatalog` without
@@ -59,8 +58,7 @@ restriction. Database statement and lock waits are bounded at five and two secon
 SQL failures roll back and return a curated catalog-unavailable error. The caller
 must configure finite connection/pool timeouts; application PostgreSQL engines use
 a three-second connect timeout, five-second pool wait and bounded statements.
-A whole-workflow deadline and production migration orchestration
-remain separate work.
+Configure connection and statement timeouts for operator-managed engines.
 
 ## Durable ingestion state
 
@@ -84,12 +82,6 @@ rolls back publication if ownership expires during work. The shared grant lock
 prevents concurrent revocation between authorization and commit. OCR jobs retain normalized artifacts in quarantine. Explicit scoped administrator
 review can atomically admit corrected pages; see [reviewed admission](../ocr/README.md#reviewed-admission).
 
-`test_ingestion_jobs.py` has 17 actual-database cases, including concurrent claim,
-restart/retry recovery, permission changes, post-insert failure/expiry rollback
-and a real conflicting grant lock. HTTP tests use two API instances, actual SQL
-grants, restart, duplicate/conflicting submission, revocation and rate limiting.
-Only external Cognito transport is replaced by a test identity seam.
-
 With the shared demo catalog configured, set `CREDITLENS_INGESTION_ENABLED=true`
 and a `CREDITLENS_INGESTION_QUEUE_ID` beginning with `synthetic-`. Ingestion remains
 disabled by default. `POST /api/v1/admin/documents` accepts `IngestionInput` JSON
@@ -99,13 +91,12 @@ The public synthetic demo identity is an underwriter and cannot use these routes
 Do not elevate that public identity to expose administrative access.
 
 The POST registers a pre-staged PDF hash and manifest; it is not a raw file upload
-and does not execute extraction in the request. The existing process-local request limit
-applies to submissions; distributed admission quotas remain unfinished. Readiness
+and does not execute extraction in the request. The configured request limiter applies to submissions. Readiness
 checks the configured job table. A separate `IngestionWorker` now reads staged
 objects through `LocalSourceStore`, supervises `DockerPdfExtractor` and atomically
 publishes valid digital pages. Current grants are checked during extraction.
 The optional [local SQS adapter](../sqs/README.md) supports notification delivery
-and recovery. Automatic OCR queue execution, managed SQS and managed object storage remain unfinished.
+and recovery. See the OCR guide to configure the optional native OCR worker.
 
 Build the local parser image and require its immutable ID for the actual Docker
 execution tests. No image is pulled by the worker:
@@ -120,7 +111,7 @@ These tests inspect real container isolation, enforce timeout cleanup and reject
 malformed input, tampered hashes, changed scope, revoked grants and expired leases.
 Explicit fault injection tests are distinguished from actual container parsing.
 The source store assumes a trusted local root and retains immutable objects;
-capacity quotas and garbage collection are not yet implemented. Worker output
+operators manage retention and available disk space. Worker output
 size limits are polled detection thresholds, not hard host filesystem quotas.
 
 ## Local operator commands

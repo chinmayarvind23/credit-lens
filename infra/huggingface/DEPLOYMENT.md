@@ -14,7 +14,7 @@ docker stop creditlens-demo-local
 docker rm creditlens-demo-local
 ```
 
-The smoke script checks readiness, health, web delivery, the five authorized demo borrowers, exact DSCR `1.5000`, cited source retrieval, `no-store` API behavior, and denial of an unauthorized borrower. It exercises HTTP contracts, not browser rendering or production provider readiness.
+The smoke script checks readiness, health, web delivery, the five authorized demo borrowers, financial calculation, cited source retrieval, `no-store` API behavior, and denial of an unauthorized borrower. It exercises HTTP contracts, not browser rendering or production provider readiness.
 
 ## Reviewable upload package
 
@@ -50,11 +50,11 @@ The quality workflow uses pinned action commits and locked Bun/Python installs. 
 
 CI regenerates the reviewed lexical control from commit `5d6d6ab840e8a498bf202582d1d3c5d5da62ddaa` in a separate worktree with its locked dependencies. Both control and current code receive the same physical pages and `--outcomes`; the current run must compare against the control's `summary.json`. Gold and metric contract mismatches fail the comparison. Both runs and their provenance are retained. Changing this reference requires review; the local authored-qrel comparison does not establish independent semantic quality.
 
-The coverage gate requires at least 85% statement line coverage across the declared deterministic request-path core and at least 95% for each declared critical module. `.github/coverage_policy.json` lists all inclusions and reasoned exclusions. New source modules fail the inventory check until their scope is reviewed. Branch coverage is not claimed; optional retrieval experiments have separate tests and evidence.
-
 ## References
 
 - [Docker multi-stage builds](https://docs.docker.com/build/building/multi-stage/)
 - [uv in Docker](https://docs.astral.sh/uv/guides/integration/docker/)
 - [Hugging Face Docker Spaces](https://huggingface.co/docs/hub/en/spaces-sdks-docker)
 - [Hugging Face CLI](https://huggingface.co/docs/huggingface_hub/en/guides/cli)
+
+Coverage policy and CI gates are configured in `.github/coverage_policy.json` and `.github/workflows/quality.yml`.

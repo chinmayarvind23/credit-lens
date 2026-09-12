@@ -2,8 +2,7 @@
 
 The optional serving path combines local BM25, MiniLM dense retrieval, reciprocal
 rank fusion and a cross-encoder. It runs on CPU, loads reviewed files at startup
-and makes no remote inference calls. The public HF demo currently uses the
-separately verified lexical image. Enabling this option locally does not change
+and makes no remote inference calls. The public HF browser runtime uses lexical retrieval. Enabling this option locally does not change
 that deployment or enable production mode.
 
 Install the locked optional dependencies, preserving the queue SDK if using it:
@@ -55,8 +54,7 @@ Weights and transient tensors require additional memory. Cache keys bind tenant,
 chunk ID and actual text hash; only currently authorized candidates can reuse
 vectors. Unused revoked vectors are eventually evicted, not immediately erased.
 Questions and query vectors are not cached. These bounds are not a hard elapsed
-time deadline; process supervision and horizontal workload coordination remain
-separate work.
+time deadline; configure process supervision for the host deployment.
 
 If Redis is also enabled, its signed result cache is bound to the full model
 manifest and algorithm configuration. Every hit rehydrates current canonical
@@ -77,7 +75,7 @@ model doubles and do not establish model quality.
 For the frozen 240-case composed-provider experiment:
 
 ```powershell
-uv run --no-sync python scripts/benchmark_neural.py --pages ..\resources\credit_lens\corpus\pages.jsonl --models $env:CREDITLENS_LOCAL_MODEL_DIRECTORY --output ..\resources\credit_lens\evals\neural-run
+uv run --no-sync python scripts/benchmark_neural.py --pages ..\creditlens-work\corpus\pages.jsonl --models $env:CREDITLENS_LOCAL_MODEL_DIRECTORY --output ..\creditlens-work\evals\neural-run
 ```
 
 Use a fresh output directory. The run saves every ranking and packet, unchanged

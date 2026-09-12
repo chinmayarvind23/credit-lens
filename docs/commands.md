@@ -1,69 +1,24 @@
-# CreditLens Commands
+# Commands
 
-## Implemented commands
+Run from the repository root in a Git checkout:
 
-Run from the repository root:
-
-```sh
+```powershell
 uv sync --locked
-uv run uvicorn creditlens.api:create_app --factory --host 127.0.0.1 --port 8000
-uv run pytest tests/test_auth.py tests/test_api.py
-uv run ruff check src tests
-uv run ruff format --check src tests
-uv run mypy src
+uv run --no-sync uvicorn creditlens.api:create_app --factory --host 127.0.0.1 --port 8000
 ```
 
-The local mode is a fixed synthetic identity. `/health` reports process health.
-`/ready` verifies the initialized local workflow. Production remains unavailable
-until a governed workflow is configured and verified.
-`/api/v1/borrowers` returns the current grant's synthetic borrower choices.
-`POST /api/v1/query` accepts `borrower_id`, `question`, and optional `effective_at`.
-It returns an evidence-only packet using the local lexical control, with cited
-Decimal DSCR calculations where requested. The disposition covers DSCR only.
-`GET /api/v1/evidence/{chunk_id}` rechecks current borrower/date authorization.
-`/docs` and `/openapi.json` describe implemented API routes.
+Build the workbench as described in the [README](../README.md#setup). `/health` checks the process; `/ready` checks the initialized workflow. `/docs` exposes the API contract. The default local identity uses synthetic data.
 
-Configuration uses `CREDITLENS_` environment variables documented in `.env.example`.
-Pass a private environment file through uvicorn's `--env-file` option if needed.
-The repository's existing `.env` is not automatically loaded.
+## Development checks
 
-## Planned command interface
-
-The following Make targets are design goals and do not exist yet:
-
-```bash
-make dev
-make test
-make test-security
-make lint
-make typecheck
-make eval-smoke
-make eval-full
-make benchmark-retrieval
-make benchmark-hnsw
-make benchmark-context
-make load-test
-make quality-gate
-make docker-up
-make docker-down
-make terraform-fmt
-make terraform-validate
-make terraform-plan
+```powershell
+uv sync --locked --extra queue --extra retrieval --extra observability --extra admin
+uv run --no-sync ruff check src
+uv run --no-sync ruff format --check src
+uv run --no-sync mypy src
+uv run --no-sync pytest tests infra/huggingface/tests .github/tests --ignore=tests/test_retrieval_lab.py
 ```
 
-Python:
+Optional integration checks require the services and model files described in the corresponding `infra` guide. Run the workbench's typecheck, test and build scripts from [apps/web](../apps/web/README.md).
 
-```bash
-uv sync
-uv run pytest
-```
-
-Frontend:
-
-```bash
-bun install
-bun test
-bun run dev
-```
-
-Keep local and CI commands synchronized.
+[Offline evaluation](../evals/README.md) and [semantic evaluation](../infra/evaluation/README.md) accept explicit output directories. Keep generated run artifacts outside the source checkout. Hosted CI uses manual dispatch; follow the repository workflows when selecting checks.

@@ -1,7 +1,6 @@
 # Live synthetic workbench on Hugging Face
 
-The public Space is https://huggingface.co/spaces/chinmayarvind/creditlens.
-Its app origin is https://chinmayarvind-creditlens.static.hf.space.
+This optional deployment embeds a locally hosted service. For self-contained browser hosting, use [the browser guide](../browser/DEPLOYMENT.md).
 The HTML entry page embeds the full TypeScript workbench and FastAPI service
 running on the owner's computer through a Cloudflare Quick Tunnel. Requests
 execute against synthetic data and source inspection calls the live evidence API.
@@ -18,8 +17,8 @@ Stage an explicit, credential-scanned source allowlist outside the repository.
 Use a new staging directory for each release, review its manifest, then build it:
 
 ```powershell
-.venv\Scripts\python.exe -m scripts.deploy_space stage --output ..\resources\credit_lens\artifacts\live-release
-docker build -t creditlens-live:release ..\resources\credit_lens\artifacts\live-release
+.venv\Scripts\python.exe -m scripts.deploy_space stage --output ..\creditlens-work\artifacts\live-release
+docker build -t creditlens-live:release ..\creditlens-work\artifacts\live-release
 docker run -d --name creditlens-hf-release --restart unless-stopped --read-only --cap-drop ALL --security-opt no-new-privileges --memory 512m --cpus 1 --pids-limit 128 --tmpfs /app/data:rw,noexec,nosuid,size=64m,uid=1000,gid=1000 --tmpfs /tmp:rw,noexec,nosuid,size=32m -p 127.0.0.1:17862:7860 creditlens-live:release
 ```
 
@@ -27,14 +26,14 @@ An existing container with this name must be deliberately replaced after the new
 image passes readiness, query and source checks on a separate loopback port.
 The example keeps demo storage ephemeral. Restarting loses its synthetic audit
 database; copy required evidence before replacing or restarting the container.
-Production durable retention is separate unfinished work.
+Use explicit persistent storage if local audit retention is required.
 
 For the optional CPU model variant, build the reviewed stage with
 `--target neural-runtime`. Use a separate container name and port during review:
 
 ```powershell
-docker build --target neural-runtime -t creditlens-neural:release ..\resources\credit_lens\artifacts\live-release
-$modelDirectory = (Resolve-Path ..\resources\credit_lens\local-models).Path
+docker build --target neural-runtime -t creditlens-neural:release ..\creditlens-work\artifacts\live-release
+$modelDirectory = (Resolve-Path ..\creditlens-work\local-models).Path
 docker run -d --name creditlens-neural-release --restart unless-stopped --read-only --cap-drop ALL --security-opt no-new-privileges --memory 2g --cpus 4 --pids-limit 128 --tmpfs /app/data:rw,noexec,nosuid,size=64m,uid=1000,gid=1000 --tmpfs /tmp:rw,noexec,nosuid,size=64m --mount "type=bind,source=$modelDirectory,target=/models,readonly" -e TOKENIZERS_PARALLELISM=false -e OPENBLAS_NUM_THREADS=1 -p 127.0.0.1::7860 creditlens-neural:release
 docker port creditlens-neural-release
 ```
@@ -64,7 +63,7 @@ tokens in command arguments, source files or chat. The previous verified release
 audit identifies the exact remote revision, file inventory and hashes:
 
 ```powershell
-.venv\Scripts\python.exe -m scripts.publish_live_space --origin https://YOUR-TUNNEL.trycloudflare.com --repo-id chinmayarvind/creditlens --previous-audit ..\resources\credit_lens\audit\hf-live-release.json --audit ..\resources\credit_lens\audit\hf-live-next-release.json
+.venv\Scripts\python.exe -m scripts.publish_live_space --origin https://YOUR-TUNNEL.trycloudflare.com --repo-id chinmayarvind/creditlens --previous-audit ..\creditlens-work\audit\hf-live-release.json --audit ..\creditlens-work\audit\hf-live-next-release.json
 ```
 
 The publisher verifies live readiness and two fresh request IDs, rejects paid
@@ -79,8 +78,7 @@ animation and records its exact hash. Include the option on later releases to
 retain that media; publication uses an exact inventory and removes omitted assets.
 
 Verify the actual HF app in a browser: load authorized borrowers, submit a custom
-question, change scope/date, open a cited page and inspect mobile layout. HTTP
-checks alone missed the native `fetch` receiver failure found during this release.
+question, change scope/date, open a cited page and inspect mobile layout. Check browser behavior separately from HTTP health checks.
 
 ## Recover an unavailable tunnel
 

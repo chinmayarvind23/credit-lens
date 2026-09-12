@@ -25,7 +25,7 @@ The Bun development UI at `http://localhost:3000` calls the backend at `http://l
 5. Open a citation to recheck source access and inspect literal extracted text, version, page, effective window, and provenance.
 6. Expand the execution trace for actual provider mode, corpus version, request timing, cache status, stages, and cost when reported.
 
-Synthetic demo mode is explicitly labeled and requires no access token. Production uses a managed Cognito access token supplied through the Connection panel. The token is held in memory, removed from the form after application, and never saved to browser storage. The managed sign-in redirect is not integrated.
+Synthetic demo mode is explicitly labeled and requires no access token. Production uses a managed Cognito access token supplied through the Connection panel. The token is held in memory, removed from the form after application, and never saved to browser storage.
 
 ## API contract
 

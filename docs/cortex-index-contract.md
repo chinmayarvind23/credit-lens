@@ -1,10 +1,6 @@
 # Cortex Search provider contract
 
-`CortexSearchProvider` implements `SearchProvider` with one synchronous REST request.
-It is tested using HTTPX MockTransport. It is not connected to a live service or the
-production API workflow. Existing `cortex_url`, `cortex_token` and
-`request_timeout_seconds` settings can construct it once an authoritative catalog
-and service exist. The adapter owns no client lifecycle; its caller closes the pool.
+The optional `CortexSearchProvider` implements scoped REST retrieval. The caller owns the HTTP client lifecycle. See [runtime setup](../infra/cortex/README.md).
 
 The caller supplies a trusted principal and `QueryRequest`. The provider resolves
 current SQL grants, snapshots canonical allowed chunks, and builds the entire filter
@@ -39,15 +35,12 @@ Every response row must contain exactly the requested projection and match its
 canonical record, including types, dates, ACL order and digest. An unknown, duplicate,
 revoked, malformed or mismatched row rejects the whole ranking. Only local canonical
 text can reach a citation. The response envelope may include provider request
-metadata. The exact live serialization of this projection is a release check, not a
-result established by mocked tests. [REST API reference](https://docs.snowflake.com/en/developer-guide/snowflake-rest-api/reference/cortex-search-service).
+metadata. [REST API reference](https://docs.snowflake.com/en/developer-guide/snowflake-rest-api/reference/cortex-search-service).
 
 `search()` rechecks grants and catalog revision after HTTP. Consumers must call
 `verify(result)` before publishing downstream output. `citation(result, citation)`
 checks exact provenance and current grants/catalog again. A source drawer should
-perform a new authorized lookup on each access. The local catalog epoch detects
-observed revocation within one process; it does not provide a distributed transaction
-or a shared catalog across API replicas. Production needs that shared authority.
+perform a new authorized lookup on each access. Catalog revisions detect stale snapshots. Use the PostgreSQL canonical catalog when coordinating server instances.
 
 Limits are 100 returned chunks, 1,024 allowed candidate IDs, one request, 1 MiB response
 bytes, and a socket timeout in `(0, 30]` seconds. Large allowed scopes fail closed; the
@@ -56,5 +49,4 @@ fallback. HTTPS endpoints are restricted to Snowflake account hosts with convent
 unquoted database/schema/service identifiers. Redirects and compressed responses are
 rejected. Secrets remain in authorization headers and curated errors omit provider
 bodies. Socket timeouts are not a hard end-to-end deadline against a slow streaming
-peer. Catalog scaling, cancelable wall-clock deadlines, real-service integration,
-rotation and provider latency/cost measurements remain release work.
+peer.

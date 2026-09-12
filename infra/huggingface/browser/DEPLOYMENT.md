@@ -5,8 +5,7 @@ serves the UI, Python source, fictional evidence and an 18 MB pinned Pyodide run
 Queries, calculations, citation lookup and session audits run on the visitor's device.
 The server deployment and hybrid model experiments remain separate options.
 
-Hugging Face currently requires a paid subscription to create Docker or Gradio
-Spaces, even on CPU Basic. [Static Spaces remain free](https://huggingface.co/docs/hub/spaces-overview).
+The package uses Hugging Face's [Static Spaces SDK](https://huggingface.co/docs/hub/spaces-overview).
 Static describes the hosting SDK; this application computes a new answer for each
 question. It does not replay recorded answers or depend on a tunnel.
 
@@ -68,8 +67,7 @@ package wheels retain their licenses. The deployment manifest records exact hash
 
 ## Optional AWS deployment
 
-AWS is not required and has not been provisioned for this project. Operators who
-choose to pay for their own hosting can follow the [AWS reference](../../aws/README.md):
+AWS is optional. Operators can follow the [AWS reference](../../aws/README.md):
 configure an account/profile and `us-east-1`, validate Terraform, bootstrap the
 execution role and ECR repository, publish an immutable Docker image, review the
 resource plan and its costs, then deploy and verify the API. The reference documents

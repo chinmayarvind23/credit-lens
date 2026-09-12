@@ -8,8 +8,7 @@ assembly remain deterministic/extractive; the audit records
 `search_provider_mode=snowflake-cortex-rest` separately from packet generation mode.
 
 An operator must supply an existing catalog and grant database, indexed Cortex
-service and Cognito pool. These managed resources have not been provisioned or
-verified live by this project. Configure credentials locally, never in source:
+service and Cognito pool. This setup requires operator-managed resources. Configure credentials locally, never in source:
 
 ```text
 CREDITLENS_MODE=production
@@ -37,16 +36,8 @@ still rechecks current authority and canonical evidence and writes a fresh audit
 The synthetic ingestion endpoints remain demo-only; this change does not introduce
 production document mutation APIs.
 
-Local verification uses actual PostgreSQL, RSA-signed access tokens, API requests,
-canonical source revocation, warm-cache grant revocation and persisted audits.
-Only Cortex's remote REST response is simulated, explicitly. The test also checks
-that startup leaves the catalog revision unchanged and closes the provider client.
-Run it with the owned PostgreSQL fixture documented in [the PostgreSQL guide](../postgres/README.md):
-
 ```powershell
 uv run --no-sync pytest infra/postgres/test_catalog.py tests/test_cortex_search.py
 ```
 
-No live Snowflake search, managed Cognito deployment, cloud latency or service cost
-is claimed by this local verification. The free Hugging Face browser demo continues
-to use local lexical retrieval and needs none of these services.
+The Hugging Face browser runtime uses local lexical retrieval and does not require these services.

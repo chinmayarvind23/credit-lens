@@ -23,8 +23,7 @@ question to see the system abstain.
 This is an interactive application, with new retrieval, Decimal calculations and
 page-level citation checks for each question. It runs the repository's Python
 workflow through Pyodide 0.27.7 and uses local BM25 search and quoted evidence.
-The hybrid retrieval and reranking experiments run separately in the server app;
-their benchmark results do not describe this browser's lexical retrieval mode.
+Optional hybrid retrieval and reranking run separately in the server app.
 
 All distributed documents are public fictional examples. Browser scope filtering
 demonstrates the workflow and cannot secure private data from the visitor.

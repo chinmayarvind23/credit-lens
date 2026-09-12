@@ -4,7 +4,7 @@ The retrieval cache is an optional provider wrapper enabled explicitly in the
 demo HTTP workflow. It signs opaque request keys and source IDs, reauthorizes every
 read and hydrates from the current canonical catalog. Redis is never a grant store.
 
-The verified server is Redis7.4.11, image digest
+The fixture uses the pinned Redis image digest
 `sha256:ff02b58f971e7d7d156a1267e283fcbbeee91773b6aa36c49dac28ecfe28eadf`.
 Use an isolated local synthetic instance; the test changes only randomly keyed
 entries with short TTL and has no flush command.
@@ -15,16 +15,6 @@ $env:CREDITLENS_TEST_REDIS_URL='redis://127.0.0.1:16389/15'
 uv run pytest infra/redis/test_integration.py
 docker rm --force creditlens-redis-check
 ```
-
-The test uses the actual local BM25 provider and Redis transport. Its call counter
-only observes provider invocations. It verifies a hit, source citation, server
-expiry, tamper repair and catalog revocation. Unit tests cover SQL revocation,
-in-flight changes, malformed signatures, unsafe transport settings and outages.
-
-The private-repository hosted workflow is manual under the user's no-spend rule.
-Do not dispatch it unless account settings guarantee no charge. Equivalent local
-checks remain runnable without hosted minutes. No paid Redis or cloud resource
-is required for these tests. No response-cache latency or cost improvement is claimed.
 
 To enable the cache for the local demo, keep the isolated Redis container running
 and configure both process variables. Generate a fresh signing key locally:
@@ -41,8 +31,7 @@ outage records `cache.retrieval.unavailable` and recomputes the same authorized
 search. Hits report `cache_hit: true` and `cache.retrieval.hit`; every hit still
 recomputes finance, validates citations and writes a fresh audit record. Packet
 generation remains `local-extractive`, preserving the DSCR-only UI description.
-Production cache integration remains unavailable until the production catalog
-and search workflow are initialized.
+Configure the canonical catalog and search workflow before enabling a cache wrapper.
 
 ## Shared request quotas
 
@@ -69,7 +58,7 @@ Remote connections require TLS; operators must restrict Redis ACL/network access
 
 Application restarts retain server counters. Redis reconnection and TTL expiry
 recover automatically. Redis restart without persisted counters resets allowance;
-persistence/HA and a production rollout remain deployment work. This is an abuse
+configure persistence according to your quota-reset policy. This is an abuse
 quota, not a durable billing ledger. Lua EVAL includes its source on each request,
 so server script-cache loss does not require application recovery.
 
@@ -84,8 +73,3 @@ $env:CREDITLENS_TEST_QUOTA_REDIS_URL='redis://127.0.0.1:16390/15'
 Only point this test variable at that owned fixture: the recovery test briefly
 pauses the entire Redis server with `CLIENT PAUSE`. It does not flush data or
 change server configuration. Remove only the fixture container afterward.
-Tests verify 30 concurrent admissions through independent pools grant exactly 7,
-23 receive 429, another subject remains independent, client restart retains the
-budget, expiry resets it, corrupt/no-TTL counters return 503, a real 600 ms server
-pause returns 503, and the same client recovers afterward. Two separate HTTP app
-lifecycles share one allowance. No production service was provisioned or tested.

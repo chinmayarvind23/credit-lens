@@ -54,9 +54,7 @@ mid-request. There is no forced refresh.
 The canary also checks exact canonical citation metadata and current authorization:
 after revocation in the memory fixture, it remains visible to raw search but is
 absent from authorized provider results. This is a permission canary, not a SQL
-durability test. Embeddings do not run here. Embedding failure rates and the delay
-from authoritative publication through the whole indexing pipeline remain
-unmeasured. Queue age cannot substitute for either measurement.
+durability test. Embeddings do not run here. Use the separate publication-visibility command for the SQL-to-search interval. Queue age is a different instrument.
 
 Contracts follow [OpenSearch bulk item results](https://docs.opensearch.org/latest/api-reference/document-apis/bulk/)
 and [refresh behavior](https://docs.opensearch.org/latest/api-reference/index-apis/refresh/).

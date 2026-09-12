@@ -1,8 +1,6 @@
 # SQL publication to complete input search visibility
 
-This separate local experiment measures all 3,840 frozen physical pages through
-the actual `SqlEvidenceCatalog` and OpenSearch. It extends the earlier single-canary
-drill without changing that evidence or the application indexer.
+This command checks a fixed physical-page fixture through `SqlEvidenceCatalog` and OpenSearch. It is an operator-run diagnostic, separate from application indexing.
 
 Start only the owned cached fixtures:
 
@@ -59,6 +57,6 @@ hash. A fresh random catalog/index is removed in finalization, and cleanup statu
 is retained even on failure. Always remove the dedicated containers with the
 compose command after the drill; prior evidence directories remain untouched.
 
-The design is recorded privately in ADR 052. Contracts follow
+Contracts follow
 [PostgreSQL transaction visibility](https://www.postgresql.org/docs/16/transaction-iso.html)
 and [OpenSearch search results](https://docs.opensearch.org/latest/api-reference/search-apis/search/).

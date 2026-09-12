@@ -9,7 +9,7 @@ From the repository root:
 ```powershell
 docker compose -f infra/opensearch/compose.yml up -d
 curl.exe http://127.0.0.1:19200
-uv run --no-sync python scripts/check_opensearch.py --pages ../resources/credit_lens/corpus/pages.jsonl --output ../resources/credit_lens/evals/opensearch-live-new
+uv run --no-sync python scripts/check_opensearch.py --pages ../creditlens-work/corpus/pages.jsonl --output ../creditlens-work/evals/opensearch-live-new
 docker compose -f infra/opensearch/compose.yml down
 ```
 
@@ -39,8 +39,7 @@ The adapter rejects shard failures, timeouts, wrong index/ID, malformed scores a
 canonical metadata mismatches. It requests no partial results and uses service-side
 timeout/cancellation plus finite HTTP socket timeouts. It has one attempt and no broad
 fallback. A 1,024-ID allowlist and 1 MiB response cap match the Cortex adapter's current
-scope limits. Hard wall-clock cancellation, shared catalog authority and managed
-service authentication remain release work. [Search API
+scope limits. Socket timeouts do not forcibly cancel an entire application workflow; configure service authentication for nonlocal access. [Search API
 contract](https://docs.opensearch.org/latest/api-reference/search-apis/search/).
 
 `HybridProvider` composes two explicitly configured providers that expose the exact

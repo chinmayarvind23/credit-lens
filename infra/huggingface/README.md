@@ -24,7 +24,6 @@ Select a borrower, set the policy date, and ask about debt service coverage, mis
 - The container runs as UID 1000 on port 7860. It accepts no production mode or external database override through the demo entrypoint.
 - No authentication token is needed for this public synthetic demo. Do not enter confidential borrower details or credentials.
 - Runtime storage is ephemeral. Restarting the Space can reset demo audit data. This deployment is not a durable production system.
-- Quality, cost, and percentile latency targets are not presented as achieved. Per-request timing and any reported cost are labeled separately.
 
 ## Container verification
 

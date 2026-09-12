@@ -32,7 +32,7 @@ Run `python -m scripts.inspect_admin --subject <existing-admin> --query inspect.
 Optional `--variables variables.json` and `--operation Inspect` use standard GraphQL
 variables and operation selection. The CLI trusts local operator access to the SQL
 configuration; it is not a network authentication endpoint. Default local execution
-uses the existing synthetic catalog. Production workflow integration remains unfinished.
+uses the existing synthetic catalog.
 
 ## HTTP contract
 

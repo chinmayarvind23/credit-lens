@@ -10,7 +10,6 @@ failed jobs by parser and attempts attached to retained jobs. They require a
 PostgreSQL ingestion-enabled server; the default SQLite traffic fixture does not
 manufacture ingestion samples. Configure its authenticated metrics scrape using
 the protected deployment instructions below.
-It does not claim neural latency, semantic accuracy, cloud savings or real lender traffic.
 
 Install the `observability` extra alongside any other extras you use. Docker Desktop
 must be running. The compose file pins image digests and disables automatic pulls.
@@ -19,7 +18,7 @@ If the images are absent, download the two exact images listed in `compose.yaml`
 From the repository root, in one PowerShell terminal:
 
 ```powershell
-.venv\Scripts\python.exe -m scripts.monitoring_fixture --output ../resources/credit_lens/evals/my-monitoring-run --seconds 300
+.venv\Scripts\python.exe -m scripts.monitoring_fixture --output ../creditlens-work/evals/my-monitoring-run --seconds 300
 ```
 
 Choose a fresh output directory. The fixture uses public synthetic documents,
@@ -65,14 +64,7 @@ excludes borrower identities, questions, credentials and document text.
 For a protected deployment, replace the synthetic scrape target with the real
 `/api/v1/metrics` endpoint and configure HTTPS plus an operator-managed current
 admin token using Prometheus's authorization credentials file. Do not remove the
-application's admin check or expose its data through this fixture. Token rotation,
-external notification routing, semantic-quality, cost and detailed indexing/throughput
-dashboards remain separate work.
-
-Verified locally with Grafana 12.1.0: promtool accepted the configuration, the
-target was up, and all eight provisioned expressions returned nonempty results
-through Grafana's Prometheus proxy. Browser DOM inspection confirmed loaded panels
-and series; screenshot capture was unavailable in the connected browser.
+application's admin check or expose its data through this fixture. Protect credential files and rotate administrator tokens through your normal deployment process.
 
 ## Local alerts and diagnosis
 
@@ -91,14 +83,10 @@ states. No email, Slack, webhook or Alertmanager destination is configured.
   provenance. Never disable citation validation to clear the alert.
 
 Abstention alone does not trigger an alert: requesting missing evidence can be
-the correct outcome. Token/cost and semantic-quality alerts require actual
-measurements and calibrated thresholds; none are invented for this provider.
+the correct outcome.
 
 Run `promtool test rules alerts.test.yml` from this directory using the pinned
-Prometheus container's `/bin/promtool`. Tests cover outage persistence, recovery,
-missing targets, slow queries, server errors and citation-stage failures. The
-current local verification executed all 13 expressions through Grafana's real
-Prometheus proxy, with stage timing and abstention samples from actual API traffic.
+Prometheus container's `/bin/promtool`. Tests cover outage persistence, recovery, missing targets, slow queries, server errors and citation-stage failures.
 
 ## Ingestion operations
 
@@ -117,13 +105,7 @@ human-review state and is shown separately, without an automatic publication act
 Failed OCR jobs may reflect permission, source or publication errors as well as
 recognition failure. Investigate the protected job record before assigning cause.
 
-Real PostgreSQL integration tests cover idempotent submissions, queue isolation,
-lease expiration, terminal failure transitions and current-admin endpoint access.
-Promtool covers ingestion-alert persistence and recovery. The SQL drill also verified all five ingestion expressions through the actual
-Grafana Prometheus proxy, using retained scrapes from the bounded run. Both
-ingestion alerts reached firing under the explicitly injected timestamp faults.
-
-To reproduce that synthetic drill, start a fresh owned PostgreSQL fixture using
+To run the synthetic drill, start a fresh owned PostgreSQL fixture using
 [the PostgreSQL guide](../postgres/README.md), then run from the repo root:
 
 ```powershell
@@ -156,62 +138,17 @@ textfile collector and configure refresh/retention independently.
 Field support, strict whole-packet verdicts and human calibration are separate
 measurements. Tokens are actual local evaluation usage, not serving estimates.
 `cost_known=0` means dollar cost is unknown, not free electricity or zero operating
-cost. Snapshot disappearance means no current scrape, not quality zero. The local
-verification checked all six Grafana queries; RAGAS support, both token directions,
-cost-unknown and absent-human-calibration appeared. Whole-packet panels remained
-empty pending full reconciliation. Raw verification is retained privately in
-`evals/semantic-monitoring-v1`; no source text or case IDs appear in metric labels.
+cost. Snapshot disappearance means no current scrape, not quality zero. No source text or case IDs appear in metric labels.
 
-### Completed local verification
+## Indexing and neural snapshots
 
-The earlier operations dashboard had20 panels after adding two cost panels. Actual
-HTTP packets incremented the unknown-cost observation count while the established
-mean-cost query returned no series. No zero dollar value was substituted. The
-retained-scrape check uses an explicit recorded query timestamp after the bounded
-90-second fixture exited (`evals/monitoring-cost-v1/cost-panel-verification.json`).
+Use [the indexing command](indexing.md) for bulk-write and canary instrumentation,
+[publication visibility](publication-visibility.md) for SQL-to-search instrumentation,
+and [neural monitoring](neural.md) for embedding/reranker stages.
+The application emits neural stages only when optional hybrid retrieval is enabled.
+The lexical browser runtime does not load these models.
 
-The six-panel indexing dashboard uses the [isolated indexing drill](indexing.md).
-Serve its reviewed metrics on19104. The actual Prometheus scrape initially rejected
-Windows CRLF lines, despite the Python parser accepting them. The writer now emits
-LF bytes, its test asserts no carriage returns, and an explicitly recorded LF-only
-derivative preserves the original report/bulk bytes. All six corrected queries
-returned actual data through Grafana. No indexing workload was rerun for this fix.
-
-The full DeepEval reconciliation now accounts for235 graded packets and five
-permission denials. Its snapshot reports102 raw passes and passing synthetic
-controls. Those two panels were verified through Grafana/Prometheus. The raw43.4%
-rate is a judge diagnostic: a fixed sample review found contradicted/ambiguous
-reasons, and independent human calibration is absent. No metric was changed to
-match r?sum? targets. The RAGAS and DeepEval observations remain separate.
-
-Final query evidence is retained privately in
-`evals/deepeval-monitoring-v1/grafana-verification.json`. All dashboard values are
-local observations or explicitly labeled retained snapshots. End-to-end indexing
-lag, embedding failures, production alert routing and hosted dollar costs are not
-established by these fixtures.
-
-## Final neural and full-publication verification
-
-The current bundle has 38 panels: 23 operations, six evaluation and nine indexing.
-The three added [neural panels](neural.md) report real embedding/reranker invocations,
-errors and mean durations. The actual pinned CPU smoke recorded document1/query3/
-reranker1 calls, including one explicitly injected query failure and identical
-ranking after recovery. Cached document vectors were reused. All three queries
-were verified through Grafana/Prometheus. Natural model failure prevalence is not
-inferred from a fault drill.
-
-The [full publication drill](publication-visibility.md) measured from PostgreSQL
-commit return through canonical SQL readback, bulk upload and exact search
-verification of every one of 3,840 input chunks. Two retained runs observed 4.890 s
-and 2.910 s; SQL publication itself took 32.057 s and 34.564 s separately. These are
-local observed upper bounds, not production latency percentiles. All input text
-and metadata matched; there was no forced refresh or real-time GET substitute.
-
-Three new indexing panels expose complete visibility delay, expected/verified
-coverage and drill status. Four queries were checked at a retained Prometheus
-scrape timestamp 2026-09-12T05:05:00Z through Grafana. The bounded exporter had
-already exited when that historical query was made. Final evidence is retained
-in `monitoring/publication-visibility-v2/grafana-verification.json` privately.
-Serve that hash-bound snapshot on 19106 when reproducing the local dashboard.
-Continuous production indexing watermarks and managed alert delivery remain
-operator deployment concerns; queue age is still not used as index lag.
+Serve a hash-bound snapshot with `serve_snapshot.py`. Configured scrape ports are
+19104 for indexing, 19105 for neural fault drills and 19106 for publication visibility.
+Snapshot gauges describe the exported run; they are not live cumulative counters.
+Queue state age must not be interpreted as search-index lag.

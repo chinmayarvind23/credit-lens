@@ -1,26 +1,7 @@
 # Deployment
 
-The [interactive CreditLens Space](https://huggingface.co/spaces/chinmayarvind/creditlens)
-runs Python in the visitor's browser on Hugging Face free Static hosting. HF hosts
-all assets, including the pinned runtime. It requires no owner computer, API server,
-temporary tunnel or paid compute. New questions and source inspection were verified
-with browser networking disabled after startup.
+The [free interactive Hugging Face build](../infra/huggingface/browser/DEPLOYMENT.md) packages the workbench, Python browser runtime and fictional fixtures. It works independently of an owner workstation after publication. Use the browser build for the public demonstration.
 
-Follow the [browser release guide](../infra/huggingface/browser/DEPLOYMENT.md) to
-build, inspect and publish a clean source snapshot. It records exact file hashes,
-checks free Static mode and uses a parent-bound remote commit. The historical
-[local-container/tunnel procedure](../infra/huggingface/live/DEPLOYMENT.md) remains
-for reference and is no longer the public deployment path.
+For a local server, follow the [README](../README.md#setup). Optional PostgreSQL, Redis, search, queue and monitoring setup lives under [infra](../infra). Configure current identity and catalog authority before admitting protected data.
 
-The browser uses lexical retrieval and quoted evidence. Optional hybrid models run
-in the server deployment. Only public fictional documents are distributed; browser
-scope filtering is not an access boundary for confidential data.
-
-AWS deployment is optional and has not been performed. The [AWS reference](../infra/aws/README.md)
-provides operator setup, IAM bootstrap, image publication, Terraform validation,
-health checks and teardown in us-east-1. Its resources can incur charges. No AWS
-credentials or resources are needed for the free Space or local development.
-
-Use the repository README for the FastAPI server, optional PostgreSQL/Redis/queue
-services and local OTel/Prometheus configuration. Hosted GitHub Actions remains
-manual-dispatch only; no paid pipeline or managed cloud resource is enabled by default.
+[Optional AWS setup](../infra/aws/README.md) supplies Terraform and operator instructions. Operators choose their own account, credentials and infrastructure costs. The public demo requires no AWS resources.

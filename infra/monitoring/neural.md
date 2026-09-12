@@ -3,7 +3,7 @@
 The optional local hybrid runtime passes its application-owned telemetry into the
 pinned CPU ranker. Three finite stages identify actual neural work:
 
-| Stage | Observed work |
+| Stage | Instrumented work |
 |---|---|
 | `neural.embed_documents` | One document encoder invocation plus float conversion and output validation |
 | `neural.embed_query` | One uncached query encoder invocation plus output validation |
@@ -35,14 +35,8 @@ clearly labeled query-encoder exception, restores the encoder and requires the
 recovered ranking to match. It retains source hashes, aggregate metrics and private
 ranked IDs. This fault drill does not measure a natural model failure rate.
 
-The final local run observed one document encoder call, three query encoder calls
-(two successful, one injected failure), and one reranker call. Source hashes and
-trace privacy checks passed. Twenty-seven neural/telemetry tests separately cover
-numeric failures, cache behavior, lock recovery, API wiring and telemetry privacy.
-
 Three operations dashboard panels show neural invocations, failures and mean
-duration grouped by job and stage. Actual Grafana/Prometheus queries reproduced
-all observed counts from the retained run. A bounded local snapshot can be served
+duration grouped by job and stage. A bounded local snapshot can be served
 on port19105 using `serve_snapshot.py`; its scrape job is explicitly labeled as a
 local fault drill. The application also emits these stages directly during live
 hybrid requests. The free lexical browser does not run these models.

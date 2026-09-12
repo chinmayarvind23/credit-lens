@@ -12,7 +12,7 @@ exact image in `compose.yaml` if absent; automatic pulls are disabled.
 docker compose -f infra/weaviate/compose.yaml up -d
 $env:HF_HUB_OFFLINE = '1'
 $env:TRANSFORMERS_OFFLINE = '1'
-.venv\Scripts\python.exe -m infra.weaviate.benchmark --pages ../resources/credit_lens/corpus/pages.jsonl --models ../resources/credit_lens/local-models --output ../resources/credit_lens/evals/my-weaviate-run
+.venv\Scripts\python.exe -m infra.weaviate.benchmark --pages ../creditlens-work/corpus/pages.jsonl --models ../creditlens-work/local-models --output ../creditlens-work/evals/my-weaviate-run
 ```
 
 Choose a fresh output directory. The runner builds two graphs with maxConnections
@@ -50,27 +50,8 @@ until the disposable container is removed. There is no persistent volume.
 Configuration follows the official [vector index reference](https://docs.weaviate.io/weaviate/config-refs/indexing/vector-index)
 and [conditional filters reference](https://docs.weaviate.io/weaviate/api/graphql/filters).
 
-The first full run exposed duplicate server results and stopped. The revised runner
-retains those diagnostics explicitly; this observed behavior prevents treating the
-experiment as a production-readiness result.
-
-## Observed comparison
-
-All four configurations completed 240 cases: 235 searches and five expected denials. Gold metrics use 220 eligible cases. The independent verifier recomputed overlap, page scores, scope membership and duplicate counts from retained IDs.
-
-| M | ef | Recall@10 | nDCG@10 | ANN set agreement | HTTP search p95 | Import time | Duplicate IDs |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| 8 | 16 | 55.46% | 0.4810 | 54.04% | 14.76 ms | 3.83 s | 1 |
-| 8 | 64 | 56.31% | 0.4872 | 54.64% | 14.11 ms | 3.83 s | 1 |
-| 16 | 16 | 59.02% | 0.4712 | 39.36% | 13.00 ms | 2.87 s | 4 |
-| 16 | 64 | 59.05% | 0.4728 | 40.09% | 12.68 ms | 2.87 s | 4 |
-
-This run does not justify promoting Weaviate over the existing retrieval workflow. More connections did not improve ANN set agreement. Repeated synthetic content, graph construction and filtering may affect the result; the run does not isolate their causal contributions. There was one graph construction per M value and no repeated-run uncertainty estimate. Import timing covers synchronous batch ingestion after collection creation, excluding embedding.
-
-Raw v1 failure and v2 completed artifacts remain in the private resources directory. The completed run used reviewed uncommitted changes on 2b5b9fb with stable source/input hashes. The server was Weaviate 1.39.2, quantization disabled, filterStrategy acorn and efConstruction 80.
-
-Recompute the retained results without running models or contacting Weaviate:
+Recompute a saved run without inference or a running Weaviate service:
 
 ```powershell
-.venv\Scripts\python.exe -m infra.weaviate.verify --pages ../resources/credit_lens/corpus/pages.jsonl --output ../resources/credit_lens/evals/weaviate-hnsw-v2
+.venv/Scripts/python.exe -m infra.weaviate.verify --pages <pages.jsonl> --output <saved-run-directory>
 ```
