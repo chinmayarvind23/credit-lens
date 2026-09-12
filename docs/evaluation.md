@@ -441,7 +441,10 @@ The full saved lexical benchmark now exports all 240 cases. Its 235 packets
 contain 2,965 cited field occurrences; five authorization denials remain in the
 case ledger. The local RAGAS lending field-support run uses 441 byte-identical NLI
 prompt groups. Repeated fields retain their weight but are not independent model
-judgments. Final results remain pending while that run is active.
+judgments. The terminal run and independent raw reconciliation completed: 440/441
+prompt groups and 2,963/2,965 field occurrences received supported verdicts
+(99.9325% occurrence-weighted field support). No calls failed or remained ungraded.
+This is a diagnostic model score, not a project accuracy estimate.
 
 `scripts/reconcile_population.py` runs in the isolated semantic environment and
 makes no network or model calls. It reconstructs the pinned library prompts,
@@ -463,3 +466,27 @@ Even a complete field-support report does not establish whole-packet groundednes
 question relevance, human calibration or semantic citation precision. Uncited
 advice and other fields without a semantic rubric remain visible in the case
 ledger. Requested project metrics must not be filled with this narrower score.
+
+
+The sole rejected prompt applies to DSCR fields in cases 107 and 137. Its cited
+inputs are 209600.00 cash flow and 135200.00 annual debt service; Decimal division
+is 1.550295857988165680473372781, rounding to the emitted 1.5503. The judge instead
+claimed the quotient was 1.5517. The raw zero verdict remains in the result;
+the arithmetic false negative is recorded separately. Positive judgments have
+not been independently human calibrated.
+
+A fresh full benchmark at clean commit `5b37642` passed all 240 fixture outcomes.
+All 2,965 complete ordered semantic input dictionaries, all 235 substantive
+packets and all five denial outcomes match the earlier saved run. Prior raw
+judgments are therefore explicitly reused for identical inputs, not represented
+as newly generated results. Original dirty-source provenance remains retained.
+Volatile request IDs, stages, provider/corpus execution metadata, timing, cache
+status and cost fields were excluded only from packet equality, not semantic inputs.
+
+The ledger retains 970 nonempty fields outside this rubric: 235 each of policy
+disposition, next actions, underwriter questions and abstention, plus 30 missing-document fields. Local qwen3:8b ran the 441 prompts through pinned RAGAS 0.4.3.
+Aggregate per-call HTTP time was 1,924.37 seconds; total process wall time was not
+recorded. No paid inference was used. Full evidence is retained privately in
+`evals/population-lexical-v2-final.json` (SHA-256
+`8a38a33e9a43cbfe54f95a88687e58d0d4966b0bf6022fde73044aabc50d5d62`)
+and `evals/population-clean-5b37642-equivalence.json`.

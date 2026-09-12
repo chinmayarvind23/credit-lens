@@ -49,7 +49,7 @@ approve a loan or establish compliance with every policy requirement.
 | Structured workflow outcomes | 240/240 fixture passes | Deterministic checks, not semantic groundedness |
 | Response cache, disabled / warm | HTTP p95 23.14 / 22.67 ms (repeat) | 150 requests per mode, serial loopback, disk audit and telemetry enabled |
 | Cache variability | 18.35% first run; 2.04% repeat | Same five-borrower workload; 330 distinct audits per run including warmups |
-| Custom RAGAS field support | 85/85 fields supported; 24/24 controls | Six selected historical packets, exact fields preserved, local judge |
+| Custom RAGAS field support | 2,963/2,965 supported field occurrences | All 235 returned packets; 441 actual local judgments, one arithmetic false negative shared by two fields |
 | Public browser verification | 12 checks passed | Desktop/mobile, all five dispositions, sources and questions with network disabled after startup |
 
 Cache gains varied across runs on this shared workstation; a reliable production
@@ -59,9 +59,11 @@ or cloud cost savings. The corpus uses 98 short templates and is not a real lend
 
 Requested targets of 94.1% recall, .89 nDCG, 96.8% semantic citation precision,
 92.5% grounded answers and 1.7% unsupported claims are **not established results**.
-DeepEval/RAGAS are integrated and have real pilot runs, but human-calibrated,
-full-240 semantic grading remains open. The 85-field result uses a custom
-whole-field support rubric, not stock atomic-claim faithfulness or whole-packet accuracy.
+DeepEval/RAGAS are integrated. Full-population cited-field support is complete,
+with all 240 cases accounted for, including five access denials. Human calibration
+and whole-packet grading remain open: 970 operational/advice/question fields lack
+a semantic rubric. The custom whole-field support score is not stock atomic-claim
+faithfulness, semantic citation precision or whole-packet accuracy.
 See [evaluation definitions](docs/evaluation.md) and [judge runners](infra/evaluation/README.md).
 
 ## Run the server locally
