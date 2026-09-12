@@ -57,6 +57,14 @@ def verify_optional_runtime(config: Settings) -> None:
         )
 
 
+def register_ingestion_metrics(app: FastAPI) -> None:
+    """Attach optional SQL collection only after the queue and telemetry are both initialized."""
+    if app.state.jobs is not None and app.state.telemetry is not None:
+        from creditlens.ingestion_metrics import IngestionCollector
+
+        app.state.telemetry.registry.register(IngestionCollector(app.state.jobs))
+
+
 def create_app(settings: Settings | None = None) -> FastAPI:
     """An application factory keeps configuration and dependency ownership testable."""
     config = settings or Settings()
@@ -84,6 +92,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 from creditlens.observability import Telemetry
 
                 app.state.telemetry = Telemetry(config.trace_file)
+            register_ingestion_metrics(app)
             with open_workflow(config, store, app.state.telemetry) as workflow:
                 app.state.workflow = workflow
                 with httpx.Client(

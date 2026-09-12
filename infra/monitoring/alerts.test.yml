@@ -149,6 +149,69 @@
           ]
         }
       ]
+    },
+    {
+      "interval": "30s",
+      "input_series": [
+        {
+          "series": "creditlens_ingestion_expired_leases{state=\"RUNNING\",parser=\"ocr\"}",
+          "values": "0 1 1 1 0 0 0"
+        },
+        {
+          "series": "creditlens_ingestion_oldest_state_seconds{state=\"QUEUED\",parser=\"digital\"}",
+          "values": "0 400 400 400 0 0 0"
+        }
+      ],
+      "alert_rule_test": [
+        {
+          "eval_time": "20s",
+          "alertname": "CreditLensIngestionLeaseExpired",
+          "exp_alerts": []
+        },
+        {
+          "eval_time": "90s",
+          "alertname": "CreditLensIngestionLeaseExpired",
+          "exp_alerts": [
+            {
+              "exp_labels": {
+                "severity": "warning"
+              },
+              "exp_annotations": {
+                "summary": "Ingestion worker leases have expired"
+              }
+            }
+          ]
+        },
+        {
+          "eval_time": "3m",
+          "alertname": "CreditLensIngestionLeaseExpired",
+          "exp_alerts": []
+        },
+        {
+          "eval_time": "20s",
+          "alertname": "CreditLensIngestionBacklog",
+          "exp_alerts": []
+        },
+        {
+          "eval_time": "90s",
+          "alertname": "CreditLensIngestionBacklog",
+          "exp_alerts": [
+            {
+              "exp_labels": {
+                "severity": "warning"
+              },
+              "exp_annotations": {
+                "summary": "Pending ingestion state is older than five minutes"
+              }
+            }
+          ]
+        },
+        {
+          "eval_time": "3m",
+          "alertname": "CreditLensIngestionBacklog",
+          "exp_alerts": []
+        }
+      ]
     }
   ]
 }

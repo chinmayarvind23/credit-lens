@@ -28,3 +28,17 @@ groups:
           severity: warning
         annotations:
           summary: Exact citation validation failed during packet preparation
+      - alert: CreditLensIngestionLeaseExpired
+        expr: sum(creditlens_ingestion_expired_leases) > 0
+        for: 30s
+        labels:
+          severity: warning
+        annotations:
+          summary: Ingestion worker leases have expired
+      - alert: CreditLensIngestionBacklog
+        expr: max(creditlens_ingestion_oldest_state_seconds{state=~"QUEUED|RETRY"}) > 300
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: Pending ingestion state is older than five minutes

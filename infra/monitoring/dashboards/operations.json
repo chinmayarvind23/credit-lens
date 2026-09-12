@@ -481,6 +481,186 @@
           "placement": "bottom"
         }
       }
+    },
+    {
+      "id": 14,
+      "title": "Ingestion jobs by state and parser",
+      "type": "timeseries",
+      "description": "Current durable SQL gauges. State age is not search-index lag; failed OCR jobs need error diagnosis.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "creditlens-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 48
+      },
+      "targets": [
+        {
+          "expr": "sum by (state, parser) (creditlens_ingestion_jobs)",
+          "refId": "A",
+          "legendFormat": "{{state}} {{parser}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 15,
+      "title": "Oldest pending ingestion state",
+      "type": "timeseries",
+      "description": "Current durable SQL gauges. State age is not search-index lag; failed OCR jobs need error diagnosis.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "creditlens-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 56
+      },
+      "targets": [
+        {
+          "expr": "max by (state, parser) (creditlens_ingestion_oldest_state_seconds{state=~\"QUEUED|RETRY|REVIEW_REQUIRED\"})",
+          "refId": "A",
+          "legendFormat": "{{state}} {{parser}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 16,
+      "title": "Expired ingestion leases",
+      "type": "timeseries",
+      "description": "Current durable SQL gauges. State age is not search-index lag; failed OCR jobs need error diagnosis.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "creditlens-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 56
+      },
+      "targets": [
+        {
+          "expr": "sum(creditlens_ingestion_expired_leases)",
+          "refId": "A",
+          "legendFormat": "{{state}} {{parser}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 17,
+      "title": "Retained failed jobs by parser",
+      "type": "timeseries",
+      "description": "Current durable SQL gauges. State age is not search-index lag; failed OCR jobs need error diagnosis.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "creditlens-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 64
+      },
+      "targets": [
+        {
+          "expr": "sum by (parser) (creditlens_ingestion_jobs{state=\"FAILED\"})",
+          "refId": "A",
+          "legendFormat": "{{state}} {{parser}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 18,
+      "title": "Attempts attached to retained jobs",
+      "type": "timeseries",
+      "description": "Current durable SQL gauges. State age is not search-index lag; failed OCR jobs need error diagnosis.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "creditlens-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 64
+      },
+      "targets": [
+        {
+          "expr": "sum by (parser) (creditlens_ingestion_attempts)",
+          "refId": "A",
+          "legendFormat": "{{state}} {{parser}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
     }
   ]
 }

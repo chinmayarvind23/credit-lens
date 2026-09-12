@@ -33,13 +33,24 @@ Unknown stage names map to `other` in metrics and exported traces. Failed stages
 retain timing without exporting exception text. Citation-stage failures describe
 execution validation failures, not semantic citation-precision judgments.
 
-The [local Grafana stack](../infra/monitoring/README.md) provisions 13 operational
+When ingestion and telemetry are enabled together, the admin scrape includes
+`creditlens_ingestion_jobs`, `creditlens_ingestion_attempts`,
+`creditlens_ingestion_oldest_state_seconds` and `creditlens_ingestion_expired_leases`.
+These are current PostgreSQL gauges for the configured queue, with finite state/parser
+labels. Each scrape uses one aggregate SQL statement, a five-second timeout and
+database time. Storage failure fails the scrape instead of returning stale values.
+The gauges describe all retained queue jobs under the operational-admin boundary;
+they contain no tenant, subject, borrower, job or source identifiers.
+
+The [local Grafana stack](../infra/monitoring/README.md) provisions 18 operational
 panels backed by actual synthetic HTTP metrics and Prometheus, including stage
 timing/errors, abstentions, authorization denials and alert states. Four local
 rules cover unavailable/missing targets, slow query p95, server-error fraction and
-citation-validation failures. No notification recipient is configured.
+citation-validation failures. Two further rules cover expired ingestion leases
+and queued/retry state older than five minutes. No notification recipient is configured.
 It has no paid or managed services. Unimplemented items in the broader signal
-catalog below remain planned, including token/cost, semantic-quality and ingestion signals. LangSmith,
+catalog below remain planned, including token/cost, semantic-quality, document/page
+throughput, embedding failures and search-index lag. Queue state age is not index lag. LangSmith,
 CloudWatch, an OTLP collector and managed Grafana dashboards are not deployed.
 
 

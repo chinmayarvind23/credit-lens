@@ -3,6 +3,7 @@
 import re
 from collections.abc import Iterator
 from contextlib import contextmanager
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from hashlib import sha256
 from typing import Any, Literal
@@ -19,6 +20,7 @@ from sqlalchemy import (
     Table,
     UniqueConstraint,
     and_,
+    case,
     func,
     or_,
     select,
@@ -80,6 +82,18 @@ jobs = Table(
     Column("result", JSON),
     UniqueConstraint("queue_id", "tenant_id", "subject", "idempotency_key"),
 )
+
+
+@dataclass(frozen=True)
+class JobAggregate:
+    """Only aggregate operational values leave the SQL monitoring query."""
+
+    state: str
+    parser: str
+    count: int
+    attempts: int
+    oldest_seconds: float
+    expired_leases: int
 
 
 class IngestionInput(StrictModel):
@@ -254,6 +268,36 @@ class JobStore:
                     "idempotency_conflict", "Idempotency key has different input", 409
                 )
             return _status(row)
+
+    def aggregates(self) -> tuple[JobAggregate, ...]:
+        """Read queue aggregates without hydrating manifests, identities or OCR artifacts."""
+        parser = jobs.c.input["parser"].as_string()
+        expired = and_(jobs.c.state == "RUNNING", jobs.c.lease_until < func.now())
+        statement = (
+            select(
+                jobs.c.state,
+                parser.label("parser"),
+                func.count().label("count"),
+                func.sum(jobs.c.attempts).label("attempts"),
+                func.extract("epoch", func.now() - func.min(jobs.c.updated_at)).label("age"),
+                func.sum(case((expired, 1), else_=0)).label("expired"),
+            )
+            .where(jobs.c.queue_id == self.queue_id)
+            .group_by(jobs.c.state, parser)
+        )
+        with self._transaction() as connection:
+            rows = connection.execute(statement).mappings().all()
+        return tuple(
+            JobAggregate(
+                state=row["state"],
+                parser=row["parser"],
+                count=int(row["count"]),
+                attempts=int(row["attempts"]),
+                oldest_seconds=max(0.0, float(row["age"])),
+                expired_leases=int(row["expired"]),
+            )
+            for row in rows
+        )
 
     def status(self, job_id: str, principal: Principal) -> JobStatus:
         """Filter tenant before hydration and recheck current borrower/ACL scope on every read."""

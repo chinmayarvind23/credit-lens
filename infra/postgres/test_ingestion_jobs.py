@@ -64,6 +64,81 @@ def spec() -> IngestionInput:
     return IngestionInput(source_sha256="a" * 64, pages=borrower_pages(1)[:2], parser="digital")
 
 
+def test_queue_metrics_follow_sql_transitions_and_exclude_other_queues(store):
+    """Actual SQL and registry scrapes retain queue truth without leaking row payloads."""
+    from prometheus_client import CollectorRegistry, generate_latest
+
+    from creditlens.ingestion_metrics import IngestionCollector
+
+    other = JobStore(store.engine, "other-" + uuid4().hex)
+    other.submit(spec(), admin(), "unrelated")
+    first = store.submit(spec(), admin(), "metrics-digital")
+    store.submit(spec().model_copy(update={"parser": "ocr"}), admin(), "metrics-ocr")
+    store.submit(spec(), admin(), "metrics-digital")
+    assert sum(row.count for row in store.aggregates()) == 2
+    lease = store.claim(first.job_id)
+    assert lease is not None
+    with store.engine.begin() as connection:
+        connection.execute(
+            update(jobs)
+            .where(jobs.c.job_id == first.job_id)
+            .values(
+                lease_until=datetime.now(UTC) - timedelta(seconds=10),
+                updated_at=datetime.now(UTC) - timedelta(seconds=120),
+            )
+        )
+    running = next(row for row in store.aggregates() if row.state == "RUNNING")
+    assert running.count == running.attempts == running.expired_leases == 1
+    assert running.oldest_seconds >= 119
+    registry = CollectorRegistry()
+    registry.register(IngestionCollector(store))
+    before = generate_latest(registry).decode()
+    assert 'creditlens_ingestion_jobs{parser="ocr",state="QUEUED"} 1.0' in before
+    assert 'creditlens_ingestion_expired_leases{parser="digital",state="RUNNING"} 1.0' in before
+    renewed = store.claim(first.job_id)
+    assert renewed is not None
+    store.fail(renewed, "invalid_source", retryable=False)
+    after = generate_latest(registry).decode()
+    assert 'creditlens_ingestion_jobs{parser="digital",state="RUNNING"} 0.0' in after
+    assert 'creditlens_ingestion_jobs{parser="digital",state="FAILED"} 1.0' in after
+    assert 'creditlens_ingestion_attempts{parser="digital",state="FAILED"} 2.0' in after
+    for private in (first.job_id, store.queue_id, admin().subject, "borrower-001", "source_sha256"):
+        assert private not in before + after
+
+
+def test_ingestion_metrics_registered_only_behind_admin_endpoint(store):
+    """Real app startup composes SQL collection after telemetry, preserving current-grant checks."""
+    actor = admin().model_copy(update={"subject": uuid4().hex, "role": "underwriter"})
+    seed_current_admin(store, actor)
+    app = create_app(
+        Settings(
+            _env_file=None,
+            database_url=str(store.engine.url.render_as_string(hide_password=False)),
+            catalog_backend="postgres",
+            ingestion_enabled=True,
+            telemetry_enabled=True,
+            ingestion_queue_id=store.queue_id,
+        )
+    )
+
+    def current_actor():
+        """Resolve a test-owned grant without changing shared synthetic demo permissions."""
+        return GrantStore(store.engine).resolve(actor.subject)
+
+    app.dependency_overrides[current_principal] = current_actor
+    with TestClient(app) as client:
+        assert client.get("/api/v1/metrics").status_code == 403
+        with app.state.store.engine.begin() as connection:
+            connection.execute(
+                grants.update()
+                .where(grants.c.subject == actor.subject)
+                .values(role="admin", revision=2)
+            )
+        response = client.get("/api/v1/metrics")
+        assert response.status_code == 200
+        assert 'creditlens_ingestion_jobs{parser="digital",state="QUEUED"} 0.0' in response.text
+
+
 @pytest.mark.parametrize("revoke", [False, True])
 def test_worker_ocr_quarantines_with_current_grants(store, revoke):
     """Real SQL verifies worker handoff; recorded extraction is not model evidence."""

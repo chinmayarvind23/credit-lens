@@ -5,6 +5,11 @@ request rate, p95/p99 duration, 4xx/5xx fractions, packet cache hits and disposi
 It also shows workflow stage p95/errors, abstentions, HTTP authorization denials
 and local alert states. Empty error/denial/alert series mean no samples were
 recorded for those labels; they do not prove that all failure modes were tested.
+Five ingestion panels also show queue states, oldest pending state, expired leases,
+failed jobs by parser and attempts attached to retained jobs. They require a
+PostgreSQL ingestion-enabled server; the default SQLite traffic fixture does not
+manufacture ingestion samples. Configure its authenticated metrics scrape using
+the protected deployment instructions below.
 It does not claim neural latency, semantic accuracy, cloud savings or real lender traffic.
 
 Install the `observability` extra alongside any other extras you use. Docker Desktop
@@ -61,7 +66,8 @@ For a protected deployment, replace the synthetic scrape target with the real
 `/api/v1/metrics` endpoint and configure HTTPS plus an operator-managed current
 admin token using Prometheus's authorization credentials file. Do not remove the
 application's admin check or expose its data through this fixture. Token rotation,
-external notification routing, semantic-quality and ingestion dashboards remain separate work.
+external notification routing, semantic-quality, cost and detailed indexing/throughput
+dashboards remain separate work.
 
 Verified locally with Grafana 12.1.0: promtool accepted the configuration, the
 target was up, and all eight provisioned expressions returned nonempty results
@@ -93,3 +99,26 @@ Prometheus container's `/bin/promtool`. Tests cover outage persistence, recovery
 missing targets, slow queries, server errors and citation-stage failures. The
 current local verification executed all 13 expressions through Grafana's real
 Prometheus proxy, with stage timing and abstention samples from actual API traffic.
+
+## Ingestion operations
+
+Enable both `CREDITLENS_INGESTION_ENABLED` and `CREDITLENS_TELEMETRY_ENABLED`
+with the documented PostgreSQL catalog and queue settings. A current admin can
+scrape `/api/v1/metrics`; ordinary users remain denied. Aggregates are scoped to
+that configured queue and omit identities and payloads. They are gauges, not
+monotonic job-completion counters: pruning or state transitions can lower them.
+
+`CreditLensIngestionLeaseExpired` fires after an expired running lease persists
+for 30 seconds. Inspect worker health and let the normal fenced claim path recover
+it; do not manually bypass the lease token. `CreditLensIngestionBacklog` fires
+when queued/retry state age exceeds five minutes for one minute. Check worker
+availability, retry reasons and staging access. OCR REVIEW_REQUIRED is a deliberate
+human-review state and is shown separately, without an automatic publication action.
+Failed OCR jobs may reflect permission, source or publication errors as well as
+recognition failure. Investigate the protected job record before assigning cause.
+
+Real PostgreSQL integration tests cover idempotent submissions, queue isolation,
+lease expiration, terminal failure transitions and current-admin endpoint access.
+Promtool covers ingestion-alert persistence and recovery. The earlier live Grafana
+run verified the first 13 panels; the additional five SQL panels are configured
+but are not claimed as a completed live Grafana ingestion run.
