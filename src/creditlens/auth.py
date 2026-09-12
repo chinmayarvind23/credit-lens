@@ -1,14 +1,15 @@
 """Cognito verifies identity; current server-side grants define evidence access."""
 
 from collections.abc import Callable
-from datetime import date
 from typing import cast
 
 import jwt
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
 from jwt import PyJWKClient
 
-from creditlens.domain import Page, Principal
+from creditlens.access import authorize_borrower as authorize_borrower
+from creditlens.access import authorized_page as authorized_page
+from creditlens.domain import Principal
 from creditlens.errors import ServiceError
 from creditlens.settings import Settings
 from creditlens.storage import GrantStore
@@ -78,22 +79,3 @@ class Authenticator:
             raise ValueError("Missing required scope")
         if not isinstance(claims.get("sub"), str) or not claims["sub"]:
             raise ValueError("Missing subject")
-
-
-def authorize_borrower(principal: Principal, borrower_id: str) -> None:
-    """Deny before touching a search provider and use the same response for unknown IDs."""
-    if borrower_id not in principal.borrower_ids:
-        raise ServiceError("access_denied", "Access is not authorized", 403)
-
-
-def authorized_page(page: Page, principal: Principal, borrower_id: str, effective_at: date) -> bool:
-    """All search adapters use the same tenant, borrower, group and date predicate first."""
-    return (
-        borrower_id in principal.borrower_ids
-        and page.tenant_id == principal.tenant_id
-        and page.borrower_id in (None, borrower_id)
-        and bool(set(page.acl_groups).intersection(principal.acl_groups))
-        and page.valid_from <= effective_at
-        and (page.valid_to is None or effective_at < page.valid_to)
-        and page.extraction_confidence >= 0.9
-    )

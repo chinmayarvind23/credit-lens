@@ -13,8 +13,7 @@ from creditlens.errors import ServiceError
 from creditlens.finance import FinanceResult, calculate_review
 from creditlens.intent import classify_intent, textual_support, topic_supported
 from creditlens.retrieval import CanonicalCatalog, lexical_rank
-from creditlens.retrieval_cache import CachedResult, CanonicalProvider
-from creditlens.search_provider import SearchResult
+from creditlens.search_provider import CachedResult, CanonicalProvider, SearchResult
 from creditlens.storage import GrantStore
 
 ACTIONS = {

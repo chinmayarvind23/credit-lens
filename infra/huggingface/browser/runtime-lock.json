@@ -1,0 +1,26 @@
+{
+  "version": "0.27.7",
+  "base_url": "https://cdn.jsdelivr.net/pyodide/v0.27.7/full/",
+  "python": "3.12.7",
+  "packages": [
+    "annotated-types",
+    "pydantic",
+    "pydantic-core",
+    "sqlalchemy",
+    "sqlite3",
+    "typing-extensions"
+  ],
+  "files": {
+    "pyodide.js": "b4cb23a53aba19c221659b9fb40a2f18281d685691dc06647fb0afd0681baf98",
+    "pyodide.asm.js": "6b4c90de5b7172873f04f21884d0e9d2274e305fe32116558fe3e4fbe3618d51",
+    "pyodide.asm.wasm": "a50dd1843f805a0b7c45b61037ee0d7b26dfe85efe0e18ef95a34ad24e401f5f",
+    "python_stdlib.zip": "16611534726e5d8ac2bd8f926410b2dcb8d6f49aa24913463533b457a2115c16",
+    "pyodide-lock.json": "9c45b916001a750f4102fc287494f3eab215909c7535c626a20db80fd6333e2c",
+    "sqlalchemy-2.0.29-cp312-cp312-pyodide_2024_0_wasm32.whl": "c6ea5157694bf17915f33311d5064d36c5e73f9b872375571a8927d66c96ef28",
+    "typing_extensions-4.11.0-py3-none-any.whl": "c3f00b6653202513b1f7813ad3c466510ceecc599a37d665a31dcfb5ac7049b9",
+    "sqlite3-1.0.0-cp312-cp312-pyodide_2024_0_wasm32.whl": "43061928762b03482676a1e11dcef99a003148e59fe914b6a3e41180c382cfc3",
+    "pydantic-2.10.5-py3-none-any.whl": "dd344e353e3c3a2d972c1198744a4f4ba1e2ce586e903187cca9fdaafb46c63d",
+    "annotated_types-0.6.0-py3-none-any.whl": "9733de5d59580defb40ad7bd8a5d53a0fac03de7a13028d95cacc4e81945c97c",
+    "pydantic_core-2.27.2-cp312-cp312-pyodide_2024_0_wasm32.whl": "eefd735db79e36e3425e4a821fc9df6cb172d2845f0d4a2a1038eb5f4d5c1d0c"
+  }
+}

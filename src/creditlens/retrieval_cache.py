@@ -4,31 +4,15 @@ import hashlib
 import hmac
 import json
 from collections.abc import Callable
-from dataclasses import dataclass
 from time import time
-from typing import Literal, Protocol
 
 from creditlens.cache import ByteCache, CachedIDs, CacheUnavailable, read_entry, sign_entry
 from creditlens.domain import Chunk, Citation, Principal, QueryRequest
 from creditlens.errors import ServiceError
-from creditlens.retrieval import CanonicalCatalog
-from creditlens.search_provider import SearchProvider, SearchResult
+from creditlens.search_provider import CachedResult as CachedResult
+from creditlens.search_provider import CacheState, SearchResult
+from creditlens.search_provider import CanonicalProvider as CanonicalProvider
 from creditlens.storage import GrantStore
-
-CacheState = Literal["hit", "miss", "invalid", "unavailable"]
-
-
-class CanonicalProvider(SearchProvider, Protocol):
-    """The cache must share its wrapped provider's authoritative catalog instance."""
-
-    catalog: CanonicalCatalog
-
-
-@dataclass(frozen=True)
-class CachedResult(SearchResult):
-    """Expose acceleration state without confusing a cache hit with another remote search."""
-
-    cache_state: CacheState
 
 
 class RetrievalCache:

@@ -1,6 +1,6 @@
-# Unapplied AWS synthetic demo reference
+# Optional AWS setup reference
 
-No AWS deployment has been performed. The user's no-out-of-pocket-spend constraint
+AWS is optional and outside the current delivery scope. The free interactive Hugging Face demo needs no AWS account. These instructions are for operators choosing their own server deployment. No AWS deployment has been performed. The user's no-out-of-pocket-spend constraint
 prohibits applying this reference until account plan status and an eligible no-charge
 path are verified. List-price resources are billable; neither a zero current bill nor
 unused Free Tier offers proves that later usage cannot charge the account. Never

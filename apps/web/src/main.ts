@@ -1,4 +1,5 @@
-﻿import { CreditLensApi, apiBase } from "./api";
+import { CreditLensApi, apiBase } from "./api";
+import { BrowserApi } from "./browser-api";
 import type { Borrower, Chunk, Packet, QueryRequest } from "./contracts";
 import { element, renderPacket, renderSource } from "./render";
 
@@ -9,7 +10,8 @@ function required<T extends HTMLElement>(selector: string): T {
   return node;
 }
 
-const api = new CreditLensApi(apiBase(window.location));
+const browserMode = document.documentElement.dataset.runtime === "browser";
+const api = browserMode ? new BrowserApi(message => { required("#request-status").textContent = message; }) : new CreditLensApi(apiBase(window.location));
 const borrowerSelect = required<HTMLSelectElement>("#borrower");
 const effectiveDate = required<HTMLInputElement>("#effective-date");
 const question = required<HTMLTextAreaElement>("#question");
@@ -82,8 +84,10 @@ async function loadBorrowers(): Promise<void> {
     for (const borrower of borrowers) borrowerSelect.append(new Option(borrower.name, borrower.borrower_id));
     if (!borrowers.length) borrowerSelect.append(new Option("No authorized borrowers", ""));
     borrowerSelect.disabled = !borrowers.length;
-    required("#environment").textContent = result.mode === "demo" ? "Synthetic demo" : "Production";
-    required("#environment-notice").textContent = result.mode === "demo"
+    required("#environment").textContent = browserMode ? "Browser demo | Free" : result.mode === "demo" ? "Synthetic demo" : "Production";
+    required("#environment-notice").textContent = browserMode
+      ? "SYNTHETIC DEMO | Questions run in your browser over fictional documents. No account or server is needed. Session history resets when you reload."
+      : result.mode === "demo"
       ? "SYNTHETIC DEMO · Fictional borrowers and policy documents. Review outputs demonstrate the workflow; they are not real lending advice."
       : "PRODUCTION · Access is restricted to your server-authorized borrower scope. Review all cited evidence before making a lending decision.";
     status.textContent = borrowers.length ? "Authorized borrower scope loaded. Ready for your question." : "No borrowers are available to this identity. Contact your administrator.";
@@ -176,6 +180,7 @@ function closeSource(): void { dialog.close(); }
 /** An explicit refresh gives users a recovery action for connectivity and permission changes. */
 function refreshScope(): void { void loadBorrowers(); }
 
+if (browserMode) { required(".connection").hidden = true; required<HTMLInputElement>("#access-token").disabled = true; }
 effectiveDate.value = today();
 required<HTMLFormElement>("#query-form").addEventListener("submit", submitQuery);
 borrowerSelect.addEventListener("change", changeScope);

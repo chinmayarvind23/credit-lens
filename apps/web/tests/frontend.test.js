@@ -1,4 +1,4 @@
-﻿import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import { parseBorrowers, parseChunk, parsePacket } from "../src/contracts";
 import { CreditLensApi, apiBase } from "../src/api";
 import { duration, packetDisposition, renderPacket, renderSource } from "../src/render";
@@ -190,6 +190,7 @@ test("a late response cannot overwrite a newer borrower packet", async () => {
   globalThis.document = {
     /** Static anchor lookup matches the production template contract. */
     querySelector: node,
+    documentElement: { dataset: {} },
     /** Result rendering uses the same literal-text seam as the XSS check. */
     createElement(tag) { return new ControllerNode(tag); },
     /** Preserve packet content as one rendered fragment. */

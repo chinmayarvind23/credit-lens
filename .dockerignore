@@ -15,6 +15,7 @@ apps/web/*
 !apps/web/src/
 apps/web/src/*
 !apps/web/src/api.ts
+!apps/web/src/browser-api.ts
 !apps/web/src/contracts.ts
 !apps/web/src/main.ts
 !apps/web/src/render.ts
@@ -26,6 +27,7 @@ src/creditlens/*
 !src/creditlens/__init__.py
 !src/creditlens/api.py
 !src/creditlens/auth.py
+!src/creditlens/access.py
 !src/creditlens/cache.py
 !src/creditlens/citations.py
 !src/creditlens/corpus.py

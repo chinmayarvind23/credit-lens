@@ -9,7 +9,7 @@ from hashlib import sha256
 from threading import RLock
 from typing import Literal, Protocol
 
-from creditlens.auth import authorize_borrower, authorized_page
+from creditlens.access import authorize_borrower, authorized_page
 from creditlens.domain import Chunk, Page, Principal
 from creditlens.errors import ServiceError
 

@@ -2,10 +2,11 @@
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Literal, Protocol
 
 from creditlens.domain import Chunk, Citation, Principal, QueryRequest
 from creditlens.errors import ServiceError
+from creditlens.retrieval import CanonicalCatalog
 
 Ranker = Callable[[str, tuple[Chunk, ...], int], tuple[Chunk, ...]]
 
@@ -48,3 +49,19 @@ class SearchProvider(Protocol):
     def citation(self, result: SearchResult, citation: Citation) -> Chunk:
         """Resolve exact cited provenance and recheck access at the point of use."""
         ...
+
+
+CacheState = Literal["hit", "miss", "invalid", "unavailable"]
+
+
+class CanonicalProvider(SearchProvider, Protocol):
+    """The cache must share its wrapped provider's authoritative catalog instance."""
+
+    catalog: CanonicalCatalog
+
+
+@dataclass(frozen=True)
+class CachedResult(SearchResult):
+    """Expose acceleration state without confusing a cache hit with another remote search."""
+
+    cache_state: CacheState
