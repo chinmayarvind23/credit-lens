@@ -433,3 +433,33 @@ nonempty operational/advice/question fields still need suitable rubrics.
 Whole-packet quality, question relevance, semantic citation applicability, human
 calibration and the full 240-question semantic baseline remain open. The result
 does not establish a population groundedness rate or the requested quality gain.
+
+
+## Population semantic reconciliation
+
+The full saved lexical benchmark now exports all 240 cases. Its 235 packets
+contain 2,965 cited field occurrences; five authorization denials remain in the
+case ledger. The local RAGAS lending field-support run uses 441 byte-identical NLI
+prompt groups. Repeated fields retain their weight but are not independent model
+judgments. Final results remain pending while that run is active.
+
+`scripts/reconcile_population.py` runs in the isolated semantic environment and
+makes no network or model calls. It reconstructs the pinned library prompts,
+verifies every alias against the frozen field inventory, compares completed
+verdicts to raw journals, checks model identity and generation completion, and
+recomputes counts. Modified evidence or mismatched scores fail verification.
+
+```powershell
+<semantic-python> scripts/reconcile_population.py --population <frozen-population-directory> --run <population-results-directory> --output <new-private-report.json> --require-complete
+```
+
+The final gate requires terminal completion, stable evaluator/input provenance
+and every field graded. A live snapshot preserves an acknowledged result prefix;
+only append-only progress is allowed afterward. Previously observed journals,
+input fields and source code must remain unchanged. Live snapshots have no final
+field-support rate and cannot pass `--require-complete`.
+
+Even a complete field-support report does not establish whole-packet groundedness,
+question relevance, human calibration or semantic citation precision. Uncited
+advice and other fields without a semantic rubric remain visible in the case
+ledger. Requested project metrics must not be filled with this narrower score.
