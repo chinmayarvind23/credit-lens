@@ -512,3 +512,10 @@ or a replacement for the historical 102/235 DeepEval score. Original labels and
 adjudication notes remain separate. The three observed failures exposed missing
 refusals for unsupported scope/hidden-topic requests; their code fix has separate
 regression evidence and does not retroactively change frozen outputs or scores.
+
+A subsequent actual local GEval v2 diagnostic graded newly frozen outputs for
+those three changed refusal cases: **3/3 passed**. Two unchanged synthetic controls
+also behaved correctly (valid answer 1, deliberately incorrect answer 0). The run
+retained five complete raw calls, pinned Qwen3 8B identity, unchanged rubric and
+stable provenance. This selected regression diagnostic does not update the full
+235-answer score or establish independent human calibration.

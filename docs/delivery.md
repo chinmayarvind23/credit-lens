@@ -91,3 +91,11 @@ canonical served Python bundle were verified. Fresh browser checks confirmed
 policy-procedure extraction without DSCR, an explicit DSCR calculation of 1.5000,
 and missing-debt-source abstention. This release retains the existing demo GIF;
 these checks do not replace the separate semantic evaluation or mobile/offline QA.
+
+
+The later refusal fix is deployed from source `96441f7` at HF revision
+`39cad7d3d749664540d52b52ae4c9b1bfdaa6c46`. Current checks: 567 repository tests
+passed (five opt-in integration tests skipped), all 240 deterministic cases passed,
+and a fresh public-browser cross-tenant request produced explicit abstention with
+zero source chunks. The targeted local DeepEval regression passed all three changed
+refusals with both controls correct. The historical full semantic score is unchanged.
