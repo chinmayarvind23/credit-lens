@@ -40,11 +40,13 @@ def export(args: argparse.Namespace) -> None:
     units = []
     for label in labels:
         identity = label["case_id"]
-        if not isinstance(label.get("guidance"), str) or not label["guidance"].strip():
-            raise ValueError("Each packet needs explicit guidance expectations")
         verified = export_case(saved[identity], gold[identity], canonical)
         packet = json.loads(verified["actual_output"])
         for field in FIELDS:
+            guidance = label.get("guidance")
+            guidance = guidance.get(field) if isinstance(guidance, dict) else guidance
+            if not isinstance(guidance, str) or not guidance.strip():
+                raise ValueError("Each field needs explicit guidance expectations")
             units.append(
                 {
                     "id": f"{identity}/{field}",
@@ -53,7 +55,7 @@ def export(args: argparse.Namespace) -> None:
                     "original_value": packet[field],
                     "input": f"Field: {field}\n{verified['input']}",
                     "actual_output": json.dumps(packet[field], ensure_ascii=False),
-                    "expected_output": label["guidance"],
+                    "expected_output": guidance,
                     "retrieval_context": verified["retrieval_context"],
                 }
             )

@@ -7,7 +7,7 @@ from hashlib import sha256
 from importlib.metadata import version
 from pathlib import Path
 
-from advice_rubric import STEPS, VERSION, validate_advice_score
+from advice_rubric import RUBRICS, VERSION, validate_advice_score
 from run_deepeval import restrict_network
 from run_ragas import read_cases
 
@@ -35,6 +35,7 @@ def run(args: argparse.Namespace) -> None:
     if args.output.resolve().is_relative_to(repo):
         raise ValueError("Advice evidence must stay outside the repository")
     inputs, cases = read_cases(args.cases)
+    steps = RUBRICS[args.rubric]
     for case in cases:
         if not isinstance(case.get("expected_output"), str) or not case["expected_output"].strip():
             raise ValueError("Advice cases require explicit expected guidance")
@@ -73,8 +74,8 @@ def run(args: argparse.Namespace) -> None:
         "status": "running",
         "deepeval": version("deepeval"),
         "metric": "GEval",
-        "rubric_version": VERSION,
-        "evaluation_steps": list(STEPS),
+        "rubric_version": args.rubric,
+        "evaluation_steps": list(steps),
         "strict_mode": True,
         "source_hashes": before,
         "input_sha256": sha256(inputs).hexdigest(),
@@ -97,7 +98,7 @@ def run(args: argparse.Namespace) -> None:
                 metric = GEval(
                     name="Underwriting guidance",
                     model=judge,
-                    evaluation_steps=list(STEPS),
+                    evaluation_steps=list(steps),
                     evaluation_params=[
                         SingleTurnParams.INPUT,
                         SingleTurnParams.ACTUAL_OUTPUT,
@@ -157,6 +158,7 @@ def main() -> None:
         parser.add_argument(f"--{name}", type=Path, required=True)
     parser.add_argument("--model", required=True)
     parser.add_argument("--digest", required=True)
+    parser.add_argument("--rubric", choices=tuple(RUBRICS), default=VERSION)
     run(parser.parse_args())
 
 
