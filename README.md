@@ -36,6 +36,7 @@ approve a loan or establish compliance with every policy requirement.
 - Durable digital-PDF ingestion, fenced worker leases, atomic publication and SQS-compatible notifications.
 - Quarantined OCR review with scoped approval, text correction, rejection and retained provenance.
 - Local OTel traces, Prometheus metrics, security/regression tests and CI quality/latency gates.
+- Provisioned [local Grafana dashboards](infra/monitoring/README.md) for actual synthetic API traffic, latency, errors, cache hits and dispositions.
 - Actual DeepEval and RAGAS runners using a local judge; validation limits are listed below.
 - Optional read-only [GraphQL admin inspection](docs/graphql-admin.md) for catalog, jobs and own audit metadata.
 

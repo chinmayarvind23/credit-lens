@@ -26,8 +26,10 @@ metrics access. Actual loopback HTTP runs record metrics and rotating trace file
 The free browser demo exposes its per-request stage trace, but does not load this
 server-only SDK or send telemetry anywhere.
 
-The broader signal catalog below remains a plan. LangSmith, CloudWatch, an OTLP
-collector and managed Grafana dashboards are not deployed.
+The [local Grafana stack](../infra/monitoring/README.md) provisions eight operational
+panels backed by actual synthetic HTTP metrics and Prometheus. It has no paid or
+managed services. The broader signal catalog below remains a plan. LangSmith,
+CloudWatch, an OTLP collector and managed Grafana dashboards are not deployed.
 
 
 ## Goals
