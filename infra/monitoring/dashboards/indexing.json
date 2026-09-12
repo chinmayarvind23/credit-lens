@@ -241,6 +241,129 @@
           "values": false
         }
       }
+    },
+    {
+      "id": 7,
+      "title": "SQL commit return to complete input search visibility",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "creditlens-prometheus"
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 12,
+        "x": 0,
+        "y": 15
+      },
+      "targets": [
+        {
+          "expr": "creditlens_publication_all_input_visibility_seconds",
+          "refId": "A",
+          "instant": true,
+          "legendFormat": "creditlens_publication_all_input_visibility_seconds"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "description": "Owned local PostgreSQL publication and every-input exact OpenSearch search sweep. Observed upper bound, not a production SLA or continuous index watermark."
+    },
+    {
+      "id": 8,
+      "title": "Publication input chunks: expected and verified",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "creditlens-prometheus"
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 12,
+        "x": 12,
+        "y": 15
+      },
+      "targets": [
+        {
+          "expr": "creditlens_publication_expected_chunks",
+          "refId": "A",
+          "instant": true,
+          "legendFormat": "creditlens_publication_expected_chunks"
+        },
+        {
+          "expr": "creditlens_publication_verified_chunks",
+          "refId": "B",
+          "instant": true,
+          "legendFormat": "creditlens_publication_verified_chunks"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "description": "Owned local PostgreSQL publication and every-input exact OpenSearch search sweep. Observed upper bound, not a production SLA or continuous index watermark."
+    },
+    {
+      "id": 9,
+      "title": "Publication visibility drill passed",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "creditlens-prometheus"
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 12,
+        "x": 0,
+        "y": 20
+      },
+      "targets": [
+        {
+          "expr": "creditlens_publication_drill_success",
+          "refId": "A",
+          "instant": true,
+          "legendFormat": "creditlens_publication_drill_success"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "description": "Owned local PostgreSQL publication and every-input exact OpenSearch search sweep. Observed upper bound, not a production SLA or continuous index watermark."
     }
   ]
 }

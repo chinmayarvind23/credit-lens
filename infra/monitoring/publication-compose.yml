@@ -1,0 +1,30 @@
+services:
+  publication-sql:
+    image: postgres:16.4-alpine@sha256:5660c2cbfea50c7a9127d17dc4e48543eedd3d7a41a595a2dfa572471e37e64c
+    container_name: creditlens-publication-sql
+    environment:
+      POSTGRES_PASSWORD: creditlens-local-fixture-only
+      POSTGRES_DB: creditlens_publication_fixture
+    ports:
+      - "127.0.0.1:15434:5432"
+    mem_limit: 512m
+    cpus: 1.0
+    restart: "no"
+  publication-search:
+    image: opensearchproject/opensearch:3.7.0@sha256:44ba7ea58a319adf61c33ab16873f9ef5dbb30b291a832d375172f0b2d24e3c9
+    container_name: creditlens-publication-search
+    environment:
+      discovery.type: single-node
+      DISABLE_SECURITY_PLUGIN: "true"
+      DISABLE_INSTALL_DEMO_CONFIG: "true"
+      OPENSEARCH_JAVA_OPTS: "-Xms512m -Xmx512m"
+    ports:
+      - "127.0.0.1:19202:9200"
+    mem_limit: 1536m
+    cpus: 2.0
+    pids_limit: 512
+    restart: "no"
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536

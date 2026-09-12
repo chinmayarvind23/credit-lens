@@ -28,3 +28,15 @@ scrape_configs:
       - targets: [host.docker.internal:19104]
         labels:
           environment: local-indexing-snapshot
+  - job_name: creditlens-neural-operation-snapshot
+    scrape_timeout: 3s
+    static_configs:
+      - targets: [host.docker.internal:19105]
+        labels:
+          environment: local-neural-fault-drill
+  - job_name: creditlens-publication-visibility-snapshot
+    scrape_timeout: 3s
+    static_configs:
+      - targets: [host.docker.internal:19106]
+        labels:
+          environment: local-sql-publication-drill
