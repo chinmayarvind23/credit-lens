@@ -83,3 +83,11 @@ verified all 15 application/runtime files and the recorded GIF against their has
 The Space API reports RUNNING with no requested compute hardware. Initial browser
 and default-network requests reset, so this check does not claim fresh browser
 execution; the earlier interactive release QA remains separately recorded.
+
+
+Free HF release verification on 2026-09-12: source `d538385` is published at Space
+revision `d96bbb4a40b4f4658f1c1ec5c051fdaaed1ef17c`. Immutable asset hashes and the
+canonical served Python bundle were verified. Fresh browser checks confirmed
+policy-procedure extraction without DSCR, an explicit DSCR calculation of 1.5000,
+and missing-debt-source abstention. This release retains the existing demo GIF;
+these checks do not replace the separate semantic evaluation or mobile/offline QA.
