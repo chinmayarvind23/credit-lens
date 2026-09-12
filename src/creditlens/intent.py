@@ -17,7 +17,7 @@ EVIDENCE_REVIEW = frozenset(
 )
 SENSITIVE_REQUEST = frozenset(
     "private confidential restricted internal secret secrets watchlist reveal disclose "
-    "leak dump".split()
+    "leak dump hidden tenant tenants tenant_id identity acl acl_groups grants".split()
 )
 TOPIC_GLUE = frozenset(
     "show display tell give get reveal disclose leak dump print please me my us our this that "

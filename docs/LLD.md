@@ -211,3 +211,8 @@ financial review. Procedural cues use raw question words because retrieval
 tokenization removes interrogatives.
 This fixes irrelevant numerical dispositions, but does not add answer synthesis.
 Frozen DeepEval results predate this change and remain unchanged.
+
+Sensitive-topic admission also covers hidden-note, tenant, identity and ACL wording.
+Unsupported requests return empty evidence and explicit abstention through the
+existing validated/audited path. This conservative relevance check does not grant
+permissions or replace authoritative filtering; it is not a complete attack detector.
