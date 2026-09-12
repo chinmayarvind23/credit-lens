@@ -41,18 +41,20 @@ Open [the workbench](http://127.0.0.1:8000) or [API documentation](http://127.0.
 
 ## Tech stack
 
-| Area | Technologies and role |
+| Area | Technologies |
 | --- | --- |
-| Application | Python, FastAPI, Pydantic and SQLAlchemy; Decimal for financial arithmetic |
-| Workbench | TypeScript, HTML, CSS and Bun; Pyodide for the interactive Hugging Face browser deployment |
-| Retrieval | Lexical search by default; optional LlamaIndex chunking, Sentence Transformers embeddings and cross-encoder reranking, OpenSearch and Snowflake Cortex adapters |
-| State and ingestion | SQLite for the demo, PostgreSQL for canonical state, Redis caching and quotas, pypdf, PaddleOCR and an SQS-compatible local queue adapter |
-| Quality and operations | DeepEval/RAGAS runners, OpenTelemetry, Prometheus, Grafana, pytest, Ruff and mypy |
-| Additional service paths | gRPC, read-only GraphQL and an optional public Supabase directory |
-| Retrieval and processing tools | FAISS and Weaviate comparison tools; PySpark metadata backfill |
-| Deployment | Free Hugging Face hosting; Docker and optional AWS Terraform configuration |
+| Backend | Python, FastAPI, Pydantic, SQLAlchemy |
+| Retrieval | Lexical search; optional LlamaIndex chunking, Sentence Transformers, hybrid search and reranking |
+| Storage | PostgreSQL, Redis; SQLite for the demo |
+| Frontend | TypeScript, Bun, Pyodide |
+| Evaluation and observability | DeepEval, RAGAS, OpenTelemetry, Prometheus, Grafana |
+| Deployment | Hugging Face Spaces, Docker |
 
-The browser uses public fictional evidence and lexical retrieval. Optional server adapters and laboratory tools are enabled separately through their setup guides.
+The browser demo uses public fictional evidence and lexical retrieval. Server services and model-based retrieval are configured separately.
+
+**Optional integrations:** [Snowflake Cortex](infra/cortex/README.md), [OpenSearch](infra/opensearch/README.md), [reviewed OCR](infra/ocr/README.md), [SQS-compatible messaging](infra/sqs/README.md), [gRPC](infra/rpc/README.md), [GraphQL](docs/graphql-admin.md), [Supabase](infra/supabase/README.md) and [AWS Terraform](infra/aws/README.md).
+
+**Experiments:** [FAISS](scripts/benchmark_faiss.py) and [Weaviate](infra/weaviate/README.md) retrieval comparisons; [Spark/PySpark](infra/spark/README.md) metadata backfill.
 
 ## How it works
 
