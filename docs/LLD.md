@@ -83,7 +83,9 @@ Digital extraction confidence 1 means text extraction succeeded, not measured
 semantic accuracy. The parent verifies source identity and immutable metadata
 again before atomic publication. Malformed or altered sources fail; missing
 objects, timeouts and Docker launch failures retry. Lease loss cannot acknowledge
-another worker's work. OCR stays queued for its separate reviewed path.
+another worker's work. OCR extraction is staged separately, then a hash-bound admin decision atomically
+publishes reviewed pages. Both reviewer and original submitter grants are checked
+under database locks. Rejection retains the artifact without publishing evidence.
 
 `scripts/ingest_documents.py` is a trusted local operator interface. It uses the
 initialized API's database, queue and catalog configuration, resolves an existing

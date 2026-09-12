@@ -25,8 +25,10 @@ Scanned-document work runs in a separate local CPU environment. A bounded Popple
 container renders physical pages, and pinned PaddleOCR-VL 1.6 with PP-DocLayoutV3
 produces layout and recognized text for review. OCR artifacts retain source hashes
 and scope but receive zero extraction confidence until reviewed; they cannot enter
-the current retrieval path automatically. Public uploads and durable ingestion
-orchestration remain unfinished. See [OCR experiments](../infra/ocr/README.md).
+retrieval automatically. A scoped administrator can inspect the durable artifact
+and approve corrected text through the API or CLI. Canonical publication and the
+review decision commit together. Public uploads and automatic OCR queue execution
+remain unfinished. See [OCR experiments](../infra/ocr/README.md).
 
 The durable ingestion store now uses PostgreSQL for intent, idempotency, leases,
 retries, review state and completion. A worker's expired token cannot publish.

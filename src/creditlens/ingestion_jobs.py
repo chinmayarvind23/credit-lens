@@ -31,6 +31,7 @@ from creditlens.auth import authorize_borrower
 from creditlens.domain import Page, Principal, StrictModel
 from creditlens.errors import ServiceError
 from creditlens.ingestion import _validate_metadata, text_hash
+from creditlens.ocr import OcrDocument, OcrReview
 from creditlens.sql_catalog import SqlEvidenceCatalog
 from creditlens.storage import grants
 
@@ -44,6 +45,7 @@ FailureCode = Literal[
     "worker_unavailable",
     "attempts_exhausted",
     "publication_failed",
+    "review_rejected",
 ]
 FAILURES = {
     "source_unavailable",
@@ -54,6 +56,7 @@ FAILURES = {
     "worker_unavailable",
     "attempts_exhausted",
     "publication_failed",
+    "review_rejected",
 }
 schema = MetaData()
 jobs = Table(
@@ -157,7 +160,7 @@ def _status(row: RowMapping) -> JobStatus:
     return JobStatus.model_validate({key: row[key] for key in JobStatus.model_fields})
 
 
-def _current_publisher(connection: Connection, subject: str, source: IngestionInput) -> None:
+def _current_publisher(connection: Connection, subject: str, source: IngestionInput) -> Principal:
     """Lock the current grant through commit so concurrent revocation cannot race admission."""
     row = (
         connection.execute(
@@ -170,6 +173,7 @@ def _current_publisher(connection: Connection, subject: str, source: IngestionIn
         raise ServiceError("permission_changed", "Ingestion permission is no longer current", 403)
     principal = Principal.model_validate({key: row[key] for key in Principal.model_fields})
     _authorize(principal, source)
+    return principal
 
 
 def _validate_extracted(source: IngestionInput, extracted: tuple[Page, ...]) -> None:
@@ -453,3 +457,132 @@ class JobStore:
                     "physical_pages": len(batch),
                 },
             )
+
+    def stage_ocr(self, lease: JobLease, artifact: OcrDocument) -> None:
+        """Quarantine trusted offline extraction under the current fenced OCR lease."""
+        artifact = OcrDocument.model_validate(artifact.model_dump())
+        with self._transaction() as connection:
+            row = self._locked(connection, lease)
+            source = IngestionInput.model_validate(row["input"])
+            _validate_ocr(source, artifact)
+            _current_publisher(connection, row["subject"], source)
+            self._locked(connection, lease)
+            self._change(
+                connection,
+                lease.job_id,
+                state="REVIEW_REQUIRED",
+                lease_until=None,
+                lease_token=None,
+                error_code=None,
+                result={
+                    "artifact_sha256": artifact.digest(),
+                    "artifact": artifact.model_dump(mode="json"),
+                },
+            )
+
+    def _review_row(self, connection: Connection, job_id: str, principal: Principal) -> RowMapping:
+        """Lock the job and current reviewer grant before exposing private OCR content."""
+        row = (
+            connection.execute(
+                select(jobs)
+                .where(
+                    jobs.c.queue_id == self.queue_id,
+                    jobs.c.job_id == job_id,
+                    jobs.c.tenant_id == principal.tenant_id,
+                )
+                .with_for_update()
+            )
+            .mappings()
+            .first()
+        )
+        if row is None:
+            raise ServiceError("job_not_found", "Ingestion job is unavailable", 404)
+        source = IngestionInput.model_validate(row["input"])
+        _authorize(principal, source)
+        current = _current_publisher(connection, principal.subject, source)
+        if current != principal:
+            raise ServiceError("permission_changed", "Review permission has changed", 403)
+        if row["state"] != "REVIEW_REQUIRED" or not (row["result"] or {}).get("artifact"):
+            raise ServiceError("review_unavailable", "OCR review is unavailable", 409)
+        return row
+
+    def review_artifact(self, job_id: str, principal: Principal) -> OcrDocument:
+        """Expose quarantined extraction only to a currently scoped administrator."""
+        with self._transaction() as connection:
+            row = self._review_row(connection, job_id, principal)
+            return OcrDocument.model_validate(row["result"]["artifact"])
+
+    def review_ocr(
+        self,
+        job_id: str,
+        principal: Principal,
+        review: OcrReview,
+        catalog: SqlEvidenceCatalog,
+    ) -> JobStatus:
+        """Commit reviewed evidence and its decision together, or publish nothing on rejection."""
+        review = OcrReview.model_validate(review.model_dump())
+        with self._transaction() as connection:
+            row = self._review_row(connection, job_id, principal)
+            artifact = OcrDocument.model_validate(row["result"]["artifact"])
+            if review.artifact_sha256 != artifact.digest():
+                raise ServiceError("review_conflict", "OCR artifact has changed", 409)
+            source = IngestionInput.model_validate(row["input"])
+            _validate_ocr(source, artifact)
+            result = dict(row["result"])
+            result["review"] = review.model_dump(mode="json") | {
+                "subject": principal.subject,
+                "grant_revision": principal.revision,
+            }
+            if review.decision == "approve":
+                _current_publisher(connection, row["subject"], source)
+                batch = _reviewed_pages(artifact, review)
+                _validate_extracted(source, batch)
+                result.update(
+                    catalog_id=catalog.catalog_id,
+                    revision=catalog.publish_in_transaction(connection, batch),
+                    physical_pages=len(batch),
+                )
+            self._change(
+                connection,
+                job_id,
+                state="COMPLETED" if review.decision == "approve" else "FAILED",
+                error_code=None if review.decision == "approve" else "review_rejected",
+                result=result,
+            )
+            updated = (
+                connection.execute(select(jobs).where(jobs.c.job_id == job_id)).mappings().one()
+            )
+            return _status(updated)
+
+
+def _validate_ocr(source: IngestionInput, artifact: OcrDocument) -> None:
+    """OCR changes extraction fields only; physical identity and permission scope stay fixed."""
+    if source.parser != "ocr" or len(source.pages) != len(artifact.pages):
+        raise ValueError("OCR artifact does not match the source manifest")
+    mutable = {"text", "content_hash", "parser_version", "extraction_confidence"}
+    for original, page in zip(source.pages, artifact.pages, strict=True):
+        if page.pdf_sha256 != source.source_sha256 or original.model_dump(
+            exclude=mutable
+        ) != page.metadata.model_dump(exclude=mutable):
+            raise ValueError("OCR artifact source or scope differs from the manifest")
+
+
+def _reviewed_pages(artifact: OcrDocument, review: OcrReview) -> tuple[Page, ...]:
+    """Human attestation satisfies admission; it is explicitly distinct from model confidence."""
+    texts = review.corrected_text or tuple(page.metadata.text for page in artifact.pages)
+    if len(texts) != len(artifact.pages):
+        raise ServiceError(
+            "invalid_review", "Corrections must contain every physical page in order", 422
+        )
+    return tuple(
+        Page.model_validate(
+            page.metadata.model_dump()
+            | {
+                "text": text,
+                "content_hash": text_hash(text),
+                "parser_version": page.parser + "-human-reviewed",
+                "extraction_confidence": 1.0,
+            }
+        )
+        for page, text in zip(artifact.pages, texts, strict=True)
+    )

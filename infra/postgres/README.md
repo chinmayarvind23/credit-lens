@@ -81,8 +81,8 @@ Digital publication locks the current submitter grant, validates the extracted
 manifest and publishes through the catalog's transaction entry point. The page
 inserts, catalog epoch and completed status commit together. A final lease check
 rolls back publication if ownership expires during work. The shared grant lock
-prevents concurrent revocation between authorization and commit. An OCR job can
-record a hashed review artifact but cannot automatically complete or publish.
+prevents concurrent revocation between authorization and commit. OCR jobs retain normalized artifacts in quarantine. Explicit scoped administrator
+review can atomically admit corrected pages; see [reviewed admission](../ocr/README.md#reviewed-admission).
 
 `test_ingestion_jobs.py` has 17 actual-database cases, including concurrent claim,
 restart/retry recovery, permission changes, post-insert failure/expiry rollback
@@ -105,7 +105,7 @@ checks the configured job table. A separate `IngestionWorker` now reads staged
 objects through `LocalSourceStore`, supervises `DockerPdfExtractor` and atomically
 publishes valid digital pages. Current grants are checked during extraction.
 The optional [local SQS adapter](../sqs/README.md) supports notification delivery
-and recovery. OCR admission, managed SQS and managed object storage remain unfinished.
+and recovery. Automatic OCR queue execution, managed SQS and managed object storage remain unfinished.
 
 Build the local parser image and require its immutable ID for the actual Docker
 execution tests. No image is pulled by the worker:

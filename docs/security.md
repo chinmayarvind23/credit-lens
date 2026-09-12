@@ -44,7 +44,9 @@ are added. It does not claim to hash the exact final HTTP bytes.
 
 The demo serves authored synthetic pages in memory. The physical PDF extraction
 and its metrics are a separate reproducible path. Public document upload is not
-enabled because untrusted PDF process isolation and OCR remain incomplete.
+enabled. Digital extraction has a bounded container worker; offline OCR requires
+explicit privileged review before atomic publication. A public OCR upload and
+execution service is not implemented.
 
 ## Objective
 

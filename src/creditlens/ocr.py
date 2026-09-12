@@ -101,3 +101,55 @@ def normalize_vl(
         )
     except (ValueError, TypeError, KeyError, ValidationError) as error:
         raise ExtractionError("OCR output is malformed or has no readable evidence") from error
+
+
+class OcrDocument(StrictModel):
+    """Keep a bounded, immutable review snapshot with the original extraction provenance."""
+
+    pages: tuple[ScannedPage, ...] = Field(min_length=1, max_length=1000)
+
+    @model_validator(mode="after")
+    def consistent_text(self) -> "OcrDocument":
+        """Reject forged metadata text rather than showing blocks that differ from admission."""
+        if len(self.model_dump_json().encode("utf-8")) > 8_000_000:
+            raise ValueError("OCR document exceeds review size limit")
+        for page in self.pages:
+            text = "\n\n".join(block.text for block in page.blocks if block.text.strip())
+            if (
+                page.metadata.text != text
+                or page.metadata.content_hash != sha256(text.encode("utf-8")).hexdigest()
+            ):
+                raise ValueError("OCR metadata must match the extracted blocks")
+        return self
+
+    def digest(self) -> str:
+        """Hash canonical validated JSON so a decision cannot target a different snapshot."""
+        return sha256(self.model_dump_json().encode("utf-8")).hexdigest()
+
+
+class OcrReview(StrictModel):
+    """An explicit human decision may correct text but cannot alter source scope."""
+
+    artifact_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    decision: Literal["approve", "reject"]
+    reason: str = Field(min_length=1, max_length=2000)
+    corrected_text: tuple[str, ...] | None = Field(default=None, min_length=1, max_length=1000)
+
+    @model_validator(mode="after")
+    def bounded_corrections(self) -> "OcrReview":
+        """Require readable full-page replacements and keep operator submissions bounded."""
+        if not self.reason.strip() or len(self.model_dump_json().encode()) > 8_000_000:
+            raise ValueError("Invalid review reason or size")
+        if self.corrected_text is not None:
+            if self.decision != "approve" or any(
+                not text.strip() or len(text) > 100_000 for text in self.corrected_text
+            ):
+                raise ValueError("Corrections require approval and readable bounded text")
+        return self
+
+
+class OcrReviewSnapshot(StrictModel):
+    """Return the canonical decision hash alongside the exact content the reviewer sees."""
+
+    artifact_sha256: str
+    artifact: OcrDocument

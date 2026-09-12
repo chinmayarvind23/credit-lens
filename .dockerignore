@@ -35,6 +35,7 @@ src/creditlens/*
 !src/creditlens/errors.py
 !src/creditlens/finance.py
 !src/creditlens/hybrid_provider.py
+!src/creditlens/ocr.py
 !src/creditlens/ingestion.py
 !src/creditlens/ingestion_jobs.py
 !src/creditlens/intent.py

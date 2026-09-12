@@ -88,3 +88,44 @@ the earlier VL runs; these small runs do not establish a comparative speedup.
 
 Official contracts: [PaddleOCR-VL](https://github.com/PaddlePaddle/PaddleOCR/blob/main/docs/version3.x/pipeline_usage/PaddleOCR-VL.en.md)
 and [PP-DocLayoutV3](https://huggingface.co/PaddlePaddle/PP-DocLayoutV3).
+
+
+## Reviewed admission
+
+The server now supports durable OCR review on the configured PostgreSQL catalog.
+Run offline recognition first and save an `OcrDocument` JSON object with a `pages`
+array of normalized `ScannedPage` records. These retain PDF, rendered image, raw
+output and model hashes. A trusted operator registers an OCR manifest and stages
+its PDF with the existing `submit` command, then runs:
+
+```powershell
+python scripts/ingest_documents.py --source-root <source-root> stage-ocr --job-id <job-id> --subject <admin-subject> --input <ocr-document.json>
+python scripts/ingest_documents.py --source-root <source-root> show-ocr --job-id <job-id> --subject <admin-subject>
+python scripts/ingest_documents.py --source-root <source-root> review-ocr --job-id <job-id> --subject <admin-subject> --input <decision.json>
+```
+
+Use the returned `artifact_sha256` in the decision:
+
+```json
+{"artifact_sha256":"<returned hash>","decision":"approve","reason":"Compared every page against the scanned source"}
+```
+
+Use `reject` to terminate without publication. Optional `corrected_text` supplies
+one complete replacement string for every physical page, in order. Corrections
+cannot change borrower, ACL, dates, document identity or physical page numbers.
+The reviewer must actually inspect the source; a model confidence score is not approval.
+
+The same scoped review is available through GET and POST
+`/api/v1/admin/index-jobs/{job_id}/review`. GET returns the artifact and decision
+hash. POST accepts the decision above. Ordinary demo users receive 403. The HTTP
+body limit remains 16 KiB; use the trusted CLI for larger corrections. Artifact
+and CLI decision payloads are bounded at 8 MB. Review is operator/API based, with
+no public upload or browser review interface.
+
+Approval locks current reviewer and submitter grants, publishes the batch, advances
+the catalog revision and completes the job in one transaction. Original extraction,
+reviewer, grant revision, reason and corrections remain in the job result; the job
+update time records completion. The parser suffix `-human-reviewed` and admission
+confidence 1 indicate human attestation, not measured OCR accuracy. Repeated
+terminal decisions return 409. Legacy hash-only quarantines need a new staged job.
+This completes manual reviewed admission, not automatic OCR queue execution.

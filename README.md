@@ -94,7 +94,7 @@ current admin grant. [Observability](docs/observability.md) explains the exporte
 
 Optional service instructions: [hybrid retrieval](infra/retrieval/README.md),
 [Redis](infra/redis/README.md), [PostgreSQL and digital ingestion](infra/postgres/README.md),
-[SQS-compatible workers](infra/sqs/README.md), [review-only OCR](infra/ocr/README.md).
+[SQS-compatible workers](infra/sqs/README.md), [reviewed OCR ingestion](infra/ocr/README.md).
 
 ## Architecture
 
@@ -153,7 +153,7 @@ operators who choose their own deployment. That reference is not guaranteed free
 
 The working demo is a prototype, not a finished production lending system.
 The main gaps are a calibrated full semantic benchmark, more diverse documents and
-unseen questions, reviewed OCR admission, live governed search/identity integrations
+unseen questions, automated OCR queue execution, live governed search/identity integrations
 and production operations. Process-local response caches and quotas require further
 coordination before horizontal scaling. LangSmith/CloudWatch and managed dashboards
 are not deployed. None of these planned components are presented as running services.

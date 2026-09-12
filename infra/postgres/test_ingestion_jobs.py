@@ -42,7 +42,7 @@ def store():
             .on_conflict_do_nothing()
         )
     try:
-        yield JobStore(engine, "test-" + uuid4().hex)
+        yield JobStore(engine, "synthetic-test-" + uuid4().hex)
     finally:
         engine.dispose()
 
@@ -475,3 +475,237 @@ def test_ingestion_is_opt_in_and_readiness_checks_its_store(store: JobStore, mon
 
         monkeypatch.setattr(enabled.state.jobs, "check_ready", unavailable)
         assert client.get("/ready").status_code == 503
+
+
+def ocr_fixture(store):
+    """Normalize deterministic OCR-shaped output; this tests admission, not OCR recognition."""
+    import json
+
+    from creditlens.ocr import OcrDocument, normalize_vl
+
+    actor = admin().model_copy(update={"subject": uuid4().hex})
+    seed_current_admin(store, actor)
+    source = spec().model_copy(update={"parser": "ocr"})
+    artifact = OcrDocument(
+        pages=tuple(
+            normalize_vl(
+                json.dumps(
+                    {
+                        "width": 100,
+                        "height": 100,
+                        "parsing_res_list": [
+                            {
+                                "block_label": "text",
+                                "block_content": page.text,
+                                "block_bbox": [0, 0, 100, 100],
+                                "block_order": 1,
+                            }
+                        ],
+                    }
+                ).encode(),
+                page,
+                pdf_sha256=source.source_sha256,
+                image_sha256="b" * 64,
+                models_sha256="c" * 64,
+                generation_complete=True,
+            )
+            for page in source.pages
+        )
+    )
+    job = store.submit(source, actor, "ocr-review")
+    lease = store.claim(job.job_id, parser="ocr")
+    assert lease is not None
+    catalog = initialize_catalog(store.engine, store.queue_id)
+    return actor, artifact, job, lease, catalog
+
+
+def test_reviewed_ocr_is_quarantined_then_published_atomically(store):
+    """A reviewed batch becomes exact canonical evidence while retaining original extraction."""
+    from creditlens.ocr import OcrReview
+
+    actor, artifact, job, lease, catalog = ocr_fixture(store)
+    store.stage_ocr(lease, artifact)
+    assert not catalog.snapshot(actor, "borrower-001", spec().pages[0].valid_from)[0]
+    assert store.review_artifact(job.job_id, actor) == artifact
+    corrections = tuple(page.metadata.text + " Human verified." for page in artifact.pages)
+    review = OcrReview(
+        artifact_sha256=artifact.digest(),
+        decision="approve",
+        reason="Compared against physical pages",
+        corrected_text=corrections,
+    )
+    status = store.review_ocr(job.job_id, actor, review, catalog)
+    assert status.state == "COMPLETED"
+    chunks, epoch = catalog.snapshot(actor, "borrower-001", spec().pages[0].valid_from)
+    assert chunks and epoch > 0
+    assert all(chunk.parser_version.endswith("-human-reviewed") for chunk in chunks)
+    assert any("Human verified." in chunk.text for chunk in chunks)
+    with store.engine.connect() as connection:
+        result = connection.execute(
+            select(jobs.c.result).where(jobs.c.job_id == job.job_id)
+        ).scalar_one()
+    assert result["artifact"] == artifact.model_dump(mode="json")
+    assert result["review"]["subject"] == actor.subject
+    with pytest.raises(ServiceError, match="review_unavailable"):
+        store.review_ocr(job.job_id, actor, review, catalog)
+
+
+@pytest.mark.parametrize("mutation", ["hash", "scope", "text", "expired", "digital"])
+def test_ocr_staging_rejects_wrong_source_scope_text_and_lease(store, mutation):
+    """Artifact validation and fencing must fail before any evidence is visible."""
+    from creditlens.ocr import OcrDocument
+
+    actor, artifact, job, lease, catalog = ocr_fixture(store)
+    payload = artifact.model_dump()
+    if mutation == "hash":
+        payload["pages"][0]["pdf_sha256"] = "f" * 64
+    elif mutation == "scope":
+        payload["pages"][0]["metadata"]["acl_groups"] = ("restricted",)
+    elif mutation == "text":
+        payload["pages"][0]["metadata"]["text"] = "forged"
+    elif mutation == "expired":
+        expire(store, job.job_id)
+    else:
+        with store.engine.begin() as connection:
+            source = lease.input.model_dump(mode="json") | {"parser": "digital"}
+            connection.execute(update(jobs).where(jobs.c.job_id == job.job_id).values(input=source))
+    with pytest.raises((ValueError, ServiceError)):
+        store.stage_ocr(lease, OcrDocument.model_validate(payload))
+    assert not catalog.snapshot(actor, "borrower-001", spec().pages[0].valid_from)[0]
+
+
+@pytest.mark.parametrize("failure", ["wrong_hash", "revoked", "stale_grant", "corrections"])
+def test_review_rechecks_snapshot_and_current_grants(store, failure):
+    """Stale decisions and revoked reviewers cannot admit quarantined evidence."""
+    from creditlens.ocr import OcrReview
+
+    actor, artifact, job, lease, catalog = ocr_fixture(store)
+    store.stage_ocr(lease, artifact)
+    review = OcrReview(artifact_sha256=artifact.digest(), decision="approve", reason="Checked")
+    if failure == "wrong_hash":
+        review = review.model_copy(update={"artifact_sha256": "f" * 64})
+    elif failure in {"revoked", "stale_grant"}:
+        with store.engine.begin() as connection:
+            connection.execute(
+                update(grants)
+                .where(grants.c.subject == actor.subject)
+                .values(**({"enabled": False} if failure == "revoked" else {"revision": 2}))
+            )
+    else:
+        review = review.model_copy(update={"corrected_text": ("one page only",)})
+    with pytest.raises((ValueError, ServiceError)):
+        store.review_ocr(job.job_id, actor, review, catalog)
+    assert store.status(job.job_id, actor).state == "REVIEW_REQUIRED"
+    assert not catalog.snapshot(actor, "borrower-001", spec().pages[0].valid_from)[0]
+
+
+def test_review_rejection_and_rollback_leave_no_evidence(store, monkeypatch):
+    """Failure after real SQL inserts rolls everything back; rejection remains durable."""
+    from creditlens.ocr import OcrReview
+
+    actor, artifact, job, lease, catalog = ocr_fixture(store)
+    store.stage_ocr(lease, artifact)
+    review = OcrReview(artifact_sha256=artifact.digest(), decision="approve", reason="Checked")
+    original = catalog.publish_in_transaction
+
+    def fail_after_insert(connection, pages):
+        """Inject failure after the real database write to exercise transaction rollback."""
+        original(connection, pages)
+        raise RuntimeError("after insert")
+
+    monkeypatch.setattr(catalog, "publish_in_transaction", fail_after_insert)
+    with pytest.raises(RuntimeError):
+        store.review_ocr(job.job_id, actor, review, catalog)
+    assert store.status(job.job_id, actor).state == "REVIEW_REQUIRED"
+    assert not catalog.snapshot(actor, "borrower-001", spec().pages[0].valid_from)[0]
+    rejected = store.review_ocr(
+        job.job_id, actor, review.model_copy(update={"decision": "reject"}), catalog
+    )
+    assert rejected.state == "FAILED" and rejected.error_code == "review_rejected"
+    assert not catalog.snapshot(actor, "borrower-001", spec().pages[0].valid_from)[0]
+
+
+def test_ocr_review_api_protects_artifact_and_exposes_approved_sources(store):
+    """Exercise real HTTP handlers and PostgreSQL from private review to cited source lookup."""
+    actor, artifact, job, lease, catalog = ocr_fixture(store)
+    store.stage_ocr(lease, artifact)
+    config = Settings(
+        database_url=store.engine.url.render_as_string(hide_password=False),
+        catalog_backend="postgres",
+        ingestion_enabled=True,
+        ingestion_queue_id=store.queue_id,
+    )
+    app = create_app(config)
+    path = f"/api/v1/admin/index-jobs/{job.job_id}/review"
+    with TestClient(app) as client:
+        app.state.workflow.catalog = type(catalog)(app.state.jobs.engine, catalog.catalog_id)
+        assert client.get(path).status_code == 403
+        app.dependency_overrides[current_principal] = lambda: actor
+        snapshot = client.get(path)
+        assert snapshot.status_code == 200
+        assert snapshot.headers["Cache-Control"] == "no-store"
+        assert snapshot.json()["artifact_sha256"] == artifact.digest()
+        decision = {
+            "artifact_sha256": artifact.digest(),
+            "decision": "approve",
+            "reason": "Checked",
+        }
+        assert client.post(path, json=decision).json()["state"] == "COMPLETED"
+        chunks, _ = catalog.snapshot(actor, "borrower-001", spec().pages[0].valid_from)
+        source = client.get(
+            "/api/v1/evidence/" + chunks[0].chunk_id,
+            params={"borrower_id": "borrower-001", "effective_at": str(spec().pages[0].valid_from)},
+        )
+        assert source.status_code == 200
+        assert source.json()["text"] == chunks[0].text
+        assert source.json()["page"] == chunks[0].page
+        assert client.post(path, json=decision).status_code == 409
+
+
+def test_operator_ocr_handoff_verifies_pdf_and_retains_review(store):
+    """Run the real operator commands with staged PDF bytes and durable normalized output."""
+    import argparse
+    import io
+    import json
+    from pathlib import Path
+    from tempfile import TemporaryDirectory
+
+    from pypdf import PdfWriter
+
+    from creditlens.ocr import OcrDocument
+    from creditlens.source_store import LocalSourceStore
+    from scripts.ingest_documents import handle_ocr
+
+    actor, artifact, _, _, catalog = ocr_fixture(store)
+    with TemporaryDirectory(prefix="creditlens-review-") as temporary:
+        root = Path(temporary)
+        sources = LocalSourceStore(root / "sources")
+        writer = PdfWriter()
+        for _ in artifact.pages:
+            writer.add_blank_page(width=100, height=100)
+        stream = io.BytesIO()
+        writer.write(stream)
+        digest = sources.stage(actor.tenant_id, stream.getvalue())
+        artifact = OcrDocument(
+            pages=tuple(page.model_copy(update={"pdf_sha256": digest}) for page in artifact.pages)
+        )
+        source = spec().model_copy(update={"parser": "ocr", "source_sha256": digest})
+        job = store.submit(source, actor, "operator")
+        artifact_path = root / "ocr.json"
+        artifact_path.write_text(artifact.model_dump_json(), encoding="utf-8")
+        args = argparse.Namespace(
+            command="stage-ocr", subject=actor.subject, job_id=job.job_id, input=artifact_path
+        )
+        settings = Settings(demo_catalog_id=catalog.catalog_id)
+        assert json.loads(handle_ocr(args, store, sources, settings))["state"] == "REVIEW_REQUIRED"
+        args.command = "show-ocr"
+        snapshot = json.loads(handle_ocr(args, store, sources, settings))
+        assert snapshot["artifact_sha256"] == artifact.digest()
+        decision = {
+            "artifact_sha256": artifact.digest(),
+            "decision": "approve",
+            "reason": "Checked",
+        }
+        artifact_path.write_text(json.dumps(decision), encoding="utf-8")
+        args.command = "review-ocr"
+        assert json.loads(handle_ocr(args, store, sources, settings))["state"] == "COMPLETED"

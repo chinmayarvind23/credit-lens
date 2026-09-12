@@ -13,6 +13,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from creditlens.errors import ServiceError
 from creditlens.ingestion_jobs import IngestionInput, JobStatus, JobStore, _authorize
 from creditlens.ingestion_worker import DockerPdfExtractor, IngestionWorker
+from creditlens.ocr import OcrDocument, OcrReview
 from creditlens.queue_worker import QueueWorker
 from creditlens.settings import Settings
 from creditlens.source_store import LocalSourceStore
@@ -45,6 +46,38 @@ def submit(args: argparse.Namespace, store: JobStore, sources: LocalSourceStore)
     return store.submit(source, actor, args.key).model_dump_json()
 
 
+def handle_ocr(
+    args: argparse.Namespace, store: JobStore, sources: LocalSourceStore, settings: Settings
+) -> str:
+    """Trusted offline artifacts enter quarantine only after source and current grant checks."""
+    actor = GrantStore(store.engine).resolve(args.subject)
+    store.status(args.job_id, actor)
+    if args.command == "show-ocr":
+        artifact = store.review_artifact(args.job_id, actor)
+        return json.dumps(
+            {"artifact_sha256": artifact.digest(), "artifact": artifact.model_dump(mode="json")}
+        )
+    data = bounded_read(args.input, 8_000_000)
+    if args.command == "review-ocr":
+        return store.review_ocr(
+            args.job_id,
+            actor,
+            OcrReview.model_validate_json(data),
+            SqlEvidenceCatalog(store.engine, settings.demo_catalog_id),
+        ).model_dump_json()
+    artifact = OcrDocument.model_validate_json(data)
+    lease = store.claim(args.job_id, parser="ocr")
+    if lease is None:
+        raise ServiceError("review_unavailable", "OCR job cannot be claimed", 409)
+    try:
+        sources.read(lease.input.pages[0].tenant_id, lease.input.source_sha256)
+        store.stage_ocr(lease, artifact)
+    except (OSError, ValueError):
+        store.fail(lease, "invalid_source", retryable=False)
+        raise
+    return store.status(args.job_id, actor).model_dump_json()
+
+
 def notify_submission(status: str, queue: SqsQueue | None) -> str:
     """A failed notification does not undo a committed job; expose the need for SQL recovery."""
     if queue is None:
@@ -75,6 +108,8 @@ def execute(args: argparse.Namespace, settings: Settings) -> str:
         sources = LocalSourceStore(args.source_root)
         if args.command == "submit":
             return notify_submission(submit(args, store, sources), queue)
+        if args.command in {"stage-ocr", "review-ocr", "show-ocr"}:
+            return handle_ocr(args, store, sources, settings)
         worker = IngestionWorker(
             store,
             sources,
@@ -126,6 +161,12 @@ def main() -> None:
     staging.add_argument("--manifest", type=Path, required=True)
     staging.add_argument("--subject", required=True)
     staging.add_argument("--key", required=True)
+    for name in ("stage-ocr", "review-ocr", "show-ocr"):
+        review = commands.add_parser(name)
+        review.add_argument("--job-id", required=True)
+        review.add_argument("--subject", required=True)
+        if name != "show-ocr":
+            review.add_argument("--input", type=Path, required=True)
     for command in ("work-one", "work-queue", "work-loop"):
         worker = commands.add_parser(command)
         worker.add_argument("--image", required=True)

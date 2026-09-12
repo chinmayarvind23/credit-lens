@@ -131,3 +131,33 @@ def test_unverified_completion_oversize_and_invalid_json_fail(raw: bytes, comple
             models_sha256="c" * 64,
             generation_complete=complete,
         )
+
+
+@pytest.mark.parametrize(
+    "changes",
+    [
+        {"reason": "   "},
+        {"decision": "reject", "corrected_text": ("corrected",)},
+        {"corrected_text": ("   ",)},
+        {"corrected_text": ("x" * 100_001,)},
+    ],
+)
+def test_review_rejects_empty_attestation_and_invalid_corrections(changes):
+    """A review cannot hide blank evidence, oversized text or corrections under rejection."""
+    from creditlens.ocr import OcrReview
+
+    with pytest.raises(ValueError):
+        OcrReview.model_validate(
+            {"artifact_sha256": "a" * 64, "decision": "approve", "reason": "Checked"} | changes
+        )
+
+
+def test_review_artifact_bounds_duplicated_block_and_metadata_payload():
+    """Bound the entire retained JSON, including text present in both blocks and metadata."""
+    from creditlens.ocr import OcrDocument
+
+    payload = output()
+    payload["parsing_res_list"][0]["block_content"] = "x" * 100_000
+    page = normalize(payload)
+    with pytest.raises(ValueError, match="size limit"):
+        OcrDocument(pages=(page,) * 42)

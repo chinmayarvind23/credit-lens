@@ -24,8 +24,10 @@ from creditlens.domain import Borrower, Chunk, Packet, Principal, QueryRequest, 
 from creditlens.errors import ServiceError
 from creditlens.ingestion_jobs import IngestionInput, JobStatus, JobStore, initialize_jobs
 from creditlens.limits import BodyLimit, PrivateResponses, QueryLimiter
+from creditlens.ocr import OcrReview, OcrReviewSnapshot
 from creditlens.runtime import open_workflow
 from creditlens.settings import Settings
+from creditlens.sql_catalog import SqlEvidenceCatalog
 from creditlens.sqs_queue import SqsQueue
 from creditlens.storage import GrantStore, open_database
 from creditlens.workflow import QueryWorkflow
@@ -106,6 +108,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.get("/api/v1/evidence/{chunk_id}", response_model=Chunk)(evidence)
     app.post("/api/v1/admin/documents", response_model=JobStatus, status_code=202)(submit_document)
     app.get("/api/v1/admin/index-jobs/{job_id}", response_model=JobStatus)(ingestion_status)
+    app.get("/api/v1/admin/index-jobs/{job_id}/review", response_model=OcrReviewSnapshot)(
+        ocr_artifact
+    )
+    app.post("/api/v1/admin/index-jobs/{job_id}/review", response_model=JobStatus)(ocr_review)
     frontend = Path(__file__).resolve().parents[2] / "apps" / "web" / "dist"
     if frontend.is_dir():
         app.mount("/", StaticFiles(directory=frontend, html=True), name="web")
@@ -310,3 +316,27 @@ def metrics(
     if principal.role != "admin":
         raise ServiceError("access_denied", "Metrics access is not authorized", 403)
     return Response(telemetry.render(), media_type="text/plain; version=0.0.4; charset=utf-8")
+
+
+def ocr_artifact(
+    job_id: UUID,
+    request: Request,
+    principal: Annotated[Principal, Depends(current_principal)],
+) -> OcrReviewSnapshot:
+    """Read quarantined content under the same current admin scope as publication."""
+    artifact = get_jobs(request, principal).review_artifact(str(job_id), principal)
+    return OcrReviewSnapshot(artifact_sha256=artifact.digest(), artifact=artifact)
+
+
+def ocr_review(
+    job_id: UUID,
+    body: OcrReview,
+    request: Request,
+    principal: Annotated[Principal, Depends(current_principal)],
+) -> JobStatus:
+    """Apply a hash-bound decision through the configured canonical SQL catalog."""
+    store = get_jobs(request, principal)
+    catalog = request.app.state.workflow.catalog
+    if not isinstance(catalog, SqlEvidenceCatalog):
+        raise ServiceError("review_unavailable", "Review requires the SQL catalog", 503)
+    return store.review_ocr(str(job_id), principal, body, catalog)
