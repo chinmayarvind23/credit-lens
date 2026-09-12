@@ -50,6 +50,7 @@ approve a loan or establish compliance with every policy requirement.
 | Response cache, disabled / warm | HTTP p95 23.14 / 22.67 ms (repeat) | 150 requests per mode, serial loopback, disk audit and telemetry enabled |
 | Cache variability | 18.35% first run; 2.04% repeat | Same five-borrower workload; 330 distinct audits per run including warmups |
 | Custom RAGAS field support | 2,963/2,965 supported field occurrences | All 235 returned packets; 441 actual local judgments, one arithmetic false negative shared by two fields |
+| Separate-process HTTP load | 300 measured requests; p95 86 / 99 / 300 ms at concurrency 1 / 4 / 8 | Two servers, shared PostgreSQL, equal packets and 360 distinct audits including follow-up checks |
 | Public browser verification | 12 checks passed | Desktop/mobile, all five dispositions, sources and questions with network disabled after startup |
 
 Cache gains varied across runs on this shared workstation; a reliable production
@@ -147,6 +148,9 @@ traces, metrics, source hashes and a 2.7-second p95 ceiling. Its observed latenc
 reported independently of that ceiling. CI also runs the frozen 240-question
 retrieval/security regression gate and coverage checks. Hosted CI is manual-dispatch
 only under the no-spending constraint; local checks do not imply a hosted run.
+
+The [multi-instance load report](docs/multi-instance.md) records concurrent HTTP,
+shared audits, revocation and the limits of process-local quotas.
 
 The [clean release verification](docs/release-verification.md) records a fresh
 installation, frontend build, documented tests and actual HTTP checks.
