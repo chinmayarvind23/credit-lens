@@ -137,3 +137,27 @@ alert behavior; they are not measured production faults or OCR recognition runs.
 Port 19101 serves only synthetic aggregate metrics for Docker to scrape. The
 fixture ends automatically and retains its snapshot and final exposition. Stop
 only the owned PostgreSQL and monitoring containers after verification.
+
+## Reviewed semantic evaluation and token snapshots
+
+The separate `CreditLens reviewed evaluation snapshots` dashboard uses six panels.
+`scripts/export_evaluation_metrics.py --report PATH --sha256 REVIEWED_HASH --output FRESH_DIR`
+accepts complete reconciled reports and verifies bound raw local model journals before
+exporting measured token usage. Run it from the repository root so historical journal
+paths resolve. Exporting requires no inference or external credentials.
+
+`python infra/monitoring/serve_snapshot.py FRESH_DIR --host 0.0.0.0 --port 19102 --seconds 180`
+serves only hash-verified metrics to the owned local Docker scraper. The default host
+is loopback; the explicit host permits Docker access. Use port19102 for RAGAS and
+19103 for a separately reconciled DeepEval report. The fixture automatically exits;
+production operators should integrate the verified `.prom` file with their existing
+textfile collector and configure refresh/retention independently.
+
+Field support, strict whole-packet verdicts and human calibration are separate
+measurements. Tokens are actual local evaluation usage, not serving estimates.
+`cost_known=0` means dollar cost is unknown, not free electricity or zero operating
+cost. Snapshot disappearance means no current scrape, not quality zero. The local
+verification checked all six Grafana queries; RAGAS support, both token directions,
+cost-unknown and absent-human-calibration appeared. Whole-packet panels remained
+empty pending full reconciliation. Raw verification is retained privately in
+`evals/semantic-monitoring-v1`; no source text or case IDs appear in metric labels.

@@ -1,0 +1,246 @@
+{
+  "uid": "creditlens-evaluation",
+  "title": "CreditLens reviewed evaluation snapshots",
+  "schemaVersion": 39,
+  "version": 1,
+  "timezone": "utc",
+  "refresh": "5s",
+  "time": {
+    "from": "now-15m",
+    "to": "now"
+  },
+  "tags": [
+    "creditlens",
+    "local-evaluation"
+  ],
+  "panels": [
+    {
+      "id": 1,
+      "title": "Custom RAGAS cited-field support (not packet accuracy)",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "creditlens-prometheus"
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "targets": [
+        {
+          "expr": "creditlens_eval_field_support_ratio",
+          "refId": "A",
+          "instant": true,
+          "legendFormat": "{{job}} {{direction}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 2,
+      "title": "Whole-packet GEval raw pass ratio (not human accuracy)",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "creditlens-prometheus"
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      },
+      "targets": [
+        {
+          "expr": "creditlens_eval_packet_pass_ratio",
+          "refId": "A",
+          "instant": true,
+          "legendFormat": "{{job}} {{direction}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 3,
+      "title": "Measured local evaluation tokens",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "creditlens-prometheus"
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 12,
+        "x": 0,
+        "y": 5
+      },
+      "targets": [
+        {
+          "expr": "creditlens_eval_tokens",
+          "refId": "A",
+          "instant": true,
+          "legendFormat": "{{job}} {{direction}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 4,
+      "title": "Monetary cost established (0 = unknown)",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "creditlens-prometheus"
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 12,
+        "x": 12,
+        "y": 5
+      },
+      "targets": [
+        {
+          "expr": "creditlens_eval_cost_known",
+          "refId": "A",
+          "instant": true,
+          "legendFormat": "{{job}} {{direction}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 5,
+      "title": "Independent human calibration (0 = absent)",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "creditlens-prometheus"
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 12,
+        "x": 0,
+        "y": 10
+      },
+      "targets": [
+        {
+          "expr": "creditlens_eval_human_calibrated",
+          "refId": "A",
+          "instant": true,
+          "legendFormat": "{{job}} {{direction}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 6,
+      "title": "Whole-packet synthetic controls passed",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "creditlens-prometheus"
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 12,
+        "x": 12,
+        "y": 10
+      },
+      "targets": [
+        {
+          "expr": "creditlens_eval_controls_passed",
+          "refId": "A",
+          "instant": true,
+          "legendFormat": "{{job}} {{direction}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    }
+  ]
+}

@@ -10,3 +10,15 @@ scrape_configs:
       - targets: [host.docker.internal:19101]
         labels:
           environment: local-synthetic
+  - job_name: creditlens-eval-ragas
+    scrape_timeout: 3s
+    static_configs:
+      - targets: [host.docker.internal:19102]
+        labels:
+          environment: local-evaluation-snapshot
+  - job_name: creditlens-eval-deepeval
+    scrape_timeout: 3s
+    static_configs:
+      - targets: [host.docker.internal:19103]
+        labels:
+          environment: local-evaluation-snapshot
