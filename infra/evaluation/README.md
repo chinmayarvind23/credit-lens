@@ -198,6 +198,25 @@ nonempty pending-rubric fields remain unscored. These are exposed controls and a
 selected historical sample; human calibration, question relevance and population
 quality remain unmeasured. The original failed diagnostics are retained.
 
+## Operational state and guidance
+
+`check_packet_state.py` grades disposition, missing documents and abstention
+against `evals/packet_state_expectations-v1.jsonl`. Empty missing-document lists
+and false flags remain in the denominator. The historical six-packet sample
+passes 14/18 fields; the saved `00cb2da` replay passes 18/18 after the policy
+reference fix. This does not change the original fixture rubric.
+
+`export_advice_fields.py` exports both original guidance lists from each labeled
+packet with canonical, scope-verified source spans and independently authored
+guidance expectations. `run_advice_eval.py` uses DeepEval GEval with fixed steps,
+strict binary scoring and the existing local-only judge. It assesses relevance,
+actionability and authority boundaries, rather than treating questions as factual
+claims. Every field needs one typed response, a reason and exact raw-output
+reconciliation; fractional scores cannot be hidden by GEval's integer conversion.
+The rubric is `underwriting-guidance-v1`; twelve frozen controls live in
+`advice-controls-v1.jsonl`. Control screening and actual packet results are
+separate from protocol tests and human validation.
+
 Next: inspect real packet judgments and calibrate against human judgments before
 promoting semantic results. Public
 benchmarks, full RAGAS validation, online replay/alerts and regression gates remain required by
