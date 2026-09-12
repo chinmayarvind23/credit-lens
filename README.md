@@ -34,6 +34,7 @@ approve a loan or establish compliance with every policy requirement.
 - Bounded full-response caching with fresh authorization, citations, request IDs and audits.
 - Optional Redis retrieval caching and a shared PostgreSQL canonical catalog.
 - Durable digital-PDF ingestion, fenced worker leases, atomic publication and SQS-compatible notifications.
+- Quarantined OCR review with scoped approval, text correction, rejection and retained provenance.
 - Local OTel traces, Prometheus metrics, security/regression tests and CI quality/latency gates.
 - Actual DeepEval and RAGAS runners using a local judge; validation limits are listed below.
 
@@ -64,9 +65,12 @@ See [evaluation definitions](docs/evaluation.md) and [judge runners](infra/evalu
 
 ## Run the server locally
 
-Use Python 3.11, uv and Bun 1.3.10. The synthetic demo needs no cloud credentials.
+Use Git, Python 3.11, uv and Bun 1.3.10. The synthetic demo needs no cloud credentials.
+Use a Git checkout because evaluation provenance records the source commit.
 
 ```powershell
+git clone https://github.com/chinmayarvind23/credit-lens.git
+cd credit-lens
 uv sync --locked
 cd apps/web
 bun install --frozen-lockfile
@@ -140,6 +144,9 @@ traces, metrics, source hashes and a 2.7-second p95 ceiling. Its observed latenc
 reported independently of that ceiling. CI also runs the frozen 240-question
 retrieval/security regression gate and coverage checks. Hosted CI is manual-dispatch
 only under the no-spending constraint; local checks do not imply a hosted run.
+
+The [clean release verification](docs/release-verification.md) records a fresh
+installation, frontend build, documented tests and actual HTTP checks.
 
 ## Optional AWS setup
 
