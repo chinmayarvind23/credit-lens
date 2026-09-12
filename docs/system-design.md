@@ -173,4 +173,3 @@ verification](multi-instance.md), [delivery](delivery.md), [Redis](../infra/redi
 [retrieval](../infra/retrieval/README.md), [Weaviate](../infra/weaviate/README.md),
 [Spark](../infra/spark/README.md), [gRPC](../infra/rpc/README.md) and
 [Supabase](../infra/supabase/README.md).
-
