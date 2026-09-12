@@ -39,22 +39,39 @@ uv run --no-sync uvicorn creditlens.api:create_app --factory --host 127.0.0.1 --
 
 Open [the workbench](http://127.0.0.1:8000) or [API documentation](http://127.0.0.1:8000/docs). Configuration is documented in [.env.example](.env.example). See [commands](docs/commands.md) for checks and [evaluation usage](evals/README.md) for reproducible runs.
 
-## Tech stack
+## Technology
 
-| Area | Technologies |
-| --- | --- |
-| Backend | Python, FastAPI, Pydantic, SQLAlchemy |
-| Retrieval | Lexical search; optional LlamaIndex chunking, Sentence Transformers, hybrid search and reranking |
-| Storage | PostgreSQL, Redis; SQLite for the demo |
-| Frontend | TypeScript, Bun, Pyodide |
-| Evaluation and observability | DeepEval, RAGAS, OpenTelemetry, Prometheus, Grafana |
-| Deployment | Hugging Face Spaces, Docker |
+**Python · FastAPI · Pydantic · SQLAlchemy · TypeScript · PostgreSQL · OpenTelemetry**
 
-The browser demo uses public fictional evidence and lexical retrieval. Server services and model-based retrieval are configured separately.
+Python and FastAPI expose the underwriting service, Pydantic validates its contracts,
+and SQLAlchemy manages canonical evidence and application state. PostgreSQL supports
+server persistence; Redis supplies shared caching. TypeScript and Bun power the workbench,
+while OpenTelemetry traces retrieval and service operations. The browser demo runs Python
+through Pyodide with SQLite, public fictional evidence and lexical retrieval.
 
-**Optional integrations:** [Snowflake Cortex](infra/cortex/README.md), [OpenSearch](infra/opensearch/README.md), [reviewed OCR](infra/ocr/README.md), [SQS-compatible messaging](infra/sqs/README.md), [gRPC](infra/rpc/README.md), [GraphQL](docs/graphql-admin.md), [Supabase](infra/supabase/README.md) and [AWS Terraform](infra/aws/README.md).
+### Integrations
 
-**Experiments:** [FAISS](scripts/benchmark_faiss.py) and [Weaviate](infra/weaviate/README.md) retrieval comparisons; [Spark/PySpark](infra/spark/README.md) metadata backfill.
+Configure the integrations your deployment needs:
+
+- **Retrieval and document processing:** LlamaIndex for chunking, Sentence Transformers
+  for model-based retrieval and reranking, [Snowflake Cortex](infra/cortex/README.md)
+  and [OpenSearch](infra/opensearch/README.md) for search integrations, and
+  [reviewed OCR](infra/ocr/README.md) for document ingestion.
+- **Evaluation and monitoring:** DeepEval and RAGAS for evaluation, with Prometheus
+  and Grafana for operational monitoring.
+- **Interfaces and delivery:** [SQS-compatible messaging](infra/sqs/README.md) for
+  ingestion delivery, plus [gRPC](infra/rpc/README.md) and
+  [GraphQL](docs/graphql-admin.md) for service and inspection interfaces.
+- **Hosting and infrastructure:** Hugging Face Spaces for the browser demo, Docker
+  for service packaging, [Supabase](infra/supabase/README.md) for a PostgreSQL
+  integration and [AWS Terraform](infra/aws/README.md) for operator-managed infrastructure.
+- **Retrieval and processing experiments:** [FAISS](scripts/benchmark_faiss.py) and
+  [Weaviate](infra/weaviate/README.md) retrieval comparisons, and
+  [Spark/PySpark](infra/spark/README.md) metadata backfill.
+
+Server services and model-based retrieval are configured separately from the browser demo.
+See [system design](docs/system-design.md) for component boundaries and
+[deployment setup](docs/deployment.md) for hosting and infrastructure configuration.
 
 ## How it works
 
