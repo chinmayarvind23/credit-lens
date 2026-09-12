@@ -21,14 +21,14 @@ integration skipped. This is separate from the earlier fresh-checkout run and
 from the retained local neural-retrieval experiments. No new cloud or inference
 performance measurements are implied.
 
-For résumé use, retain 3,840 synthetic pages, the 240-question authored suite and
+For rÃ©sumÃ© use, retain 3,840 synthetic pages, the 240-question authored suite and
 local Recall@10 improvement from 74.05% to 86.54%. Do not present requested semantic
 accuracy or cloud-cost targets as measured results. The later full-packet DeepEval
-diagnostic was stopped when the user prioritized faster résumé delivery; its raw
+diagnostic was stopped when the user prioritized faster rÃ©sumÃ© delivery; its raw
 outputs and failures remain retained. RAGAS's completed cited-field diagnostic
 does not establish whole-answer accuracy.
 
-The project resources directory contains the final résumé bullets, blog,
+The project resources directory contains the final rÃ©sumÃ© bullets, blog,
 interview notes, decisions, raw measurements and video. Live managed deployments,
 automated OCR execution and broader planned engineering experiments are not
-represented as completed by this delivery reference.
+represented as completed by this delivery reference.
