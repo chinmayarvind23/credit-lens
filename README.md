@@ -4,6 +4,8 @@
 
 [Open the interactive demo](https://huggingface.co/spaces/chinmayarvind/creditlens)
 
+[Project summary and measured bullets](docs/project-summary.md) ? [Stack implementation map](docs/stack-evidence.md)
+
 [![Recorded browser
 demonstration](https://huggingface.co/spaces/chinmayarvind/creditlens/resolve/main/demo.gif)](https://huggingface.co/spaces/chinmayarvind/creditlens)
 
