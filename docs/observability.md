@@ -26,9 +26,20 @@ metrics access. Actual loopback HTTP runs record metrics and rotating trace file
 The free browser demo exposes its per-request stage trace, but does not load this
 server-only SDK or send telemetry anywhere.
 
-The [local Grafana stack](../infra/monitoring/README.md) provisions eight operational
-panels backed by actual synthetic HTTP metrics and Prometheus. It has no paid or
-managed services. The broader signal catalog below remains a plan. LangSmith,
+Additional implemented metrics are `creditlens_stage_duration_seconds` and
+`creditlens_stage_errors_total` with finite stage labels, `creditlens_abstentions_total`
+after successful audit, and `creditlens_acl_denials_total` for HTTP 401/403 responses.
+Unknown stage names map to `other` in metrics and exported traces. Failed stages
+retain timing without exporting exception text. Citation-stage failures describe
+execution validation failures, not semantic citation-precision judgments.
+
+The [local Grafana stack](../infra/monitoring/README.md) provisions 13 operational
+panels backed by actual synthetic HTTP metrics and Prometheus, including stage
+timing/errors, abstentions, authorization denials and alert states. Four local
+rules cover unavailable/missing targets, slow query p95, server-error fraction and
+citation-validation failures. No notification recipient is configured.
+It has no paid or managed services. Unimplemented items in the broader signal
+catalog below remain planned, including token/cost, semantic-quality and ingestion signals. LangSmith,
 CloudWatch, an OTLP collector and managed Grafana dashboards are not deployed.
 
 

@@ -1,0 +1,154 @@
+{
+  "rule_files": [
+    "alerts.yml"
+  ],
+  "evaluation_interval": "10s",
+  "tests": [
+    {
+      "interval": "10s",
+      "input_series": [
+        {
+          "series": "up{job=\"creditlens-synthetic\",instance=\"test\"}",
+          "values": "1 0 0 0 0 0 1 1 1"
+        }
+      ],
+      "alert_rule_test": [
+        {
+          "eval_time": "20s",
+          "alertname": "CreditLensUnavailable",
+          "exp_alerts": []
+        },
+        {
+          "eval_time": "40s",
+          "alertname": "CreditLensUnavailable",
+          "exp_alerts": [
+            {
+              "exp_labels": {
+                "severity": "warning",
+                "job": "creditlens-synthetic",
+                "instance": "test"
+              },
+              "exp_annotations": {
+                "summary": "CreditLens metrics target is unavailable"
+              }
+            }
+          ]
+        },
+        {
+          "eval_time": "80s",
+          "alertname": "CreditLensUnavailable",
+          "exp_alerts": []
+        }
+      ]
+    },
+    {
+      "interval": "30s",
+      "input_series": [
+        {
+          "series": "creditlens_requests_total{status=\"5xx\"}",
+          "values": "0+10x8"
+        },
+        {
+          "series": "creditlens_requests_total{status=\"2xx\"}",
+          "values": "0+90x8"
+        },
+        {
+          "series": "creditlens_stage_errors_total{stage=\"citation.validate_exact_extracts\"}",
+          "values": "0+1x8"
+        },
+        {
+          "series": "creditlens_request_duration_seconds_bucket{route=\"/api/v1/query\",le=\"2.7\"}",
+          "values": "0+0x8"
+        },
+        {
+          "series": "creditlens_request_duration_seconds_bucket{route=\"/api/v1/query\",le=\"10\"}",
+          "values": "0+10x8"
+        },
+        {
+          "series": "creditlens_request_duration_seconds_bucket{route=\"/api/v1/query\",le=\"+Inf\"}",
+          "values": "0+10x8"
+        }
+      ],
+      "alert_rule_test": [
+        {
+          "eval_time": "3m",
+          "alertname": "CreditLensQuerySlow",
+          "exp_alerts": [
+            {
+              "exp_labels": {
+                "severity": "warning"
+              },
+              "exp_annotations": {
+                "summary": "Query p95 exceeds the 2.7 second local gate"
+              }
+            }
+          ]
+        },
+        {
+          "eval_time": "3m",
+          "alertname": "CreditLensServerErrors",
+          "exp_alerts": [
+            {
+              "exp_labels": {
+                "severity": "warning"
+              },
+              "exp_annotations": {
+                "summary": "HTTP server errors exceed five percent"
+              }
+            }
+          ]
+        },
+        {
+          "eval_time": "3m",
+          "alertname": "CreditLensCitationValidationFailure",
+          "exp_alerts": [
+            {
+              "exp_labels": {
+                "severity": "warning"
+              },
+              "exp_annotations": {
+                "summary": "Exact citation validation failed during packet preparation"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "interval": "30s",
+      "input_series": [],
+      "alert_rule_test": [
+        {
+          "eval_time": "3m",
+          "alertname": "CreditLensQuerySlow",
+          "exp_alerts": []
+        },
+        {
+          "eval_time": "3m",
+          "alertname": "CreditLensServerErrors",
+          "exp_alerts": []
+        },
+        {
+          "eval_time": "3m",
+          "alertname": "CreditLensCitationValidationFailure",
+          "exp_alerts": []
+        },
+        {
+          "eval_time": "3m",
+          "alertname": "CreditLensUnavailable",
+          "exp_alerts": [
+            {
+              "exp_labels": {
+                "severity": "warning",
+                "job": "creditlens-synthetic"
+              },
+              "exp_annotations": {
+                "summary": "CreditLens metrics target is unavailable"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

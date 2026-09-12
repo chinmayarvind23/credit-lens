@@ -1,0 +1,30 @@
+groups:
+  - name: creditlens-operations
+    rules:
+      - alert: CreditLensUnavailable
+        expr: up{job="creditlens-synthetic"} == 0 or absent(up{job="creditlens-synthetic"})
+        for: 30s
+        labels:
+          severity: warning
+        annotations:
+          summary: CreditLens metrics target is unavailable
+      - alert: CreditLensQuerySlow
+        expr: histogram_quantile(0.95, sum by (le) (rate(creditlens_request_duration_seconds_bucket{route="/api/v1/query"}[2m]))) > 2.7
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: Query p95 exceeds the 2.7 second local gate
+      - alert: CreditLensServerErrors
+        expr: sum(rate(creditlens_requests_total{status="5xx"}[2m])) / sum(rate(creditlens_requests_total[2m])) > 0.05
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: HTTP server errors exceed five percent
+      - alert: CreditLensCitationValidationFailure
+        expr: sum(increase(creditlens_stage_errors_total{stage="citation.validate_exact_extracts"}[2m])) > 0
+        labels:
+          severity: warning
+        annotations:
+          summary: Exact citation validation failed during packet preparation

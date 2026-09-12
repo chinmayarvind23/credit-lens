@@ -29,6 +29,27 @@ ROUTES = frozenset(
         "/api/v1/metrics",
     }
 )
+STAGES = frozenset(
+    {
+        "auth.resolve_current_grant",
+        "authorization.filter_before_retrieval",
+        "cache.response.hit",
+        "citation.validate_exact_extracts",
+        "authorization.recheck",
+        "audit.persist",
+        "retrieval.local_bm25",
+        "retrieval.provider",
+        "cache.retrieval.hit",
+        "cache.retrieval.miss",
+        "cache.retrieval.disabled",
+        "intent.classify_question",
+        "context.check_requested_topic",
+        "retrieval.financial_metadata_lookup",
+        "context.build",
+        "finance.deterministic",
+        "answer.extractive",
+    }
+)
 
 
 class LocalSpanExporter(SpanExporter):
@@ -105,22 +126,52 @@ class Telemetry:
             ["disposition", "cache"],
             registry=self.registry,
         )
+        self.stage_duration = Histogram(
+            "creditlens_stage_duration_seconds",
+            "Workflow stage duration, including failures",
+            ["stage"],
+            registry=self.registry,
+        )
+        self.stage_errors = Counter(
+            "creditlens_stage_errors_total",
+            "Failed workflow stages",
+            ["stage"],
+            registry=self.registry,
+        )
+        self.abstentions = Counter(
+            "creditlens_abstentions_total",
+            "Audited packets that abstain",
+            registry=self.registry,
+        )
+        self.denials = Counter(
+            "creditlens_acl_denials_total",
+            "HTTP authentication or authorization denials",
+            ["status"],
+            registry=self.registry,
+        )
 
     @contextmanager
     def span(self, name: str) -> Iterator[None]:
         """Disable SDK exception capture because exception messages can contain private payloads."""
+        label = name if name in STAGES else "other"
+        started = perf_counter()
         with self.tracer.start_as_current_span(
-            name, record_exception=False, set_status_on_exception=False
+            label, record_exception=False, set_status_on_exception=False
         ) as span:
             try:
                 yield
             except Exception:
+                self.stage_errors.labels(label).inc()
                 span.set_status(StatusCode.ERROR)
                 raise
+            finally:
+                self.stage_duration.labels(label).observe(perf_counter() - started)
 
     def packet(self, packet: Packet) -> None:
         """Expose only finite disposition/cache labels after the protected audit has succeeded."""
         self.packets.labels(packet.policy_disposition, "hit" if packet.cache_hit else "miss").inc()
+        if packet.abstained:
+            self.abstentions.inc()
 
     def render(self) -> bytes:
         """Generate standard Prometheus exposition without private identifiers or source text."""
@@ -179,3 +230,5 @@ class TelemetryMiddleware:
                     span.set_status(StatusCode.ERROR)
                 telemetry.requests.labels(route, method, f"{status // 100}xx").inc()
                 telemetry.duration.labels(route).observe(perf_counter() - started)
+                if status in {401, 403}:
+                    telemetry.denials.labels(str(status)).inc()

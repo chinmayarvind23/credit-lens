@@ -301,6 +301,186 @@
           "placement": "bottom"
         }
       }
+    },
+    {
+      "id": 9,
+      "title": "Workflow stage p95",
+      "type": "timeseries",
+      "description": "Measured operational signals. Missing series do not establish zero failures or semantic accuracy.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "creditlens-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 32
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le, stage) (rate(creditlens_stage_duration_seconds_bucket[2m])))",
+          "refId": "A",
+          "legendFormat": "{{stage}}{{status}}{{alertname}}{{alertstate}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 10,
+      "title": "Stage failures",
+      "type": "timeseries",
+      "description": "Measured operational signals. Missing series do not establish zero failures or semantic accuracy.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "creditlens-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 32
+      },
+      "targets": [
+        {
+          "expr": "sum by (stage) (creditlens_stage_errors_total)",
+          "refId": "A",
+          "legendFormat": "{{stage}}{{status}}{{alertname}}{{alertstate}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 11,
+      "title": "Audited abstentions",
+      "type": "timeseries",
+      "description": "Measured operational signals. Missing series do not establish zero failures or semantic accuracy.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "creditlens-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 40
+      },
+      "targets": [
+        {
+          "expr": "creditlens_abstentions_total",
+          "refId": "A",
+          "legendFormat": "{{stage}}{{status}}{{alertname}}{{alertstate}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 12,
+      "title": "Authentication / authorization denials",
+      "type": "timeseries",
+      "description": "Measured operational signals. Missing series do not establish zero failures or semantic accuracy.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "creditlens-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 40
+      },
+      "targets": [
+        {
+          "expr": "sum by (status) (creditlens_acl_denials_total)",
+          "refId": "A",
+          "legendFormat": "{{stage}}{{status}}{{alertname}}{{alertstate}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 13,
+      "title": "Operational alert states",
+      "type": "timeseries",
+      "description": "Measured operational signals. Missing series do not establish zero failures or semantic accuracy.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "creditlens-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 48
+      },
+      "targets": [
+        {
+          "expr": "ALERTS{alertname=~\"CreditLens.*\"}",
+          "refId": "A",
+          "legendFormat": "{{stage}}{{status}}{{alertname}}{{alertstate}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
     }
   ]
 }
