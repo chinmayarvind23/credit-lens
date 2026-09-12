@@ -28,7 +28,18 @@ diagnostic was stopped when the user prioritized faster résumé delivery; its r
 outputs and failures remain retained. RAGAS's completed cited-field diagnostic
 does not establish whole-answer accuracy.
 
-The project resources directory contains the final résumé bullets, blog,
-interview notes, decisions, raw measurements and video. Live managed deployments,
-automated OCR execution and broader planned engineering experiments are not
-represented as completed by this delivery reference.
+The project resources directory contains the résumé bullets, blog,
+interview notes, decisions, raw measurements and video. Subsequent verified work
+includes the trusted Windows OCR worker and durable review queue,
+[Grafana operations dashboards](../infra/monitoring/README.md),
+[scoped FAISS comparison](faiss-benchmark.md),
+[four Weaviate HNSW configurations](../infra/weaviate/README.md), and
+[local Spark metadata backfill](../infra/spark/README.md).
+Live managed deployments, sandboxed public OCR ingestion and the full expanded
+PRD are not represented as complete.
+
+For a concise performance claim, the local two-process extractive benchmark
+recorded 300 ms p95 at eight concurrent clients and 360 distinct PostgreSQL audit
+records across load, warmup and follow-up checks. Its five-borrower lexical
+workload is separate from the 3,840-page hybrid retrieval experiment. The latter
+measured .7878 nDCG@10 and a 12.49-percentage-point Recall@10 improvement.
