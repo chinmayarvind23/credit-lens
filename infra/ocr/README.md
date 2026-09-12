@@ -64,8 +64,14 @@ hashes and trusted document metadata. It discards metadata text, retains physica
 page scope, and sets extracted page confidence to zero. All normalized artifacts
 require review. Layout scores do not establish text recognition confidence. A
 caller must establish generation completion before normalization; merely reaching
-the token limit does not satisfy that requirement. The current probe does not
-automatically establish completion or publish pages to the catalog.
+the token limit does not satisfy that requirement. The probe now observes native
+token sequences before decoding: every sequence must reach EOS strictly before
+the cap, with only padding afterwards. Missing EOS, a cap-length sequence or an
+unsupported generation configuration fails closed. `completion.json` retains the
+actual token IDs; `measurement.json` reports page-level completion. An incomplete
+VL result exits with code 2 and must not be normalized. Zero recognized sequences
+do not establish readable evidence. The probe still does not publish pages or
+automatically execute durable OCR jobs.
 
 Contract tests exercise malformed JSON, blank output, geometry, reading order,
 oversize output and uncertain completion. These tests do not measure OCR quality.
@@ -129,3 +135,12 @@ update time records completion. The parser suffix `-human-reviewed` and admissio
 confidence 1 indicate human attestation, not measured OCR accuracy. Repeated
 terminal decisions return 409. Legacy hash-only quarantines need a new staged job.
 This completes manual reviewed admission, not automatic OCR queue execution.
+
+## Observed native completion
+
+The instrumented financial-page run observed seven EOS-terminated sequences of
+9 to 119 tokens, all below the 1,024-token cap. The run recovered 15/15 table cells
+and 8/8 numeric cells, and normalized into a review-required artifact with zero
+extraction confidence. No publication occurred. Actual supervised time was 368.94
+seconds; this single synthetic fixture does not establish general OCR accuracy or
+throughput. Fourteen OCR contract and supervisor tests passed.

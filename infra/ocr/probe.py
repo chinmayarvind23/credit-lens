@@ -5,6 +5,7 @@ import hashlib
 import json
 import os
 import time
+from contextlib import nullcontext
 from pathlib import Path
 
 REVISIONS = {
@@ -89,7 +90,17 @@ def main() -> None:
     pipeline = build_pipeline(args.models, args.engine)
     loaded = time.perf_counter()
     options = {"max_new_tokens": 1024, "use_queues": False} if args.engine == "vl" else {}
-    results = list(pipeline.predict(str(args.image), **options))
+    if __package__:
+        from .completion import observe_generation
+    else:
+        from completion import observe_generation
+    observer = (
+        observe_generation(args.output / "completion.json")
+        if args.engine == "vl"
+        else nullcontext([])
+    )
+    with observer as sequences:
+        results = list(pipeline.predict(str(args.image), **options))
     for index, result in enumerate(results):
         result.save_to_json(str(args.output / f"page-{index + 1}.json"))
     record = {
@@ -103,11 +114,17 @@ def main() -> None:
         "max_new_tokens": 1024 if args.engine == "vl" else None,
         "recognition_confidence": None if args.engine == "vl" else "uncalibrated-per-line",
         "review_required": True,
+        "generation_complete": bool(sequences)
+        and all(sequence["generation_complete"] for sequence in sequences)
+        if args.engine == "vl"
+        else None,
     }
     (args.output / "measurement.json").write_text(
         json.dumps(record, indent=2) + "\n", encoding="utf-8"
     )
     print(json.dumps(record), flush=True)
+    if args.engine == "vl" and not record["generation_complete"]:
+        raise SystemExit(2)
 
 
 if __name__ == "__main__":
