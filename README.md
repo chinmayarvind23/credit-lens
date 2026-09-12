@@ -174,11 +174,18 @@ revocations require reconciliation before reopening.
 The [clean release verification](docs/release-verification.md) records a fresh installation,
 frontend build, documented tests and actual HTTP checks.
 
-Local monitoring provisions 20 operational, six evaluation and six indexing panels. Runtime cost
+Local monitoring provisions 23 operational, six evaluation and nine indexing panels. Runtime cost
 metrics distinguish known from unknown values. The local indexing snapshot acknowledged 3,840 chunks
 in 0.957 seconds and observed one canary after 0.990 seconds; this does not establish production
-capacity or full-index freshness. See [monitoring](infra/monitoring/README.md) and
+capacity or continuous production freshness. See [monitoring](infra/monitoring/README.md) and
 [evaluation](docs/evaluation.md) for observed token counts, dashboard checks and measurement limits.
+
+A later local SQL-to-search experiment verified all 3,840 canonical payloads and searchable text in
+4.890 seconds after SQL publication, across 39 search requests. SQL publication itself took 32.057
+seconds and is reported separately. The local neural drill measured document/query embedding and
+reranking, including an injected query failure with identical ranking after recovery. These are
+bounded local observations. See [publication visibility](infra/monitoring/publication-visibility.md)
+and [neural monitoring](infra/monitoring/neural.md).
 
 ## Optional AWS setup
 

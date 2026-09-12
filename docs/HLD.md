@@ -11,7 +11,7 @@ The FastAPI server shares the same core logic and adds managed identity, optiona
 shared SQL catalog, Redis ID caching and digital ingestion workers. An opt-in process-local response
 cache skips repeated retrieval/calculation while reauthorizing, validating exact current sources and
 recording a fresh audit. Local OTel, Prometheus and Grafana are implemented. The provisioned
-dashboard has 20 operational, six evaluation and six indexing panels, plus six alert rules. Hosted
+dashboard has 23 operational, six evaluation and nine indexing panels, plus six alert rules. Hosted
 monitoring and notification routing remain operator work. See
 [monitoring](../infra/monitoring/README.md). AWS is an optional documented deployment and no
 resources have been provisioned. The flows below describe implemented browser, server and
@@ -131,3 +131,9 @@ A one-test [PostgreSQL restore drill](recovery.md) preserved 330 canonical rows,
 revocations. Revocations made after a backup can be lost on restore and require reconciliation
 before reopening. Shared Redis quota recovery has separate contention/expiry evidence; it does not
 restore SQL authority.
+
+Actual neural-operation telemetry now distinguishes document embedding, query embedding and
+reranking, including validation failures and recovery. The separate SQL-publication drill verified
+search visibility for every one of 3,840 canonical chunks. These local checks are described in
+[publication visibility](../infra/monitoring/publication-visibility.md) and
+[neural monitoring](../infra/monitoring/neural.md).

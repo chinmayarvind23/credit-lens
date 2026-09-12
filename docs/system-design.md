@@ -112,8 +112,8 @@ numeric cells; this is not a general OCR accuracy result.
 ## Measurement and operations
 
 Local OTel exports allowlisted traces and finite metric labels. Admin-only Prometheus scraping feeds
-20 operational, six evaluation and six indexing Grafana panels, plus six alert rules. Four SQL
-gauges cover retained job counts, attempts, oldest state age and expired leases. A local drill
+23 operational, six evaluation and nine indexing panels Grafana panels, plus six alert rules. Four
+SQL gauges cover retained job counts, attempts, oldest state age and expired leases. A local drill
 returned SQL-backed data through all five ingestion panels and fired backlog/expired-lease alerts
 after explicit timestamp injection. Hosted alert delivery, production incident response, drift
 review and human feedback remain operator or evaluation work. Runtime cost counters/histograms
@@ -143,7 +143,7 @@ Actual RAGAS journal counts total 538,444 prompt and 65,932 completion tokens; t
 model-reported observations, not cloud dollar cost. The local indexing drill acknowledged 3,840
 chunks in 0.957 seconds and observed a canary searchable 0.990 seconds after acknowledgement
 processing. One deliberately invalid write was rejected separately. This snapshot does not measure
-full-index freshness or embedding failures.
+continuous production freshness or a natural model-error rate.
 
 A separate PostgreSQL backup/restore drill passed one test, preserving 330 canonical rows, protected
 audits and revocations present in the snapshot. Revocations made after the backup can be lost on
@@ -165,3 +165,14 @@ verification](multi-instance.md), [delivery](delivery.md), [Redis](../infra/redi
 [retrieval](../infra/retrieval/README.md), [Weaviate](../infra/weaviate/README.md),
 [Spark](../infra/spark/README.md), [gRPC](../infra/rpc/README.md) and
 [Supabase](../infra/supabase/README.md).
+
+The later local publication experiment verified all 3,840 SQL canonical payloads and exact
+searchable text in 4.890 seconds after publication, using 39 search requests. SQL publication took
+32.057 seconds separately. The actual pinned CPU neural drill recorded one document-embedding
+invocation, three query-embedding invocations including one injected failure, and one rerank
+invocation. Recovery reproduced the original ranking, and all three neural Grafana panels were
+verified. These checks extend the earlier canary snapshot; they do not establish continuous
+production freshness or a natural model-error rate. The bundle now contains 38 panels: 23
+operational, six evaluation and nine indexing. See [publication
+visibility](../infra/monitoring/publication-visibility.md) and [neural operation
+monitoring](../infra/monitoring/neural.md).

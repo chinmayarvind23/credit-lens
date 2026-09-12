@@ -181,7 +181,7 @@ every qualifier; calibrated semantic abstention remains open.
 
 ## Monitoring and recovery evidence
 
-The current bundle provisions 20 operational, six evaluation and six indexing panels. Runtime
+The current bundle provisions 23 operational, six evaluation and nine indexing panels. Runtime
 counters separate known/unknown dollar costs, and the histogram excludes unknowns. Actual scrapes
 verified an unknown count with an empty cost mean; Grafana proxy checks verified six indexing and
 two whole-packet expressions. Evaluation panels import reconciled artifacts and do not assert human
@@ -189,8 +189,17 @@ calibration.
 
 The indexing snapshot acknowledged 3,840 chunks in 0.957 seconds, with one canary searchable after
 0.990 seconds and a separate deliberate rejection. Its recorded LF-normalized metrics preserve the
-original report and raw bytes. This is not a measurement of full-index lag or embedding failures.
+original report and raw bytes. This is not a measurement of continuous production freshness or a
+natural model-error rate.
 
 A separate backup/restore test preserved 330 canonical rows, protected audits and snapshot
 revocations. Changes after the snapshot, including revocations, require operator reconciliation
 before reopening; follow the [recovery runbook](recovery.md).
+
+`LocalNeuralRanker` receives the application-owned telemetry through `open_search`. Each encoder
+and reranker invocation includes output validation inside its observed stage. Cached document
+vectors skip encoding; a failed query releases the inference lock. Metrics carry only fixed stage
+labels. The local SQL-publication experiment separately verifies every expected chunk's complete
+searchable text and metadata in one successful sweep, with no union of incomplete sweeps.
+See [neural monitoring](../infra/monitoring/neural.md) and
+[publication visibility](../infra/monitoring/publication-visibility.md).

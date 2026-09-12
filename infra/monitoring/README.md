@@ -164,7 +164,7 @@ empty pending full reconciliation. Raw verification is retained privately in
 
 ### Completed local verification
 
-The operations dashboard now has20 panels, with two added cost panels. Actual
+The earlier operations dashboard had20 panels after adding two cost panels. Actual
 HTTP packets incremented the unknown-cost observation count while the established
 mean-cost query returned no series. No zero dollar value was substituted. The
 retained-scrape check uses an explicit recorded query timestamp after the bounded
@@ -189,3 +189,29 @@ Final query evidence is retained privately in
 local observations or explicitly labeled retained snapshots. End-to-end indexing
 lag, embedding failures, production alert routing and hosted dollar costs are not
 established by these fixtures.
+
+## Final neural and full-publication verification
+
+The current bundle has 38 panels: 23 operations, six evaluation and nine indexing.
+The three added [neural panels](neural.md) report real embedding/reranker invocations,
+errors and mean durations. The actual pinned CPU smoke recorded document1/query3/
+reranker1 calls, including one explicitly injected query failure and identical
+ranking after recovery. Cached document vectors were reused. All three queries
+were verified through Grafana/Prometheus. Natural model failure prevalence is not
+inferred from a fault drill.
+
+The [full publication drill](publication-visibility.md) measured from PostgreSQL
+commit return through canonical SQL readback, bulk upload and exact search
+verification of every one of 3,840 input chunks. Two retained runs observed 4.890 s
+and 2.910 s; SQL publication itself took 32.057 s and 34.564 s separately. These are
+local observed upper bounds, not production latency percentiles. All input text
+and metadata matched; there was no forced refresh or real-time GET substitute.
+
+Three new indexing panels expose complete visibility delay, expected/verified
+coverage and drill status. Four queries were checked at a retained Prometheus
+scrape timestamp 2026-09-12T05:05:00Z through Grafana. The bounded exporter had
+already exited when that historical query was made. Final evidence is retained
+in `monitoring/publication-visibility-v2/grafana-verification.json` privately.
+Serve that hash-bound snapshot on 19106 when reproducing the local dashboard.
+Continuous production indexing watermarks and managed alert delivery remain
+operator deployment concerns; queue age is still not used as index lag.

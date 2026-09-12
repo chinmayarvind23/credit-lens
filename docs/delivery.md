@@ -17,7 +17,7 @@ financial-source inspection. The earlier 12-check desktop/mobile and offline run
 preceding release. The existing recording was preserved with its byte hash verified after
 publication. The optional Supabase directory remains unconfigured in this self-contained demo.
 
-The latest governed-runtime regression passed 498 tests with one optional neural integration
+An earlier governed-runtime regression passed 498 tests with one optional neural integration
 skipped. This is separate from the earlier fresh-checkout run and from the retained local
 neural-retrieval experiments. No new cloud or inference performance measurements are implied.
 
@@ -47,15 +47,39 @@ permission checks and frontend contract tests. This release passed 38 frontend t
 packaging checks, three publisher regression tests, TypeScript checks and the frontend production
 build. Managed Supabase REST verification remains separate from these local implementation checks.
 
-The local monitoring bundle has 20 operational, six evaluation and six indexing panels, with six
+The local monitoring bundle has 23 operational, six evaluation and nine indexing panels, with six
 alert rules. Runtime cost metrics distinguish known/unknown observations and exclude unknown dollar
 costs from histograms. RAGAS raw calls record 538,444 prompt and 65,932 completion tokens.
 Evaluation/imported snapshots are distinct from live operational metrics.
 
 The latest OpenSearch snapshot acknowledged 3,840 chunks in 0.957 seconds and observed one canary
 searchable after 0.990 seconds. A separate deliberately invalid write was rejected. This does not
-establish full-index freshness or embedding failure rates. Shared Redis quota verification passed 24
-targeted tests; the separate [PostgreSQL restore drill](recovery.md) passed one test preserving 330
-canonical rows, protected audits and snapshot revocations. Post-backup revocations must be
-reconciled before restored service reopens. Full PRD completion and production readiness remain
-unclaimed.
+establish continuous production freshness or embedding failure rates. Shared Redis quota
+verification passed 24 targeted tests; the separate [PostgreSQL restore drill](recovery.md) passed
+one test preserving 330 canonical rows, protected audits and snapshot revocations. Post-backup
+revocations must be reconciled before restored service reopens. Full PRD completion and production
+readiness remain unclaimed.
+
+The later local publication experiment verified all 3,840 SQL canonical payloads and exact
+searchable text in 4.890 seconds after publication, using 39 search requests. SQL publication took
+32.057 seconds separately. The actual pinned CPU neural drill recorded one document-embedding
+invocation, three query-embedding invocations including one injected failure, and one rerank
+invocation. Recovery reproduced the original ranking, and all three neural Grafana panels were
+verified. These checks extend the earlier canary snapshot; they do not establish continuous
+production freshness or a natural model-error rate. The bundle now contains 38 panels: 23
+operational, six evaluation and nine indexing. See [publication
+visibility](../infra/monitoring/publication-visibility.md) and [neural operation
+monitoring](../infra/monitoring/neural.md).
+
+The final repository regression passed 551 tests with five opt-in integrations skipped.
+A separate real pinned-model TCP HTTP integration then passed, covering five financial
+scenarios, exact source inspection, denied scope, abstention, overload and grant
+revocation with external sockets prohibited. The source-level neural instrumentation
+also passed 27 targeted tests; the new drill failure-report checks passed seven.
+Formatting-only source changes retain matching Python AST records privately.
+
+Current public release verification reached the canonical Static host over IPv4 and
+verified all 15 application/runtime files and the recorded GIF against their hashes.
+The Space API reports RUNNING with no requested compute hardware. Initial browser
+and default-network requests reset, so this check does not claim fresh browser
+execution; the earlier interactive release QA remains separately recorded.

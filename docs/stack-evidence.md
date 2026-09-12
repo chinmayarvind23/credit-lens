@@ -9,7 +9,7 @@
 | OpenSearch | Real filtered lexical adapter and controlled local indexing experiment | Retained real local service checks; no managed AWS OpenSearch deployment claimed |
 | AWS | Terraform deployment infrastructure, IAM policies and operator instructions for us-east-1 | Infrastructure validation/reference only; resources were not provisioned under the no-spending instruction |
 | DeepEval / RAGAS | Local judge runners, controls, saved-packet exports and raw reconciliation | Both populations reconciled; GEval v2 102/235 raw passes (43.4%), 8/8 controls, no human calibration or validated project-quality claim |
-| OTel / Prometheus / Grafana | Local traces, finite operational/cost metrics and provisioned operational/evaluation/indexing dashboards | 20 operational + six evaluation + six indexing panels; measured snapshots remain distinct from validated quality; no hosted LangSmith |
+| OTel / Prometheus / Grafana | Local traces, finite operational/cost metrics and provisioned operational/evaluation/indexing dashboards | 23 operational + six evaluation + nine indexing panels; measured snapshots remain distinct from validated quality; no hosted LangSmith |
 | PostgreSQL | Canonical authority, durable jobs and protected audits | Actual shared-state and one backup/restore drill preserving 330 canonical rows, audits and saved revocations; later revocations need reconciliation |
 | FAISS / Weaviate | Exact-set comparison and four HNSW configurations | Retained actual neighbor IDs and scope checks; Weaviate not promoted |
 | Spark | Local metadata backfill compared with serial Python | Equivalent normal/tenfold-replay output; Python faster at this size |
@@ -31,5 +31,17 @@ omitted.
 Runtime dollar-cost metrics separate known from unknown and never count unknown values as zero.
 Actual RAGAS journals report 538,444 prompt/65,932 completion tokens. OpenSearch indexing
 acknowledged 3,840 chunks in 0.957 seconds, with one canary at 0.990 seconds and one separate
-deliberately rejected write. These are snapshot observations, not full-index lag, embedding errors
-or cloud cost. See [monitoring](../infra/monitoring/README.md) and [recovery](recovery.md).
+deliberately rejected write. These are snapshot observations, not continuous production freshness,
+natural model-error rates or cloud cost. See [monitoring](../infra/monitoring/README.md) and
+[recovery](recovery.md).
+
+The later local publication experiment verified all 3,840 SQL canonical payloads and exact
+searchable text in 4.890 seconds after publication, using 39 search requests. SQL publication took
+32.057 seconds separately. The actual pinned CPU neural drill recorded one document-embedding
+invocation, three query-embedding invocations including one injected failure, and one rerank
+invocation. Recovery reproduced the original ranking, and all three neural Grafana panels were
+verified. These checks extend the earlier canary snapshot; they do not establish continuous
+production freshness or a natural model-error rate. The bundle now contains 38 panels: 23
+operational, six evaluation and nine indexing. See [publication
+visibility](../infra/monitoring/publication-visibility.md) and [neural operation
+monitoring](../infra/monitoring/neural.md).
