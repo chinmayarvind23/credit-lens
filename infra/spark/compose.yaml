@@ -1,0 +1,18 @@
+name: creditlens-spark-backfill
+services:
+  benchmark:
+    image: mirror.gcr.io/apache/spark@sha256:acfe7e06e95dd13aa32ee03c464766900d52fba15f58e421f8e1213ec041bb94
+    pull_policy: never
+    network_mode: none
+    hostname: creditlens-spark
+    extra_hosts: ["creditlens-spark:127.0.0.1"]
+    environment:
+      SPARK_LOCAL_IP: 127.0.0.1
+    cpus: 2
+    mem_limit: 2g
+    volumes:
+      - .:/work:ro
+      - ${CREDITLENS_SPARK_PAGES:?Set the canonical pages JSONL path}:/input/pages.jsonl:ro
+      - ${CREDITLENS_SPARK_OUTPUT:?Set a fresh evidence directory}:/evidence
+    entrypoint: /opt/spark/bin/spark-submit
+    command: ["--driver-memory", "768m", "--conf", "spark.ui.enabled=false", "/work/backfill.py", "--pages", "/input/pages.jsonl", "--output", "/evidence/run"]

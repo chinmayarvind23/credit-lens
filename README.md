@@ -151,6 +151,8 @@ reported independently of that ceiling. CI also runs the frozen 240-question
 retrieval/security regression gate and coverage checks. Hosted CI is manual-dispatch
 only under the no-spending constraint; local checks do not imply a hosted run.
 
+The [Spark backfill benchmark](infra/spark/README.md) compares serial Python and local PySpark with exact output-equivalence checks.
+
 The [Weaviate HNSW comparison](infra/weaviate/README.md) records four local configurations, authorization checks and measured tradeoffs.
 
 The [scoped FAISS benchmark](docs/faiss-benchmark.md) retains approximate and exact neighbor IDs for independent ANN agreement checks.
