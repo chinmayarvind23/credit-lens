@@ -96,7 +96,7 @@ def run(args: argparse.Namespace) -> None:
             manifest["results"].append(result)
             try:
                 metric = GEval(
-                    name="Underwriting guidance",
+                    name=args.rubric,
                     model=judge,
                     evaluation_steps=list(steps),
                     evaluation_params=[

@@ -257,3 +257,31 @@ starting another run. There is no automatic retry or resume. This is diagnostic
 field support, not a whole-packet groundedness or citation-precision estimate.
 Operational state, advice, question relevance and human calibration remain separate.
 The runner uses only the installed local model and never starts or downloads one.
+
+## Full-packet DeepEval baseline
+
+`run_full_packet.py` exports every saved case using canonical source verification,
+all substantive packet fields and the original question. It retains authorization
+denials in the ledger. Its `whole-packet-lending-v1` GEval rubric jointly assesses
+support, relevance, material completeness, refusal and human decision authority.
+This is a distinct metric from cited-field RAGAS support.
+
+```powershell
+python infra/evaluation/run_full_packet.py export --gold evals/gold_cases.jsonl --pages <pages.jsonl> --records <saved-cases.jsonl> --output <fresh-private-inputs>
+<semantic-python> infra/evaluation/run_full_packet.py run --population <inputs> --controls infra/evaluation/controls-whole-packet-v1.jsonl --model qwen3:8b --digest <installed-digest> --output <fresh-private-run>
+<semantic-python> infra/evaluation/reconcile_full_packet.py --population <inputs> --run <terminal-run> --output <fresh-private-report.json>
+```
+
+The run evaluates eight frozen controls and all 235 returned packets in bounded
+batches of 24. It preserves failed controls and continues population diagnostics;
+three consecutive failed batches stop inference and leave remaining cases ungraded.
+It never downloads a model, truncates a packet or retries automatically. Only the
+installed local judge is allowed. A failed batch or control makes the runner exit
+nonzero. Before restarting, inspect the specific process and saved batch state.
+
+Reconciliation reconstructs each actual GEval prompt, checks frozen input and
+artifact hashes, compares raw score/reason/model/completion and requires every
+exported case exactly once. A fully reconciled raw packet pass rate is still a
+model diagnostic. Failed controls prohibit treating it as validated quality, and
+passing controls do not establish human calibration or production accuracy. Do not
+replace the existing RAGAS rate or requested project metrics with this new score.
