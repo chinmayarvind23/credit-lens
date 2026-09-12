@@ -10,11 +10,13 @@
 - [Optional AWS operator setup](../infra/aws/README.md)
 
 The public Space uses the static SDK to host an interactive Python browser worker.
-Its observed release is `9570614e0a391f5d9cfdd7eabf3ea7bd041c3149`, with runtime
+Its observed release is `e964da2860f2ff4f7f5987e1986adb9457563fbd`, with runtime
 `RUNNING` and no requested compute hardware. The app page was reachable during the
-current delivery check. Prior browser verification for this unchanged release
-covers desktop/mobile, all five dispositions, exact sources and offline queries
-after startup; the actual recording is available through the README GIF.
+current delivery check. This release was checked locally and on the public Space for borrower loading,
+a new DSCR packet (1.5000) and exact financial-source inspection. The earlier
+12-check desktop/mobile and offline run applies to the preceding release. The
+existing recording was preserved with its byte hash verified after publication.
+The optional Supabase directory remains unconfigured in this self-contained demo.
 
 The latest governed-runtime regression passed 498 tests with one optional neural
 integration skipped. This is separate from the earlier fresh-checkout run and
@@ -43,3 +45,9 @@ recorded 300 ms p95 at eight concurrent clients and 360 distinct PostgreSQL audi
 records across load, warmup and follow-up checks. Its five-borrower lexical
 workload is separate from the 3,840-page hybrid retrieval experiment. The latter
 measured .7878 nDCG@10 and a 12.49-percentage-point Recall@10 improvement.
+
+The optional [Supabase public directory](../infra/supabase/README.md) has passed
+16 actual local SQL permission checks and frontend contract tests. This release
+passed 38 frontend tests, 15 HF packaging checks, three publisher regression tests,
+TypeScript checks and the frontend production build. Managed Supabase REST
+verification remains separate from these local implementation checks.
