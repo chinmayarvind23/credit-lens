@@ -179,6 +179,8 @@ justify independent workers and shared quotas before adding more service boundar
 
 ## Documentation
 
+[Delivery reference](docs/delivery.md) collects the demo, implementation evidence, setup and verification results.
+
 [Original stack and evidence](docs/stack-evidence.md) maps each r?sum? technology to its actual role and verification limits.
 
 [System design](docs/system-design.md) ? [HLD](docs/HLD.md) ? [LLD](docs/LLD.md) ?
