@@ -1,0 +1,17 @@
+name: creditlens-weaviate-lab
+services:
+  weaviate:
+    image: mirror.gcr.io/semitechnologies/weaviate@sha256:5c62e5cbce4c48fc770abcee71099d9de32aad3b44d12299611f8135ee412362
+    pull_policy: never
+    ports: ["127.0.0.1:18081:8080"]
+    environment:
+      AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED: "true"
+      DEFAULT_VECTORIZER_MODULE: none
+      ENABLE_API_BASED_MODULES: "false"
+      DISABLE_TELEMETRY: "true"
+      ASYNC_INDEXING: "false"
+      CLUSTER_HOSTNAME: creditlens-lab
+      PERSISTENCE_DATA_PATH: /var/lib/weaviate
+      GOMEMLIMIT: 768MiB
+    mem_limit: 1024m
+    cpus: 2
