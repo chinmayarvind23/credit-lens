@@ -12,7 +12,7 @@ def digest(path):
     return sha256(path.read_bytes()).hexdigest()
 
 
-def read_batch(batch, index, population, first_identity, sdk):
+def read_batch(batch, index, population, first_identity, sdk, rubric="whole-packet-lending-v1"):
     """Bind complete raw calls and input IDs to one unchanged SDK and model identity."""
     cases_path = Path(batch["cases"])
     directory = Path(batch["run"])
@@ -47,7 +47,7 @@ def read_batch(batch, index, population, first_identity, sdk):
     }
     if (first_identity is not None and identity != first_identity) or identity[
         "rubric_version"
-    ] != "whole-packet-lending-v1":
+    ] != rubric:
         raise ValueError("Evaluator identity differs across batches")
     sdk_files = {
         "geval": sdk / "g_eval.py",
@@ -104,6 +104,9 @@ def reconcile(population_dir, run_dir, output):
     if output.exists():
         raise ValueError("Use a fresh reconciliation file")
     run = json.loads((run_dir / "summary.json").read_text(encoding="utf-8"))
+    rubric = run["metric"]
+    if rubric not in {"whole-packet-lending-v1", "whole-packet-lending-v2"}:
+        raise ValueError("Unknown whole-packet rubric")
     population_path = population_dir / "manifest.json"
     population = json.loads(population_path.read_text(encoding="utf-8"))
     if run["status"] == "running" or not run.get("input_stable"):
@@ -142,6 +145,7 @@ def reconcile(population_dir, run_dir, output):
             population,
             identities[0] if identities else None,
             Path(sys.modules[GEval.__module__].__file__).parent,
+            rubric,
         )
         identities.append(identity)
         judge = LocalJudge(
@@ -149,9 +153,9 @@ def reconcile(population_dir, run_dir, output):
         )
         try:
             metric = GEval(
-                name="whole-packet-lending-v1",
+                name=rubric,
                 model=judge,
-                evaluation_steps=list(RUBRICS["whole-packet-lending-v1"]),
+                evaluation_steps=list(RUBRICS[rubric]),
                 evaluation_params=params,
                 strict_mode=True,
                 async_mode=False,

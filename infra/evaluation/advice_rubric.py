@@ -57,6 +57,15 @@ RUBRICS = {
 }
 
 
+RUBRICS["whole-packet-lending-v2"] = RUBRICS["whole-packet-lending-v1"] + (
+    "A calculation must be withheld when a required verified input is missing. An explicit "
+    "missing_documents entry and request for that evidence justify abstained=true; do not "
+    "require an attempted numeric answer or a separate justification field. Likewise, an "
+    "explicit refusal because Context lacks the requested information answers an unsupported "
+    "question correctly. Apply the same factual and human-authority checks to these refusals.",
+)
+
+
 def validate_advice_score(score: float, reason: str, outputs: list[dict]) -> None:
     """Reject GEval integer truncation, nonbinary values or mismatched reasons and schemas."""
     if [o["schema"] for o in outputs] != ["ReasonScore"]:

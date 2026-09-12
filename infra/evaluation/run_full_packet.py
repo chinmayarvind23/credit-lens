@@ -108,7 +108,7 @@ def run(args):
         "input_hashes": frozen,
         "batches": [],
         "human_calibrated": False,
-        "metric": "whole-packet-lending-v1",
+        "metric": args.rubric,
     }
     try:
         for index, path in enumerate([args.controls, *paths]):
@@ -122,7 +122,7 @@ def run(args):
                         output=directory,
                         model=args.model,
                         digest=args.digest,
-                        rubric="whole-packet-lending-v1",
+                        rubric=args.rubric,
                     )
                 )
                 item["status"] = "completed"
@@ -162,6 +162,11 @@ def main():
         execute.add_argument(f"--{name}", type=Path, required=True)
     for name in ("model", "digest"):
         execute.add_argument(f"--{name}", required=True)
+    execute.add_argument(
+        "--rubric",
+        choices=("whole-packet-lending-v1", "whole-packet-lending-v2"),
+        default="whole-packet-lending-v1",
+    )
     args = parser.parse_args()
     if args.command == "export":
         export(args.gold, args.pages, args.records, args.output)

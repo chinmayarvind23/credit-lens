@@ -13,6 +13,8 @@ class AdviceJudge(LocalJudge):
     def __init__(self, model: str, digest: str, journal: Path) -> None:
         """Permit at most one call per case in the existing 24-case batch limit."""
         super().__init__(model, digest, journal, calls=24)
+        # Whole packets need more CPU time; preserve full context with a finite wait.
+        self.client.timeout = 300
         self.outputs: list[dict] = []
 
     def generate(self, prompt: str, schema: type[BaseModel] | None = None) -> Any:

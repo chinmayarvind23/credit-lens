@@ -119,6 +119,21 @@ recognition failure. Investigate the protected job record before assigning cause
 
 Real PostgreSQL integration tests cover idempotent submissions, queue isolation,
 lease expiration, terminal failure transitions and current-admin endpoint access.
-Promtool covers ingestion-alert persistence and recovery. The earlier live Grafana
-run verified the first 13 panels; the additional five SQL panels are configured
-but are not claimed as a completed live Grafana ingestion run.
+Promtool covers ingestion-alert persistence and recovery. The SQL drill also verified all five ingestion expressions through the actual
+Grafana Prometheus proxy, using retained scrapes from the bounded run. Both
+ingestion alerts reached firing under the explicitly injected timestamp faults.
+
+To reproduce that synthetic drill, start a fresh owned PostgreSQL fixture using
+[the PostgreSQL guide](../postgres/README.md), then run from the repo root:
+
+```powershell
+uv run --no-sync python -m infra.monitoring.ingestion_fixture --port 15432 --output ../creditlens-ingestion-drill --seconds 120
+```
+
+Start this monitoring compose stack while the fixture runs. The fixture submits
+three real SQL jobs, records a digital failure through the normal worker API, and
+injects an aged queued timestamp plus an expired OCR lease. Those injections test
+alert behavior; they are not measured production faults or OCR recognition runs.
+Port 19101 serves only synthetic aggregate metrics for Docker to scrape. The
+fixture ends automatically and retains its snapshot and final exposition. Stop
+only the owned PostgreSQL and monitoring containers after verification.
