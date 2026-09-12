@@ -31,6 +31,7 @@ class Settings(BaseSettings):
     cache_signing_key: SecretStr = SecretStr("")
     cache_ttl_seconds: int = 60
     catalog_backend: Literal["memory", "postgres"] = "memory"
+    governed_catalog_id: str = Field(default="", pattern=r"^$|^[A-Za-z0-9_-]{1,100}$")
     retrieval_mode: Literal["lexical", "hybrid"] = "lexical"
     local_model_directory: str = Field(default="", max_length=2048)
     ingestion_enabled: bool = False
@@ -54,18 +55,28 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_catalog(self) -> "Settings":
-        """Keep the opt-in shared synthetic catalog separate from unfinished production wiring."""
-        if self.catalog_backend == "postgres" and (
-            self.mode != "demo" or not self.database_url.startswith("postgresql+psycopg://")
+        """Require an explicit existing catalog before production can use governed evidence."""
+        if self.catalog_backend == "postgres" and not self.database_url.startswith(
+            "postgresql+psycopg://"
         ):
-            raise ValueError("The shared demo catalog requires demo mode and PostgreSQL psycopg")
+            raise ValueError("The shared catalog requires PostgreSQL psycopg")
+        if self.governed_catalog_id and (
+            self.mode != "production" or self.catalog_backend != "postgres"
+        ):
+            raise ValueError("A governed catalog requires production mode and PostgreSQL")
+        if (
+            self.mode == "production"
+            and self.catalog_backend == "postgres"
+            and not self.governed_catalog_id
+        ):
+            raise ValueError("Production PostgreSQL requires an existing governed catalog ID")
         return self
 
     @model_validator(mode="after")
     def validate_ingestion(self) -> "Settings":
         """Expose staged synthetic jobs only with the explicitly enabled shared catalog."""
-        if self.ingestion_enabled and self.catalog_backend != "postgres":
-            raise ValueError("Ingestion requires the shared PostgreSQL catalog")
+        if self.ingestion_enabled and (self.catalog_backend != "postgres" or self.mode != "demo"):
+            raise ValueError("Ingestion requires the shared demo PostgreSQL catalog")
         if bool(self.ingestion_sqs_endpoint) != bool(self.ingestion_sqs_queue_url):
             raise ValueError("SQS endpoint and queue URL must be configured together")
         if self.ingestion_sqs_endpoint:

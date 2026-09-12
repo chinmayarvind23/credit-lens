@@ -123,9 +123,10 @@ flowchart LR
 
 Both deployments reuse the Python workflow. The browser distributes only public
 fictional pages; its scope checks cannot protect confidential assets against the
-visitor. The authenticated server is the path for protected data. Server production
-wiring to live Cognito/Cortex is not complete, so the public demo must never accept
-real borrower files.
+visitor. The authenticated server is the path for protected data. The [governed Cortex runtime](infra/cortex/README.md) composes the existing
+authenticator, PostgreSQL catalog and Cortex adapter. Local contract verification
+is distinct from a live managed deployment, which remains unverified. The public
+demo must never accept real borrower files.
 
 The stack is Python, FastAPI, Pydantic, SQLAlchemy, Decimal, TypeScript and Bun;
 Pyodide for the free demo; optional LlamaIndex, Sentence Transformers, Redis,
@@ -177,6 +178,8 @@ That makes the current workflow easier to verify; a larger ingestion workload ma
 justify independent workers and shared quotas before adding more service boundaries.
 
 ## Documentation
+
+[Original stack and evidence](docs/stack-evidence.md) maps each r?sum? technology to its actual role and verification limits.
 
 [System design](docs/system-design.md) ? [HLD](docs/HLD.md) ? [LLD](docs/LLD.md) ?
 [Security](docs/security.md) ? [Evaluation](docs/evaluation.md) ?

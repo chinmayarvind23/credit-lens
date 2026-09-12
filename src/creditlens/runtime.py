@@ -5,6 +5,8 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from httpx import Client as ProviderClient
+
 from creditlens.cache import RedisBytes
 from creditlens.corpus import build_demo_pages
 from creditlens.local_search import LocalSearchProvider
@@ -25,7 +27,8 @@ def open_workflow(
 ) -> Iterator[QueryWorkflow | None]:
     """Close Redis on every exit; a remote outage stays an observable optional-cache miss."""
     if config.mode != "demo":
-        yield None
+        with open_governed_workflow(config, store, telemetry) as workflow:
+            yield workflow
         return
     catalog: CanonicalCatalog
     if config.catalog_backend == "postgres":
@@ -90,3 +93,36 @@ def open_search(
         finally:
             if models is not None:
                 models.close()
+
+
+@contextmanager
+def open_governed_workflow(
+    config: Settings, store: GrantStore, telemetry: "Telemetry | None" = None
+) -> Iterator[QueryWorkflow | None]:
+    """Read an existing governed catalog; never seed demo data or silently fall back on search."""
+    if not config.governed_catalog_id:
+        yield None
+        return
+    from creditlens.cortex_search import CortexSearchProvider
+    from creditlens.sql_catalog import SqlEvidenceCatalog
+
+    catalog = SqlEvidenceCatalog(store.engine, config.governed_catalog_id)
+    with ProviderClient(
+        timeout=config.request_timeout_seconds, trust_env=False, follow_redirects=False
+    ) as client:
+        provider = CortexSearchProvider(
+            config.cortex_url,
+            config.cortex_token,
+            client,
+            catalog,
+            store,
+            timeout_seconds=config.request_timeout_seconds,
+        )
+        cache = (
+            ResponseCache(
+                capacity=config.response_cache_capacity, ttl=config.response_cache_ttl_seconds
+            )
+            if config.response_cache_enabled
+            else None
+        )
+        yield QueryWorkflow(catalog, store, provider, response_cache=cache, telemetry=telemetry)

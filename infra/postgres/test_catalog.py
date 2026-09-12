@@ -331,7 +331,9 @@ def test_shared_runtime_requires_postgres_and_synthetic_namespace() -> None:
         Settings(catalog_backend="postgres")
     with pytest.raises(ValidationError, match="pattern"):
         Settings(demo_catalog_id="production")
-    with pytest.raises(ValidationError, match="demo mode"):
+    with pytest.raises(ValidationError, match="production mode"):
+        Settings(governed_catalog_id="lender-catalog")
+    with pytest.raises(ValidationError, match="governed catalog ID"):
         Settings(
             mode="production",
             catalog_backend="postgres",
@@ -510,3 +512,130 @@ def test_grounded_provider_rechecks_shared_name_and_grants(engine, catalog):
         )
     with pytest.raises(ServiceError, match="access_changed"):
         provider.search(request, principal)
+
+
+def test_governed_cortex_runtime_uses_existing_catalog(engine, monkeypatch):
+    """Real SQL and signed-token HTTP exercise runtime wiring around a declared Cortex double."""
+    import json
+    from datetime import UTC, datetime, timedelta
+
+    import httpx
+    import jwt
+    from cryptography.hazmat.primitives.asymmetric import rsa
+    from pydantic import SecretStr
+
+    import creditlens.runtime as runtime
+    from creditlens.corpus import build_demo_pages
+    from creditlens.cortex_search import index_record
+    from creditlens.retrieval import lexical_rank
+    from creditlens.storage import metadata
+
+    metadata.create_all(engine)
+    catalog = initialize_catalog(engine, "governed-" + uuid4().hex)
+    catalog.publish(build_demo_pages())
+    principal = Principal(
+        subject="governed-" + uuid4().hex,
+        tenant_id="demo-bank",
+        role="underwriter",
+        borrower_ids=("borrower-001",),
+        acl_groups=("underwriting",),
+        revision=1,
+    )
+    with engine.begin() as connection:
+        connection.execute(grants.insert().values(**principal.model_dump(), enabled=True))
+    endpoint = "https://example.snowflakecomputing.com/api/v2/databases/DB/schemas/PUBLIC/"
+    endpoint += "cortex-search-services/EVIDENCE:query"
+    settings = Settings(
+        mode="production",
+        database_url=engine.url.render_as_string(hide_password=False),
+        catalog_backend="postgres",
+        governed_catalog_id=catalog.catalog_id,
+        issuer="https://cognito-idp.us-east-1.amazonaws.com/fixture",
+        client_id="fixture",
+        cortex_url=endpoint,
+        cortex_token=SecretStr("test-only"),
+        response_cache_enabled=True,
+    )
+    calls, clients = [], []
+
+    def transport(request):
+        """Emulate only remote ranking; canonical SQL, grant checks and audit remain real."""
+        calls.append(json.loads(request.content))
+        assert str(request.url) == endpoint
+        assert request.headers["Authorization"] == "Bearer test-only"
+        candidates, _ = catalog.snapshot(principal, "borrower-001", date(2026, 6, 1))
+        ranked = lexical_rank(calls[-1]["query"], candidates)[:10]
+        return httpx.Response(200, json={"results": [index_record(c) for c in ranked]})
+
+    def client_factory(**kwargs):
+        """Keep actual HTTP client lifetime while preventing any external service request."""
+        assert kwargs["trust_env"] is False and kwargs["follow_redirects"] is False
+        client = httpx.Client(transport=httpx.MockTransport(transport), **kwargs)
+        clients.append(client)
+        return client
+
+    monkeypatch.setattr(runtime, "ProviderClient", client_factory)
+    key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    now = datetime.now(UTC)
+    token = jwt.encode(
+        {
+            "sub": principal.subject,
+            "iss": settings.issuer,
+            "iat": now,
+            "exp": now + timedelta(minutes=5),
+            "token_use": "access",
+            "client_id": settings.client_id,
+            "scope": settings.required_scope,
+        },
+        key,
+        algorithm="RS256",
+    )
+    app = create_app(settings)
+    body = {
+        "borrower_id": "borrower-001",
+        "question": "Calculate DSCR",
+        "effective_at": "2026-06-01",
+    }
+    initial_revision = catalog.version
+    with TestClient(app) as client:
+        app.state.auth.key_resolver = lambda token: key.public_key()
+        assert catalog.version == initial_revision
+        assert client.post("/api/v1/query", json=body).status_code == 401
+        client.headers["Authorization"] = f"Bearer {token}"
+        first = client.post("/api/v1/query", json=body)
+        assert first.status_code == 200, first.text
+        packet = Packet.model_validate(first.json())
+        assert packet.provider_mode == "local-extractive"
+        assert str(packet.calculated_metrics[0].value) == "1.5000"
+        repeated = Packet.model_validate(client.post("/api/v1/query", json=body).json())
+        assert repeated.cache_hit and repeated.request_id != packet.request_id
+        assert len(calls) == 1 and "filter" in calls[0]
+        source = packet.evidence[0]
+        catalog.revoke(source.chunk_id)
+        denied_source = client.get(
+            f"/api/v1/evidence/{source.chunk_id}",
+            params={"borrower_id": "borrower-001", "effective_at": "2026-06-01"},
+        )
+        assert denied_source.status_code in (403, 404)
+        with engine.begin() as connection:
+            connection.execute(
+                grants.update()
+                .where(grants.c.subject == principal.subject)
+                .values(enabled=False, revision=2)
+            )
+        assert client.post("/api/v1/query", json=body).status_code == 403
+        with engine.connect() as connection:
+            ids = set(
+                connection.execute(
+                    select(audit_events.c.request_id).where(
+                        audit_events.c.subject == principal.subject
+                    )
+                ).scalars()
+            )
+        assert ids == {packet.request_id, repeated.request_id}
+        with engine.connect() as connection:
+            event = connection.execute(
+                select(audit_events.c.event).where(audit_events.c.request_id == packet.request_id)
+            ).scalar_one()
+        assert event["search_provider_mode"] == "snowflake-cortex-rest"
+    assert clients and all(c.is_closed for c in clients)
