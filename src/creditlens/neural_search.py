@@ -3,15 +3,18 @@
 import importlib
 from collections import OrderedDict
 from collections.abc import Iterator
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 from hashlib import sha256
 from pathlib import Path
 from threading import Lock
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from creditlens.domain import Chunk
 from creditlens.errors import ServiceError
 from creditlens.model_bundle import verify_bundle
+
+if TYPE_CHECKING:
+    from creditlens.observability import Telemetry
 
 
 def input_budget(question: str, candidates: tuple[Chunk, ...], limit: int, maximum: int) -> None:
@@ -26,13 +29,16 @@ def input_budget(question: str, candidates: tuple[Chunk, ...], limit: int, maxim
 class LocalNeuralRanker:
     """Load pinned weights once; score only the already-authorized candidate sequence."""
 
-    def __init__(self, directory: Path, *, cache_entries: int = 4096) -> None:
+    def __init__(
+        self, directory: Path, *, cache_entries: int = 4096, telemetry: "Telemetry | None" = None
+    ) -> None:
         """Verify before optional ML imports; never request cloud inference or downloads."""
         if not 1 <= cache_entries <= 4096:
             raise ValueError("Embedding retention must be between 1 and 4096 entries")
         embedding, reranker, revision = verify_bundle(directory)
         self.revision = f"local-minilm-v1:{revision}:rrf60:branches100:rerank40:top10"
         self.cache_entries = cache_entries
+        self.telemetry = telemetry
         self._vectors: OrderedDict[tuple[str, str, str], Any] = OrderedDict()
         self._lock = Lock()
         self._closed = False
@@ -63,6 +69,12 @@ class LocalNeuralRanker:
             raise ServiceError("model_unavailable", "Local ranking models are unavailable") from exc
 
     @contextmanager
+    def _operation(self, name: str) -> Iterator[None]:
+        """Observe only executed neural work and validation, without exporting model inputs."""
+        with self.telemetry.span(name) if self.telemetry is not None else nullcontext():
+            yield
+
+    @contextmanager
     def _inference(self) -> Iterator[None]:
         """Allow one active inference; reject overload instead of queuing CPU work."""
         if not self._lock.acquire(blocking=False):
@@ -82,14 +94,15 @@ class LocalNeuralRanker:
         missing = [i for i, key in enumerate(keys) if key not in self._vectors]
         fresh: dict[int, Any] = {}
         if missing:
-            encoded = self.embedding.encode_document(
-                [candidates[i].text for i in missing],
-                batch_size=32,
-                normalize_embeddings=True,
-                convert_to_numpy=True,
-                show_progress_bar=False,
-            ).astype("float32")
-            self._shape(encoded, (len(missing), 384))
+            with self._operation("neural.embed_documents"):
+                encoded = self.embedding.encode_document(
+                    [candidates[i].text for i in missing],
+                    batch_size=32,
+                    normalize_embeddings=True,
+                    convert_to_numpy=True,
+                    show_progress_bar=False,
+                ).astype("float32")
+                self._shape(encoded, (len(missing), 384))
             fresh = dict(zip(missing, encoded, strict=True))
         rows = []
         for index, key in enumerate(keys):
@@ -124,13 +137,14 @@ class LocalNeuralRanker:
             return ()
         with self._inference():
             matrix = self._matrix(candidates)
-            query = self.embedding.encode_query(
-                [question],
-                normalize_embeddings=True,
-                convert_to_numpy=True,
-                show_progress_bar=False,
-            ).astype("float32")
-            self._shape(query, (1, 384))
+            with self._operation("neural.embed_query"):
+                query = self.embedding.encode_query(
+                    [question],
+                    normalize_embeddings=True,
+                    convert_to_numpy=True,
+                    show_progress_bar=False,
+                ).astype("float32")
+                self._shape(query, (1, 384))
             return self._order(matrix @ query[0], candidates, limit)
 
     def rerank(
@@ -141,14 +155,15 @@ class LocalNeuralRanker:
         if not candidates:
             return ()
         with self._inference():
-            scores = self.np.asarray(
-                self.reranker.predict(
-                    [(question, chunk.text) for chunk in candidates],
-                    batch_size=32,
-                    show_progress_bar=False,
+            with self._operation("neural.rerank"):
+                scores = self.np.asarray(
+                    self.reranker.predict(
+                        [(question, chunk.text) for chunk in candidates],
+                        batch_size=32,
+                        show_progress_bar=False,
+                    )
                 )
-            )
-            return self._order(scores, candidates, limit)
+                return self._order(scores, candidates, limit)
 
     def close(self) -> None:
         """Application shutdown releases retained evidence vectors and model references."""

@@ -49,6 +49,9 @@ STAGES = frozenset(
         "context.build",
         "finance.deterministic",
         "answer.extractive",
+        "neural.embed_documents",
+        "neural.embed_query",
+        "neural.rerank",
     }
 )
 

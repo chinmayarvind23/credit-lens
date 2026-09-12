@@ -39,7 +39,7 @@ def open_workflow(
         catalog = shared
     else:
         catalog = EvidenceCatalog(build_demo_pages())
-    with open_search(config, catalog, store) as provider:
+    with open_search(config, catalog, store, telemetry) as provider:
         cache = (
             ResponseCache(
                 capacity=config.response_cache_capacity, ttl=config.response_cache_ttl_seconds
@@ -52,7 +52,10 @@ def open_workflow(
 
 @contextmanager
 def open_search(
-    config: Settings, catalog: CanonicalCatalog, store: GrantStore
+    config: Settings,
+    catalog: CanonicalCatalog,
+    store: GrantStore,
+    telemetry: "Telemetry | None" = None,
 ) -> Iterator[CanonicalProvider | None]:
     """Load required models at startup and release all optional dependencies on every exit."""
     models = None
@@ -66,7 +69,7 @@ def open_search(
             from creditlens.query_grounding import GROUNDING_VERSION, GroundedProvider
             from creditlens.rerank_provider import RerankProvider
 
-            models = LocalNeuralRanker(Path(config.local_model_directory))
+            models = LocalNeuralRanker(Path(config.local_model_directory), telemetry=telemetry)
             dense = LocalSearchProvider(
                 catalog, store, ranker=models.rank, mode="local-minilm-dense-v1"
             )

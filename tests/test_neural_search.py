@@ -1,7 +1,9 @@
 """Real numeric kernels and explicit model doubles test budgets, isolation and failure contracts."""
 
 import importlib
+from collections.abc import Iterator
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 from unittest.mock import Mock
 
@@ -14,12 +16,80 @@ from creditlens.api import create_app
 from creditlens.corpus import build_demo_pages
 from creditlens.errors import ServiceError
 from creditlens.neural_search import LocalNeuralRanker, input_budget
+from creditlens.observability import Telemetry
 from creditlens.retrieval import chunk_page
 from creditlens.settings import Settings
 from tests.test_auth import production_settings
 from tests.test_retrieval_cache import MemoryBytes
 
 CHUNKS = tuple(chunk_page(page)[0] for page in build_demo_pages()[:3])
+
+
+@pytest.fixture
+def neural_traces() -> Iterator[Path]:
+    """Keep lifespan telemetry artifacts outside persistent application storage."""
+    with TemporaryDirectory(prefix="creditlens-neural-api-traces-") as directory:
+        yield Path(directory) / "traces.jsonl"
+
+
+@pytest.mark.parametrize("operation", ["embed_documents", "embed_query", "rerank"])
+@pytest.mark.parametrize("fault", ["exception", "invalid_output"])
+def test_neural_operation_metrics_and_recovery(numeric_models: tuple, operation: str, fault: str):
+    """Real telemetry separates injected model failures from successful recovery."""
+    _, embedding, reranker, np = numeric_models
+    target = {
+        "embed_documents": embedding.encode_document,
+        "embed_query": embedding.encode_query,
+        "rerank": reranker.predict,
+    }[operation]
+    normal = target.side_effect
+    with TemporaryDirectory(prefix="creditlens-neural-metrics-") as directory:
+        trace = Path(directory) / "traces.jsonl"
+        telemetry = Telemetry(str(trace))
+        model = LocalNeuralRanker(Path("unused"), telemetry=telemetry)
+        target.side_effect = (
+            RuntimeError("PRIVATE-MODEL-DETAILS")
+            if fault == "exception"
+            else lambda *args, **kwargs: np.array([np.nan])
+        )
+        call = model.rerank if operation == "rerank" else model.rank
+        try:
+            with pytest.raises(ServiceError):
+                call("PRIVATE-QUESTION", CHUNKS)
+            target.side_effect = normal
+            assert call("PRIVATE-QUESTION", CHUNKS)
+            metrics = telemetry.render().decode()
+            stage = "neural." + operation
+            assert f'creditlens_stage_errors_total{{stage="{stage}"}} 1.0' in metrics
+            assert f'creditlens_stage_duration_seconds_count{{stage="{stage}"}} 2.0' in metrics
+        finally:
+            model.close()
+            telemetry.close()
+        records = trace.read_text(encoding="utf-8")
+        assert "PRIVATE-QUESTION" not in records + metrics
+        assert "PRIVATE-MODEL-DETAILS" not in records + metrics
+        assert CHUNKS[0].chunk_id not in records + metrics
+
+
+def test_cached_vectors_do_not_count_as_embedding_calls(numeric_models: tuple):
+    """The second rank call reuses document vectors while still observing its new query encoding."""
+    with TemporaryDirectory(prefix="creditlens-neural-cache-metrics-") as directory:
+        telemetry = Telemetry(str(Path(directory) / "traces.jsonl"))
+        model = LocalNeuralRanker(Path("unused"), telemetry=telemetry)
+        try:
+            model.rank("one", CHUNKS)
+            model.rank("two", CHUNKS)
+            metrics = telemetry.render().decode()
+            assert (
+                'creditlens_stage_duration_seconds_count{stage="neural.embed_documents"} 1.0'
+                in metrics
+            )
+            assert (
+                'creditlens_stage_duration_seconds_count{stage="neural.embed_query"} 2.0' in metrics
+            )
+        finally:
+            model.close()
+            telemetry.close()
 
 
 @pytest.fixture
@@ -150,7 +220,7 @@ def test_model_input_and_constructor_limits(numeric_models: tuple) -> None:
 
 
 def test_hybrid_lifespan_and_cache_revision(
-    numeric_models: tuple, monkeypatch: pytest.MonkeyPatch
+    numeric_models: tuple, monkeypatch: pytest.MonkeyPatch, neural_traces: Path
 ) -> None:
     """Runtime composition binds model revision into cache identity and closes resources."""
     from creditlens import runtime
@@ -164,6 +234,8 @@ def test_hybrid_lifespan_and_cache_revision(
         local_model_directory="unused",
         redis_url="redis://127.0.0.1:1",
         cache_signing_key="k" * 32,
+        telemetry_enabled=True,
+        trace_file=str(neural_traces),
     )
     with TestClient(create_app(config)) as client:
         provider = client.app.state.workflow.provider
@@ -177,6 +249,8 @@ def test_hybrid_lifespan_and_cache_revision(
         assert first.status_code == 200
         assert client.post("/api/v1/query", json=body).json()["cache_hit"] is True
         models = provider.provider.provider.ranker.__self__
+        assert models.telemetry is client.app.state.telemetry
+        assert 'stage="neural.embed_documents"' in models.telemetry.render().decode()
     assert models._closed and models.embedding is None
     backend.close.assert_called_once()
 

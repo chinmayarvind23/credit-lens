@@ -733,6 +733,114 @@
           "placement": "bottom"
         }
       }
+    },
+    {
+      "id": 21,
+      "title": "Neural operation invocations",
+      "type": "timeseries",
+      "description": "Executed document/query embeddings and reranking, including failures and numeric validation. Cached document vectors skip encoding; jobs distinguish retained drills from live API observations.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "creditlens-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 80
+      },
+      "targets": [
+        {
+          "expr": "sum by (job, stage) (creditlens_stage_duration_seconds_count{stage=~\"neural[.].*\"})",
+          "refId": "A",
+          "legendFormat": "{{job}} {{stage}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 22,
+      "title": "Neural operation failures",
+      "type": "timeseries",
+      "description": "Executed document/query embeddings and reranking, including failures and numeric validation. Cached document vectors skip encoding; jobs distinguish retained drills from live API observations.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "creditlens-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 80
+      },
+      "targets": [
+        {
+          "expr": "sum by (job, stage) (creditlens_stage_errors_total{stage=~\"neural[.].*\"})",
+          "refId": "A",
+          "legendFormat": "{{job}} {{stage}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 23,
+      "title": "Mean neural operation duration",
+      "type": "timeseries",
+      "description": "Executed document/query embeddings and reranking, including failures and numeric validation. Cached document vectors skip encoding; jobs distinguish retained drills from live API observations.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "creditlens-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 88
+      },
+      "targets": [
+        {
+          "expr": "sum by (job, stage) (creditlens_stage_duration_seconds_sum{stage=~\"neural[.].*\"}) / sum by (job, stage) (creditlens_stage_duration_seconds_count{stage=~\"neural[.].*\"})",
+          "refId": "A",
+          "legendFormat": "{{job}} {{stage}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
     }
   ]
 }
