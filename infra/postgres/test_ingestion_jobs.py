@@ -64,6 +64,57 @@ def spec() -> IngestionInput:
     return IngestionInput(source_sha256="a" * 64, pages=borrower_pages(1)[:2], parser="digital")
 
 
+@pytest.mark.parametrize("revoke", [False, True])
+def test_worker_ocr_quarantines_with_current_grants(store, revoke):
+    """Real SQL verifies worker handoff; recorded extraction is not model evidence."""
+    from pathlib import Path
+    from tempfile import TemporaryDirectory
+
+    from creditlens.corpus import _write_pdf
+    from creditlens.ingestion_worker import IngestionWorker
+    from creditlens.ocr import OcrDocument
+    from creditlens.source_store import LocalSourceStore
+
+    actor, artifact, _, _, catalog = ocr_fixture(store)
+    with TemporaryDirectory(prefix="creditlens-ocr-worker-") as temporary:
+        root = Path(temporary)
+        pdf = root / "scan.pdf"
+        _write_pdf(pdf, spec().pages)
+        sources = LocalSourceStore(root / "sources")
+        digest = sources.stage(actor.tenant_id, pdf.read_bytes())
+        artifact = OcrDocument(
+            pages=tuple(p.model_copy(update={"pdf_sha256": digest}) for p in artifact.pages)
+        )
+        source = spec().model_copy(update={"parser": "ocr", "source_sha256": digest})
+        job = store.submit(source, actor, "worker-ocr")
+
+        class RecordedExtractor:
+            """Inject only recognition; all lease, source and grant checks use real storage."""
+
+            def extract(self, data, requested, heartbeat):
+                """Revoke during extraction to prove stale authority cannot enter quarantine."""
+                assert data == pdf.read_bytes() and requested.source_sha256 == digest
+                heartbeat()
+                if revoke:
+                    with store.engine.begin() as connection:
+                        connection.execute(
+                            grants.update()
+                            .where(grants.c.subject == actor.subject)
+                            .values(enabled=False)
+                        )
+                return artifact
+
+        worker = IngestionWorker(store, sources, catalog, None, ocr_extractor=RecordedExtractor())
+        result = worker.run_one(job.job_id)
+        assert result.state == ("FAILED" if revoke else "REVIEW_REQUIRED")
+        assert not catalog.snapshot(actor, "borrower-001", source.pages[0].valid_from)[0]
+        if not revoke:
+            assert store.review_artifact(job.job_id, actor) == artifact
+            assert store.delivery_disposition(job.job_id) == "UNKNOWN"
+            assert store.delivery_disposition(job.job_id, include_ocr=True) == "TERMINAL"
+            assert worker.run_one(job.job_id) is None
+
+
 def expire(store: JobStore, job_id: str) -> None:
     """Advance persisted fixture deadlines instead of waiting minutes or changing worker clocks."""
     with store.engine.begin() as connection:

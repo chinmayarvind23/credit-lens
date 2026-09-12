@@ -12,7 +12,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from creditlens.errors import ServiceError
 from creditlens.ingestion_jobs import IngestionInput, JobStatus, JobStore, _authorize
-from creditlens.ingestion_worker import DockerPdfExtractor, IngestionWorker
+from creditlens.ingestion_worker import DockerPdfExtractor, IngestionWorker, OcrExtractor
 from creditlens.ocr import OcrDocument, OcrReview
 from creditlens.queue_worker import QueueWorker
 from creditlens.settings import Settings
@@ -115,6 +115,7 @@ def execute(args: argparse.Namespace, settings: Settings) -> str:
             sources,
             SqlEvidenceCatalog(engine, settings.demo_catalog_id),
             DockerPdfExtractor(args.image, timeout_seconds=args.timeout),
+            ocr_extractor=optional_ocr(args),
         )
         if args.command == "work-loop":
             return run_loop(args, worker, queue)
@@ -128,6 +129,21 @@ def execute(args: argparse.Namespace, settings: Settings) -> str:
         if queue:
             queue.close()
         engine.dispose()
+
+
+def optional_ocr(args: argparse.Namespace) -> OcrExtractor | None:
+    """Enable native OCR only through a complete explicit trusted-operator configuration."""
+    values = [
+        getattr(args, key, None)
+        for key in ("ocr_python", "ocr_models", "ocr_renderer", "ocr_output")
+    ]
+    if not any(values):
+        return None
+    if not all(values):
+        raise ValueError("All four OCR paths/image settings are required")
+    from infra.ocr.worker import NativeOcrExtractor
+
+    return NativeOcrExtractor(*values, timeout=args.ocr_timeout)
 
 
 def run_loop(args: argparse.Namespace, worker: IngestionWorker, queue: SqsQueue | None) -> str:
@@ -171,6 +187,11 @@ def main() -> None:
         worker = commands.add_parser(command)
         worker.add_argument("--image", required=True)
         worker.add_argument("--timeout", type=float, default=60)
+        worker.add_argument("--ocr-python", type=Path)
+        worker.add_argument("--ocr-models", type=Path)
+        worker.add_argument("--ocr-renderer")
+        worker.add_argument("--ocr-output", type=Path)
+        worker.add_argument("--ocr-timeout", type=int, default=900)
         if command == "work-one":
             worker.add_argument("--job-id")
         elif command == "work-queue":

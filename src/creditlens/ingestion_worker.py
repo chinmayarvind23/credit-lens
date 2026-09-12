@@ -13,6 +13,7 @@ from uuid import uuid4
 from creditlens.domain import StrictModel
 from creditlens.errors import ServiceError
 from creditlens.ingestion_jobs import FailureCode, IngestionInput, JobLease, JobStore
+from creditlens.ocr import OcrDocument
 from creditlens.pdf_worker import ParsedDocument
 from creditlens.source_store import LocalSourceStore, SourceError
 from creditlens.sql_catalog import SqlEvidenceCatalog
@@ -41,8 +42,18 @@ class WorkerResult(StrictModel):
     """Report durable outcomes separately from a worker that lost ownership or storage access."""
 
     job_id: str
-    state: Literal["COMPLETED", "RETRY", "FAILED", "LEASE_LOST"]
+    state: Literal["COMPLETED", "REVIEW_REQUIRED", "RETRY", "FAILED", "LEASE_LOST"]
     error_code: str | None = None
+
+
+class OcrExtractor(Protocol):
+    """Optional recognition remains outside the API and may return only review artifacts."""
+
+    def extract(
+        self, data: bytes, source: IngestionInput, heartbeat: Callable[[], None]
+    ) -> OcrDocument:
+        """Prove completion and retain provenance while renewing current job ownership."""
+        ...
 
 
 class DockerPdfExtractor:
@@ -175,9 +186,12 @@ class IngestionWorker:
         sources: LocalSourceStore,
         catalog: SqlEvidenceCatalog,
         extractor: PdfExtractor,
+        *,
+        ocr_extractor: OcrExtractor | None = None,
     ) -> None:
         """Keep database access in the parent; the child receives bounded source data only."""
         self.jobs, self.sources, self.catalog, self.extractor = jobs, sources, catalog, extractor
+        self.ocr_extractor = ocr_extractor
 
     def _failed(self, lease: JobLease, failure: WorkerFailure) -> WorkerResult:
         """Acknowledge failure only after the durable transition succeeds with the current token."""
@@ -199,6 +213,13 @@ class IngestionWorker:
 
         heartbeat()
         data = self.sources.read(lease.input.pages[0].tenant_id, lease.input.source_sha256)
+        if lease.input.parser == "ocr":
+            if self.ocr_extractor is None:
+                raise WorkerFailure("extraction_failed", retryable=False)
+            artifact = self.ocr_extractor.extract(data, lease.input, heartbeat)
+            heartbeat()
+            self.jobs.stage_ocr(lease, artifact)
+            return
         result = self.extractor.extract(data, lease.input, heartbeat)
         if result.source_sha256 != lease.input.source_sha256:
             raise WorkerFailure("invalid_source", retryable=False)
@@ -208,13 +229,16 @@ class IngestionWorker:
             raise WorkerFailure("publication_failed", retryable=False) from error
 
     def run_one(self, job_id: str | None = None) -> WorkerResult | None:
-        """Unsupported OCR jobs remain queued; uncertain storage failures are never acknowledged."""
-        lease = self.jobs.claim(job_id, parser="digital")
+        """Claim OCR only when configured; quarantine succeeds separately from publication."""
+        lease = self.jobs.claim(job_id, parser=None if self.ocr_extractor else "digital")
         if lease is None:
             return None
         try:
             self._execute(lease)
-            return WorkerResult(job_id=lease.job_id, state="COMPLETED")
+            return WorkerResult(
+                job_id=lease.job_id,
+                state="REVIEW_REQUIRED" if lease.input.parser == "ocr" else "COMPLETED",
+            )
         except SourceError:
             return self._failed(lease, WorkerFailure("invalid_source", retryable=False))
         except OSError:

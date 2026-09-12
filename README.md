@@ -34,7 +34,7 @@ approve a loan or establish compliance with every policy requirement.
 - Bounded full-response caching with fresh authorization, citations, request IDs and audits.
 - Optional Redis retrieval caching and a shared PostgreSQL canonical catalog.
 - Durable digital-PDF ingestion, fenced worker leases, atomic publication and SQS-compatible notifications.
-- Quarantined OCR review with scoped approval, text correction, rejection and retained provenance.
+- Optional trusted Windows OCR worker with verified EOS completion, durable quarantine, scoped review and retained provenance.
 - Local OTel traces, Prometheus metrics, security/regression tests and CI quality/latency gates.
 - Provisioned [local Grafana dashboards](infra/monitoring/README.md) for actual synthetic API traffic, latency, errors, cache hits and dispositions.
 - Actual DeepEval and RAGAS runners using a local judge; validation limits are listed below.
@@ -175,7 +175,7 @@ operators who choose their own deployment. That reference is not guaranteed free
 
 The working demo is a prototype, not a finished production lending system.
 The main gaps are a calibrated full semantic benchmark, more diverse documents and
-unseen questions, automated OCR queue execution, live governed search/identity integrations
+unseen questions, sandboxed public OCR ingestion, live governed search/identity integrations
 and production operations. Process-local response caches and quotas require further
 coordination before horizontal scaling. LangSmith/CloudWatch and managed dashboards
 are not deployed. None of these planned components are presented as running services.

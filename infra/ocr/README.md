@@ -70,8 +70,8 @@ the cap, with only padding afterwards. Missing EOS, a cap-length sequence or an
 unsupported generation configuration fails closed. `completion.json` retains the
 actual token IDs; `measurement.json` reports page-level completion. An incomplete
 VL result exits with code 2 and must not be normalized. Zero recognized sequences
-do not establish readable evidence. The probe still does not publish pages or
-automatically execute durable OCR jobs.
+do not establish readable evidence. The probe does not publish pages. The opt-in worker below executes durable OCR
+jobs and stages completed artifacts for review.
 
 Contract tests exercise malformed JSON, blank output, geometry, reading order,
 oversize output and uncertain completion. These tests do not measure OCR quality.
@@ -144,3 +144,48 @@ and 8/8 numeric cells, and normalized into a review-required artifact with zero
 extraction confidence. No publication occurred. Actual supervised time was 368.94
 seconds; this single synthetic fixture does not establish general OCR accuracy or
 throughput. Fourteen OCR contract and supervisor tests passed.
+
+## Opt-in durable OCR worker
+
+The existing worker can now claim OCR jobs when a native extractor is explicitly
+configured. It reads the staged source under the current SQL lease, renders every
+physical page in a pinned Poppler container, runs local recognition, verifies all
+EOS records and source/image hashes, and atomically stages `REVIEW_REQUIRED`.
+The catalog remains unchanged until the existing scoped review approves publication.
+A broker notification can be acknowledged after durable quarantine; duplicate
+notifications do not repeat OCR or bypass review. Digital-only workers continue to
+leave OCR jobs alone.
+
+From the repository root, with the existing PostgreSQL ingestion settings configured:
+
+```powershell
+python -m scripts.ingest_documents --source-root <private-source-root> work-one --image <digital-parser-image-sha256> --job-id <job-id> --ocr-python <ocr-venv-python.exe> --ocr-models <verified-model-root> --ocr-renderer <poppler-image-sha256> --ocr-output <private-artifact-directory> --ocr-timeout 900
+```
+
+The same four OCR settings are supported on `work-loop` and `work-queue`.
+Run as a module as shown so the optional repository-local OCR implementation is
+importable. The API environment does not load Paddle; only the configured child
+interpreter does. The child receives no cloud or database environment variables.
+
+This Windows path accepts at most eight pages and 25 MB of source PDF, with a
+30?1800 second total deadline, a 60-second rendering deadline and a 64 MB retained
+output bound per attempt. The parent renews ownership during child execution and
+terminates its owned process tree if permission or lease checks fail. Rendered page
+count must match the immutable manifest. Raw results and normalized artifacts are
+retained under a unique attempt directory for review.
+
+Use this native path only for trusted synthetic/operator inputs. PDF rendering is
+container-isolated, but the native Windows model process is supervised rather than
+filesystem-sandboxed. This is not a public untrusted-file upload service. Recognition
+completion does not establish accuracy or grant permission to publish. Unsupported,
+empty, malformed or truncated recognition fails before quarantine/publication.
+
+`python -m infra.ocr.check_worker` reproduces the full local fixture check with an
+explicit loopback `creditlens_test` database and fixture/model paths. It creates only
+synthetic grants and a uniquely named catalog/queue, retaining the resulting review
+artifact and verification outside the repository.
+
+The actual full worker check reached durable review on its first attempt, with
+15/15 table cells and 8/8 numeric cells recovered. Two local SQS-compatible duplicate
+notifications were acknowledged without another OCR run. The catalog stayed empty;
+no review approval was performed. PostgreSQL handoff/revocation tests passed.

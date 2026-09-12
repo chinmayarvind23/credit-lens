@@ -283,7 +283,9 @@ class JobStore:
                 select(jobs.c.job_id).where(jobs.c.queue_id == self.queue_id).limit(1)
             )
 
-    def delivery_disposition(self, job_id: str) -> Literal["TERMINAL", "PENDING", "UNKNOWN"]:
+    def delivery_disposition(
+        self, job_id: str, *, include_ocr: bool = False
+    ) -> Literal["TERMINAL", "PENDING", "UNKNOWN"]:
         """Inspect only this queue; broker messages supply no permission claims."""
         with self._transaction() as connection:
             row = (
@@ -295,9 +297,16 @@ class JobStore:
                 .mappings()
                 .first()
             )
-            if row is None or row["parser"] != "digital":
+            if row is None or row["parser"] not in (
+                {"digital", "ocr"} if include_ocr else {"digital"}
+            ):
                 return "UNKNOWN"
-            return "TERMINAL" if row["state"] in {"COMPLETED", "FAILED"} else "PENDING"
+            terminal = (
+                {"COMPLETED", "FAILED", "REVIEW_REQUIRED"}
+                if include_ocr
+                else {"COMPLETED", "FAILED"}
+            )
+            return "TERMINAL" if row["state"] in terminal else "PENDING"
 
     def claim(
         self, job_id: str | None = None, *, parser: Literal["digital", "ocr"] | None = None

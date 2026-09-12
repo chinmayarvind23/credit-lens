@@ -39,10 +39,14 @@ class QueueWorker:
         except ValueError:
             return QueueResult(disposition="INVALID")
         result = self.worker.run_one(job_id)
-        if result and result.state in {"COMPLETED", "FAILED"}:
+        if result and result.state in {"COMPLETED", "FAILED", "REVIEW_REQUIRED"}:
             self.queue.delete(delivery)
             return QueueResult(disposition="ACKNOWLEDGED", result=result)
-        disposition = self.worker.jobs.delivery_disposition(job_id)
+        disposition = (
+            self.worker.jobs.delivery_disposition(job_id, include_ocr=True)
+            if self.worker.ocr_extractor is not None
+            else self.worker.jobs.delivery_disposition(job_id)
+        )
         if disposition == "TERMINAL":
             self.queue.delete(delivery)
             return QueueResult(disposition="ACKNOWLEDGED", result=result)
