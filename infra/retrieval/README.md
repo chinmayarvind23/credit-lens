@@ -3,7 +3,7 @@
 The optional serving path combines local BM25, MiniLM dense retrieval, reciprocal
 rank fusion and a cross-encoder. It runs on CPU, loads reviewed files at startup
 and makes no remote inference calls. The public HF browser runtime uses lexical retrieval. Enabling this option locally does not change
-that deployment or enable production mode.
+that deployment. For persistent vector search in production mode, follow [Weaviate setup](../../docs/weaviate.md).
 
 Install the locked optional dependencies, preserving the queue SDK if using it:
 
@@ -71,19 +71,6 @@ This test uses an actual loopback TCP server and blocks external socket
 connections. It checks financial scenarios, source retrieval, denied scope,
 abstention, model overload and grant revocation. Numeric unit tests use explicit
 model doubles and do not establish model quality.
-
-For the frozen 240-case composed-provider experiment:
-
-```powershell
-uv run --no-sync python scripts/benchmark_neural.py --pages ..\creditlens-work\corpus\pages.jsonl --models $env:CREDITLENS_LOCAL_MODEL_DIRECTORY --output ..\creditlens-work\evals\neural-run
-```
-
-Use a fresh output directory. The run saves every ranking and packet, unchanged
-page qrels, model-manifest hashes, source provenance and per-case outcomes.
-Ranking is measured separately from the workflow's financial lookups. The
-workflow follows each ranking and reuses document vectors, so its timing is
-neither a cold-start nor an HTTP measurement. Authored fixture outcomes remain
-separate from semantic groundedness and citation precision.
 
 ## CPU container variant
 

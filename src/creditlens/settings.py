@@ -19,6 +19,12 @@ class Settings(BaseSettings):
     required_scope: str = "creditlens/query"
     cortex_url: str = ""
     cortex_token: SecretStr = SecretStr("")
+    production_search: Literal["cortex", "weaviate"] = "cortex"
+    weaviate_url: str = ""
+    weaviate_token: SecretStr = SecretStr("")
+    weaviate_collection: str = Field(
+        default="CreditLensEvidence", pattern=r"^[A-Z][A-Za-z0-9_]{0,79}$"
+    )
     cors_origins: list[str] = ["http://localhost:3000"]
     request_timeout_seconds: float = 5.0
     response_cache_enabled: bool = False
@@ -51,10 +57,28 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def validate_local_models(self) -> "Settings":
         """Require an explicit offline model directory and preserve production/demo separation."""
-        if (self.retrieval_mode == "hybrid") != bool(self.local_model_directory):
+        needs_models = self.retrieval_mode == "hybrid" or self.production_search == "weaviate"
+        if needs_models != bool(self.local_model_directory):
             raise ValueError("Hybrid retrieval and a local model directory must be set together")
         if self.retrieval_mode == "hybrid" and self.mode != "demo":
             raise ValueError("Local hybrid workflow currently supports demo mode only")
+        return self
+
+    @model_validator(mode="after")
+    def validate_vector_search(self) -> "Settings":
+        """Select authenticated vector storage only with explicit governed production authority."""
+        if self.production_search == "weaviate":
+            from creditlens.opensearch_provider import validate_search_url
+
+            if self.mode != "production" or not self.governed_catalog_id:
+                raise ValueError("Weaviate requires a governed production catalog")
+            validate_search_url(self.weaviate_url, "weaviate", False)
+            if not self.weaviate_token.get_secret_value():
+                raise ValueError("Weaviate requires an API token")
+            if self.cortex_url or self.cortex_token.get_secret_value():
+                raise ValueError("Configure only the selected production search service")
+        elif self.weaviate_url or self.weaviate_token.get_secret_value():
+            raise ValueError("Weaviate credentials require production_search=weaviate")
         return self
 
     @model_validator(mode="after")
@@ -95,14 +119,15 @@ class Settings(BaseSettings):
         if self.mode == "demo" and (self.cortex_url or self.cortex_token.get_secret_value()):
             raise ValueError("Demo mode cannot use production search credentials")
         if self.mode == "production":
-            if not all(
-                (self.issuer, self.client_id, self.cortex_url, self.cortex_token.get_secret_value())
-            ):
-                raise ValueError("Production requires Cognito and Cortex configuration")
+            if not self.issuer or not self.client_id:
+                raise ValueError("Production requires Cognito configuration")
             if not self.issuer.startswith("https://cognito-idp."):
                 raise ValueError("Production issuer must be an HTTPS Cognito user pool")
-            if not self.cortex_url.startswith("https://"):
-                raise ValueError("Cortex must use HTTPS")
+            if self.production_search == "cortex":
+                if not self.cortex_url or not self.cortex_token.get_secret_value():
+                    raise ValueError("Production requires Cognito and Cortex configuration")
+                if not self.cortex_url.startswith("https://"):
+                    raise ValueError("Cortex must use HTTPS")
         if not 0 < self.request_timeout_seconds <= 30:
             raise ValueError("Request timeout must be between zero and 30 seconds")
         return self

@@ -26,7 +26,7 @@ From the repository root, in an environment with the optional neural dependencie
 already installed:
 
 ```powershell
-python -m scripts.check_neural_telemetry --models /existing/pinned-model-directory --output /private/fresh-neural-drill
+python -m scripts.check_neural_telemetry --models /existing/pinned-model-directory --output ../resources/credit_lens/evidence/fresh-neural-drill
 ```
 
 The command verifies local model files, uses CPU inference and never downloads

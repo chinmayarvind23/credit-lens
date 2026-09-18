@@ -7,7 +7,7 @@ Start only the owned cached fixtures:
 ```powershell
 docker compose -p creditlens-publication -f infra/monitoring/publication-compose.yml up -d --pull never
 $env:PYTHONPATH='src'
-.venv\Scripts\python.exe -m scripts.measure_publication --pages C:\private\corpus\pages.jsonl --output C:\private\new-publication-run
+.venv\Scripts\python.exe -m scripts.measure_publication --pages C:\private\corpus\pages.jsonl --output ../resources/credit_lens/evidence/new-publication-run
 docker compose -p creditlens-publication -f infra/monitoring/publication-compose.yml down
 ```
 

@@ -21,4 +21,4 @@ uv run --no-sync pytest tests infra/huggingface/tests .github/tests --ignore=tes
 
 Optional integration checks require the services and model files described in the corresponding `infra` guide. Run the workbench's typecheck, test and build scripts from [apps/web](../apps/web/README.md).
 
-[Offline evaluation](../evals/README.md) and [semantic evaluation](../infra/evaluation/README.md) accept explicit output directories. Keep generated run artifacts outside the source checkout. Hosted CI uses manual dispatch; follow the repository workflows when selecting checks.
+[Offline evaluation](../evals/README.md) and [semantic evaluation](../infra/evaluation/README.md) accept explicit output directories. Keep generated run artifacts under `../resources/credit_lens`, outside the source checkout. Hosted CI uses manual dispatch; follow the repository workflows when selecting checks.

@@ -12,6 +12,7 @@ service and Cognito pool. This setup requires operator-managed resources. Config
 
 ```text
 CREDITLENS_MODE=production
+CREDITLENS_PRODUCTION_SEARCH=cortex
 CREDITLENS_DATABASE_URL=postgresql+psycopg://<operator-managed-connection>
 CREDITLENS_CATALOG_BACKEND=postgres
 CREDITLENS_GOVERNED_CATALOG_ID=<existing-catalog-id>

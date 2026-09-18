@@ -28,4 +28,4 @@ Restore under a closed-access maintenance boundary.
    traffic only after current authorization and canonical consistency are proven.
 
 
-See [Redis](../infra/redis/README.md) and [ingestion](../infra/postgres/README.md).
+For Weaviate collections, follow [vector synchronization and recovery](weaviate.md). See [Redis](../infra/redis/README.md) and [ingestion](../infra/postgres/README.md).

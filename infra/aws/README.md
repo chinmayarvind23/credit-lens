@@ -35,7 +35,7 @@ terraform -chdir=infra/aws init -backend=false
 terraform -chdir=infra/aws fmt -check -recursive
 terraform -chdir=infra/aws validate
 terraform -chdir=infra/aws test
-python scripts/render_aws_policies.py --account 111122223333 --output ../creditlens-work/aws-policy-review-new
+python scripts/render_aws_policies.py --account 111122223333 --output ../resources/credit_lens/aws-policy-review-new
 ```
 
 All test providers are mocked and every test run uses `command = plan`. Tests check

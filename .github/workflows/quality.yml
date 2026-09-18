@@ -16,6 +16,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
+      COVERAGE_FILE: ${{ runner.temp }}/creditlens-coverage-data
       CREDITLENS_TEST_POSTGRES_URL: postgresql+psycopg://postgres:creditlens-test-only@127.0.0.1:5432/creditlens_test
       CREDITLENS_TEST_REDIS_URL: redis://127.0.0.1:6379/15
       CREDITLENS_TEST_SQS_ENDPOINT: http://127.0.0.1:19324
@@ -53,7 +54,7 @@ jobs:
         run: |
           uv run --no-sync ruff check src tests scripts infra/huggingface infra/postgres infra/sqs .github/scripts .github/tests
           uv run --no-sync ruff format --check src tests scripts infra/huggingface infra/postgres infra/sqs .github/scripts .github/tests
-          uv run --no-sync mypy src scripts/deploy_space.py scripts/ingest_documents.py scripts/inspect_admin.py infra/sqs/wait_ready.py infra/huggingface/demo_entrypoint.py infra/huggingface/smoke_container.py .github/scripts/check_coverage.py
+          uv run --no-sync mypy src scripts/deploy_space.py scripts/ingest_documents.py scripts/inspect_admin.py scripts/index_weaviate.py infra/sqs/wait_ready.py infra/huggingface/demo_entrypoint.py infra/huggingface/smoke_container.py .github/scripts/check_coverage.py
       - name: Verify the sanitized deployment snapshot
         run: |
           uv run --no-sync python scripts/deploy_space.py stage --output "${{ runner.temp }}/creditlens-space"
@@ -67,7 +68,7 @@ jobs:
           docker run --detach --rm --name creditlens-sqs-ci --memory 256m --cpus 1 --pids-limit 128 --read-only --user 1000:1000 --cap-drop ALL --security-opt no-new-privileges --tmpfs /tmp:rw,noexec,nosuid,size=32m --tmpfs /data:rw,noexec,nosuid,size=32m,uid=1000,gid=1000 --publish 127.0.0.1:19324:9324 --mount type=bind,source=${{ github.workspace }}/infra/sqs/elasticmq.conf,target=/opt/elasticmq.conf,readonly softwaremill/elasticmq-native@sha256:e4580ab9ad1bd5cd37b4ba04911bc5ccc8cd2d9ab4de56ece65acee71c24e05c
           uv run --no-sync python infra/sqs/wait_ready.py
       - name: Python and package boundary tests
-        run: uv run --no-sync pytest tests infra/huggingface/tests infra/postgres .github/tests --ignore=tests/test_retrieval_lab.py --cov=creditlens --cov-report=term-missing --cov-report=xml --cov-report=json:${{ runner.temp }}/coverage.json
+        run: uv run --no-sync pytest tests infra/huggingface/tests infra/postgres .github/tests --ignore=tests/test_retrieval_lab.py --cov=creditlens --cov-report=term-missing -o cache_dir=${{ runner.temp }}/creditlens-pytest-cache --cov-report=xml:${{ runner.temp }}/coverage.xml --cov-report=json:${{ runner.temp }}/coverage.json
       - name: Enforce reviewed line coverage
         run: uv run python .github/scripts/check_coverage.py --report "${{ runner.temp }}/coverage.json" --output "${{ runner.temp }}/coverage-gate.json"
       - name: Frontend checks
@@ -112,7 +113,7 @@ jobs:
           name: creditlens-verification
           if-no-files-found: error
           path: |
-            coverage.xml
+            ${{ runner.temp }}/coverage.xml
             ${{ runner.temp }}/coverage.json
             ${{ runner.temp }}/coverage-gate.json
             ${{ runner.temp }}/creditlens-control/

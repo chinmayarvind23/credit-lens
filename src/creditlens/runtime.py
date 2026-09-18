@@ -1,7 +1,7 @@
 """Own optional cache connections with the application workflow lifecycle."""
 
 from collections.abc import Iterator
-from contextlib import contextmanager
+from contextlib import ExitStack, contextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -110,17 +110,26 @@ def open_governed_workflow(
     from creditlens.sql_catalog import SqlEvidenceCatalog
 
     catalog = SqlEvidenceCatalog(store.engine, config.governed_catalog_id)
-    with ProviderClient(
-        timeout=config.request_timeout_seconds, trust_env=False, follow_redirects=False
-    ) as client:
-        provider = CortexSearchProvider(
-            config.cortex_url,
-            config.cortex_token,
-            client,
-            catalog,
-            store,
-            timeout_seconds=config.request_timeout_seconds,
+    with ExitStack() as stack:
+        client = stack.enter_context(
+            ProviderClient(
+                timeout=config.request_timeout_seconds, trust_env=False, follow_redirects=False
+            )
         )
+        provider: CanonicalProvider
+        if config.production_search == "weaviate":
+            provider = stack.enter_context(
+                open_vector_search(config, catalog, store, client, telemetry)
+            )
+        else:
+            provider = CortexSearchProvider(
+                config.cortex_url,
+                config.cortex_token,
+                client,
+                catalog,
+                store,
+                timeout_seconds=config.request_timeout_seconds,
+            )
         cache = (
             ResponseCache(
                 capacity=config.response_cache_capacity, ttl=config.response_cache_ttl_seconds
@@ -129,3 +138,33 @@ def open_governed_workflow(
             else None
         )
         yield QueryWorkflow(catalog, store, provider, response_cache=cache, telemetry=telemetry)
+
+
+@contextmanager
+def open_vector_search(
+    config: Settings,
+    catalog: CanonicalCatalog,
+    store: GrantStore,
+    client: ProviderClient,
+    telemetry: "Telemetry | None" = None,
+) -> Iterator[CanonicalProvider]:
+    """Require the vector branch while preserving lexical signals and existing reranking."""
+    from creditlens.neural_search import LocalNeuralRanker
+    from creditlens.weaviate_provider import WeaviateHybridProvider
+    from creditlens.weaviate_store import WeaviateStore
+
+    models = LocalNeuralRanker(Path(config.local_model_directory), telemetry=telemetry)
+    try:
+        vectors = WeaviateStore(
+            config.weaviate_url,
+            config.weaviate_collection,
+            client,
+            namespace=config.governed_catalog_id,
+            revision=models.revision,
+            token=config.weaviate_token,
+            timeout_seconds=config.request_timeout_seconds,
+        )
+        vectors.check_ready()
+        yield WeaviateHybridProvider(catalog, store, vectors, models)
+    finally:
+        models.close()

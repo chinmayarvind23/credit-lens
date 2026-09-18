@@ -1,5 +1,5 @@
 {
-  "policy_version": "deterministic-core-v4",
+  "policy_version": "deterministic-core-v5",
   "measurement": "statement line coverage; branch coverage is not claimed",
   "core_minimum_percent": 85,
   "critical_minimum_percent": 95,
@@ -17,6 +17,7 @@
     "hybrid_provider.py",
     "ingestion.py",
     "ingestion_jobs.py",
+    "ingestion_metrics.py",
     "ingestion_worker.py",
     "intent.py",
     "limits.py",
@@ -40,6 +41,8 @@
     "sql_catalog.py",
     "sqs_queue.py",
     "storage.py",
+    "weaviate_provider.py",
+    "weaviate_store.py",
     "worker_loop.py",
     "workflow.py"
   ],
@@ -71,6 +74,8 @@
     "sql_catalog.py",
     "sqs_queue.py",
     "storage.py",
+    "weaviate_provider.py",
+    "weaviate_store.py",
     "worker_loop.py"
   ],
   "excluded_files": {

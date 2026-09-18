@@ -139,7 +139,7 @@ def publish(args: argparse.Namespace) -> None:
         repo_type="space",
         operations=operations,
         parent_commit=info.sha,
-        commit_message="Run interactive CreditLens directly in the browser on free hosting",
+        commit_message="docs cleanup",
     )
     report.update(status="published_pending_verification", revision=commit.oid)
     args.audit.write_text(json.dumps(report, indent=2), encoding="utf-8")

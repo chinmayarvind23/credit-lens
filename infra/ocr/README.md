@@ -6,9 +6,9 @@ file-upload endpoint. The API environment does not import Paddle or load OCR mod
 Create a separate Python 3.11 environment and install the Windows dependency lock:
 
 ```powershell
-uv venv ../creditlens-work/.venv-ocr --python 3.11
-uv pip sync --python ../creditlens-work/.venv-ocr/Scripts/python.exe --require-hashes --link-mode copy infra/ocr/requirements-win.lock
-uv pip check --python ../creditlens-work/.venv-ocr/Scripts/python.exe
+uv venv ../resources/credit_lens/.venv-ocr --python 3.11
+uv pip sync --python ../resources/credit_lens/.venv-ocr/Scripts/python.exe --require-hashes --link-mode copy infra/ocr/requirements-win.lock
+uv pip check --python ../resources/credit_lens/.venv-ocr/Scripts/python.exe
 ```
 
 The Windows lock uses PaddleOCR 3.7.0, PaddlePaddle CPU 3.3.1 and PaddleX

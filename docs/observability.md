@@ -1,6 +1,6 @@
 # Observability
 
-Install the `observability` extra and enable `CREDITLENS_TELEMETRY_ENABLED`. `CREDITLENS_TRACE_FILE` selects a private rotating JSONL trace destination. Each application owns its OTel provider and Prometheus registry.
+Install the `observability` extra and enable `CREDITLENS_TELEMETRY_ENABLED`. `CREDITLENS_TRACE_FILE` selects a private rotating JSONL trace destination under `../resources/credit_lens`. Each application owns its OTel provider and Prometheus registry.
 
 Request spans correlate scoped retrieval, cache handling, calculations, citation checks, permission rechecks and audit persistence. The exporter excludes question text, source text, identity labels, credentials and exception payloads. Protected SQL audit records retain the application evidence trail.
 

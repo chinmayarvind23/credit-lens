@@ -17,7 +17,7 @@ The demo uses synthetic documents and runs the Python workflow inside your brows
 - Permission-aware retrieval with borrower, tenant, access-group and effective-date filters.
 - Page-level citations tied to canonical text, document versions and exact source spans.
 - Decimal financial calculations, explicit abstention, conflict detection and exception guidance.
-- Optional hybrid retrieval, semantic chunking, selective query grounding and reranking.
+- Persistent Weaviate vector search for the authenticated server, with lexical fusion, query grounding and local reranking.
 - Response caching with fresh authorization and audit records; optional shared request quotas.
 - Durable document ingestion with worker leases, atomic publication and reviewed OCR quarantine.
 - Retrieval tracing, operational dashboards and executable evaluation and regression checks.
@@ -41,11 +41,11 @@ Open [the workbench](http://127.0.0.1:8000) or [API documentation](http://127.0.
 
 ## Technology
 
-**Python · FastAPI · Pydantic · SQLAlchemy · TypeScript · PostgreSQL · OpenTelemetry**
+**Python · FastAPI · Pydantic · SQLAlchemy · TypeScript · PostgreSQL · Weaviate · OpenTelemetry**
 
 Python and FastAPI expose the underwriting service, Pydantic validates its contracts,
 and SQLAlchemy manages canonical evidence and application state. PostgreSQL supports
-server persistence; Redis supplies shared caching. TypeScript and Bun power the workbench,
+server persistence; Weaviate stores searchable embeddings and Redis supports shared caching. TypeScript and Bun power the workbench,
 while OpenTelemetry traces retrieval and service operations. The browser demo runs Python
 through Pyodide with SQLite, public synthetic evidence and lexical retrieval.
 
@@ -54,7 +54,7 @@ through Pyodide with SQLite, public synthetic evidence and lexical retrieval.
 Configure the integrations your deployment needs:
 
 - **Retrieval and document processing:** LlamaIndex for chunking, Sentence Transformers
-  for model-based retrieval and reranking, [Snowflake Cortex](infra/cortex/README.md)
+  for model-based retrieval and reranking, [Weaviate](docs/weaviate.md), [Snowflake Cortex](infra/cortex/README.md)
   and [OpenSearch](infra/opensearch/README.md) for search integrations, and
   [reviewed OCR](infra/ocr/README.md) for document ingestion.
 - **Evaluation and monitoring:** DeepEval and RAGAS for evaluation, with Prometheus
@@ -65,9 +65,7 @@ Configure the integrations your deployment needs:
 - **Hosting and infrastructure:** Hugging Face Spaces for the browser demo, Docker
   for service packaging, [Supabase](infra/supabase/README.md) for a PostgreSQL
   integration and [AWS Terraform](infra/aws/README.md) for operator-managed infrastructure.
-- **Retrieval and processing experiments:** [FAISS](scripts/benchmark_faiss.py) and
-  [Weaviate](infra/weaviate/README.md) retrieval comparisons, and
-  [Spark/PySpark](infra/spark/README.md) metadata backfill.
+- **Metadata processing:** [Spark/PySpark](infra/spark/README.md) validates and prepares scoped index metadata.
 
 Server services and model-based retrieval are configured separately from the browser demo.
 See [system design](docs/system-design.md) for component boundaries and
@@ -75,14 +73,15 @@ See [system design](docs/system-design.md) for component boundaries and
 
 ## How it works
 
-The server resolves the caller's current grants and selects evidence within their borrower and policy scope. Search supplies candidates; canonical storage supplies the text and authority. The workflow selects the relevant passages, computes supported financial values and builds an extractive evidence packet. Before returning it, the server validates citations, rechecks permissions and writes a protected audit record. Opening a source repeats authorization.
+The server resolves the caller's current grants and selects evidence within their borrower and policy scope. The production server can combine Weaviate vector search with lexical ranks and local reranking, or use Cortex Search. PostgreSQL supplies the canonical text and authority. The workflow selects the relevant passages, computes supported financial values and builds an extractive evidence packet. Before returning it, the server validates citations, rechecks permissions and writes a protected audit record. Opening a source repeats authorization.
 
 ```mermaid
 flowchart LR
     UI[Underwriting workbench] --> API[FastAPI]
     API --> Grants[Current SQL grants]
-    Grants --> Search[Scoped search and optional reranking]
-    Search --> Evidence[Canonical evidence]
+    Grants --> Search[Scoped Weaviate hybrid search or Cortex]
+    Search --> Rank[Canonical validation and optional reranking]
+    Rank --> Evidence[Canonical PostgreSQL evidence]
     Evidence --> Packet[Quoted facts and Decimal calculations]
     Packet --> Check[Citations and permission recheck]
     Check --> Audit[Protected audit]
@@ -98,9 +97,3 @@ The public browser bundles only synthetic data. Use the authenticated server arc
 ## Deployment
 
 The [interactive Hugging Face build](infra/huggingface/browser/DEPLOYMENT.md) is self-contained and uses free hosting. [Optional AWS instructions](infra/aws/README.md) describe an operator-managed deployment. AWS is not needed to run the project; operators choose and fund their own infrastructure.
-
-## Improvements with more time
-
-- **Product:** Work with underwriters on document-request workflows, clearer exception review and more varied source documents.
-- **Architecture:** Extend governed deployment and worker isolation around the same canonical authorization boundary.
-- **Engineering and scalability:** Expand independent evaluation, exercise larger workloads and recovery scenarios, and use those observations to guide caching and worker-capacity changes.

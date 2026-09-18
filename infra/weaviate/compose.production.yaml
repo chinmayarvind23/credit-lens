@@ -1,0 +1,38 @@
+name: creditlens-vector-store
+services:
+  weaviate:
+    image: mirror.gcr.io/semitechnologies/weaviate@sha256:5c62e5cbce4c48fc770abcee71099d9de32aad3b44d12299611f8135ee412362
+    pull_policy: never
+    command:
+      - --host=0.0.0.0
+      - --scheme=https
+      - --tls-port=8443
+      - --tls-certificate=/tls/server.crt
+      - --tls-key=/tls/server.key
+    ports: ["127.0.0.1:18443:8443"]
+    volumes:
+      - evidence_vectors:/var/lib/weaviate
+      - type: bind
+        source: ${CREDITLENS_WEAVIATE_TLS_DIR:?Set the external TLS certificate directory}
+        target: /tls
+        read_only: true
+    environment:
+      AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED: 'false'
+      AUTHENTICATION_APIKEY_ENABLED: 'true'
+      AUTHENTICATION_APIKEY_USERS: 'indexer,reader'
+      AUTHENTICATION_APIKEY_ALLOWED_KEYS: '${CREDITLENS_WEAVIATE_ADMIN_KEY:?Set an indexer key},${CREDITLENS_WEAVIATE_READER_KEY:?Set a separate reader key}'
+      AUTHORIZATION_ADMINLIST_ENABLED: 'true'
+      AUTHORIZATION_ADMINLIST_USERS: 'indexer'
+      AUTHORIZATION_ADMINLIST_READONLY_USERS: 'reader'
+      DEFAULT_VECTORIZER_MODULE: none
+      ENABLE_API_BASED_MODULES: 'false'
+      DISABLE_TELEMETRY: 'true'
+      ASYNC_INDEXING: 'false'
+      PERSISTENCE_DATA_PATH: /var/lib/weaviate
+      CLUSTER_HOSTNAME: creditlens-vectors
+      GOMEMLIMIT: 768MiB
+    mem_limit: 1g
+    cpus: 2
+    restart: unless-stopped
+volumes:
+  evidence_vectors:

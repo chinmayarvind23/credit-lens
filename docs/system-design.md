@@ -6,7 +6,7 @@ CreditLens is a modular monolith with a TypeScript workbench. The server produce
 
 Authentication verifies the configured issuer and token contract. Authorization resolves current SQL grants rather than accepting borrower, role or tenant authority from the request body. Scope filters apply before ranking and cover tenant, borrower, access groups and effective dates.
 
-Search providers return candidates. The canonical catalog validates their identity and supplies trusted text. The default path is lexical; optional local hybrid retrieval combines lexical and embedding ranks, applies selective query grounding and reranks within authorized candidates. Cortex and OpenSearch adapters use the same provider boundary.
+Search providers return candidates. The canonical catalog validates their identity and supplies trusted text. The demo defaults to lexical search. The authenticated production server selects Cortex Search or persistent Weaviate vector search. Weaviate combines canonical lexical ranks with vector ranks using reciprocal rank fusion, then reranks with pinned local models and applies query grounding. PostgreSQL remains the authority for every candidate. OpenSearch and local dense adapters share the same provider boundary for configured integrations.
 
 The workflow routes policy-reference questions separately from borrower calculations. Decimal computes financial values from compatible inputs. Missing or conflicting evidence produces an explicit disposition. Exact citation validation and a final grant/catalog check precede protected audit persistence.
 
@@ -22,6 +22,6 @@ The optional native OCR worker accepts trusted operator inputs, verifies generat
 
 The free Hugging Face demo runs the Python workflow in a browser worker with public synthetic fixtures and session SQLite. Browser-side scope checks are demonstration behavior, not a confidentiality boundary against the visitor.
 
-The server uses authenticated authority for protected data. PostgreSQL, Redis, search adapters, monitoring and queue integrations are optional configured service paths. The Cortex adapter has a local contract harness; the browser does not call it. The AWS folder supplies operator-managed infrastructure configuration.
+The server uses authenticated authority for protected data. Weaviate production serving requires an existing governed PostgreSQL catalog, Cognito identity configuration, pinned local models and an authenticated HTTPS vector service. The operator indexes authorized borrower/date scopes after canonical publication; queries fail when their current scope is not fully indexed. Redis, monitoring and queue integrations have separate configuration. The Cortex adapter has a local contract harness; the browser does not call it. The AWS folder supplies operator-managed infrastructure configuration.
 
-See [runtime contracts](LLD.md), [security](security.md), [recovery](recovery.md) and [deployment](deployment.md).
+See [Weaviate setup](weaviate.md), [runtime contracts](LLD.md), [security](security.md), [recovery](recovery.md) and [deployment](deployment.md).

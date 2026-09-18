@@ -17,8 +17,8 @@ Stage an explicit, credential-scanned source allowlist outside the repository.
 Use a new staging directory for each release, review its manifest, then build it:
 
 ```powershell
-.venv\Scripts\python.exe -m scripts.deploy_space stage --output ..\creditlens-work\artifacts\live-release
-docker build -t creditlens-live:release ..\creditlens-work\artifacts\live-release
+.venv\Scripts\python.exe -m scripts.deploy_space stage --output ..\resources\credit_lens\artifacts\live-release
+docker build -t creditlens-live:release ..\resources\credit_lens\artifacts\live-release
 docker run -d --name creditlens-hf-release --restart unless-stopped --read-only --cap-drop ALL --security-opt no-new-privileges --memory 512m --cpus 1 --pids-limit 128 --tmpfs /app/data:rw,noexec,nosuid,size=64m,uid=1000,gid=1000 --tmpfs /tmp:rw,noexec,nosuid,size=32m -p 127.0.0.1:17862:7860 creditlens-live:release
 ```
 
@@ -32,8 +32,8 @@ For the optional CPU model variant, build the reviewed stage with
 `--target neural-runtime`. Use a separate container name and port during review:
 
 ```powershell
-docker build --target neural-runtime -t creditlens-neural:release ..\creditlens-work\artifacts\live-release
-$modelDirectory = (Resolve-Path ..\creditlens-work\local-models).Path
+docker build --target neural-runtime -t creditlens-neural:release ..\resources\credit_lens\artifacts\live-release
+$modelDirectory = (Resolve-Path ..\resources\credit_lens\local-models).Path
 docker run -d --name creditlens-neural-release --restart unless-stopped --read-only --cap-drop ALL --security-opt no-new-privileges --memory 2g --cpus 4 --pids-limit 128 --tmpfs /app/data:rw,noexec,nosuid,size=64m,uid=1000,gid=1000 --tmpfs /tmp:rw,noexec,nosuid,size=64m --mount "type=bind,source=$modelDirectory,target=/models,readonly" -e TOKENIZERS_PARALLELISM=false -e OPENBLAS_NUM_THREADS=1 -p 127.0.0.1::7860 creditlens-neural:release
 docker port creditlens-neural-release
 ```
@@ -63,7 +63,7 @@ tokens in command arguments, source files or chat. The previous verified release
 audit identifies the exact remote revision, file inventory and hashes:
 
 ```powershell
-.venv\Scripts\python.exe -m scripts.publish_live_space --origin https://YOUR-TUNNEL.trycloudflare.com --repo-id chinmayarvind/creditlens --previous-audit ..\creditlens-work\audit\hf-live-release.json --audit ..\creditlens-work\audit\hf-live-next-release.json
+.venv\Scripts\python.exe -m scripts.publish_live_space --origin https://YOUR-TUNNEL.trycloudflare.com --repo-id chinmayarvind/creditlens --previous-audit ..\resources\credit_lens\audit\hf-live-release.json --audit ..\resources\credit_lens\audit\hf-live-next-release.json
 ```
 
 The publisher verifies live readiness and two fresh request IDs, rejects paid

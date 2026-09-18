@@ -1,9 +1,9 @@
 # Free interactive deployment
 
 The browser package runs CreditLens's Python workflow in a Web Worker. Hugging Face
-serves the UI, Python source, synthetic evidence and an 18 MB pinned Pyodide runtime.
+serves the UI, Python source, synthetic evidence and a pinned Pyodide runtime.
 Queries, calculations, citation lookup and session audits run on the visitor's device.
-The server deployment and hybrid model experiments remain separate options.
+The server deployment and authenticated vector search are configured separately.
 
 The package uses Hugging Face's [Static Spaces SDK](https://huggingface.co/docs/hub/spaces-overview).
 Static describes the hosting SDK; this application computes a new answer for each
@@ -22,8 +22,8 @@ bun install --frozen-lockfile
 bun run typecheck
 bun test
 cd ../..
-uv run python -m scripts.build_browser_space --output ../creditlens-browser-release --runtime-cache ../creditlens-browser-runtime
-uv run python -m http.server 8000 --bind 127.0.0.1 --directory ../creditlens-browser-release
+uv run python -m scripts.build_browser_space --output ../resources/credit_lens/artifacts/browser-release --runtime-cache ../resources/credit_lens/browser-runtime
+uv run python -m http.server 8000 --bind 127.0.0.1 --directory ../resources/credit_lens/artifacts/browser-release
 ```
 
 Open http://127.0.0.1:8000. Verify borrower selection, new questions, DSCR results,
@@ -38,7 +38,7 @@ Create a public **Static** Space in your own HF account. Authenticate locally wi
 Read the destination revision with `hf spaces info YOUR_ACCOUNT/YOUR_SPACE`.
 
 ```powershell
-uv run python -m scripts.publish_browser_space --stage ../creditlens-browser-release --repo-id YOUR_ACCOUNT/YOUR_SPACE --expected-revision REVIEWED_HF_COMMIT --audit ../creditlens-browser-publication.json
+uv run python -m scripts.publish_browser_space --stage ../resources/credit_lens/artifacts/browser-release --repo-id YOUR_ACCOUNT/YOUR_SPACE --expected-revision REVIEWED_HF_COMMIT --audit ../resources/credit_lens/evidence/browser-publication.json
 ```
 
 The publisher checks ownership, public Static mode, absent compute hardware,

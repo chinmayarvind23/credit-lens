@@ -41,7 +41,7 @@ Start a fresh owned fixture with the pinned PostgreSQL command in the
 [PostgreSQL guide](../postgres/README.md), then run:
 
 ```powershell
-uv run --no-sync python -m infra.supabase.check_permissions --port 15432 --output ../creditlens-supabase-permissions.json
+uv run --no-sync python -m infra.supabase.check_permissions --port 15432 --output ../resources/credit_lens/evidence/supabase-permissions.json
 cd apps/web
 bun run typecheck
 bun test

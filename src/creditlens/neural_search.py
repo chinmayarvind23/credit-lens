@@ -147,6 +147,27 @@ class LocalNeuralRanker:
                 self._shape(query, (1, 384))
             return self._order(matrix @ query[0], candidates, limit)
 
+    def encode_query(self, question: str) -> list[float]:
+        """Supply a validated query vector to the configured external vector index."""
+        input_budget(question, (), 1, 512)
+        with self._inference(), self._operation("neural.embed_query"):
+            query = self.embedding.encode_query(
+                [question],
+                normalize_embeddings=True,
+                convert_to_numpy=True,
+                show_progress_bar=False,
+            ).astype("float32")
+            self._shape(query, (1, 384))
+            return [float(value) for value in query[0]]
+
+    def encode_documents(self, candidates: tuple[Chunk, ...]) -> list[list[float]]:
+        """Expose bounded document encoding for explicit indexing, outside the query path."""
+        input_budget("", candidates, 1, 100)
+        if not candidates:
+            return []
+        with self._inference():
+            return [[float(value) for value in row] for row in self._matrix(candidates)]
+
     def rerank(
         self, question: str, candidates: tuple[Chunk, ...], limit: int = 10
     ) -> tuple[Chunk, ...]:

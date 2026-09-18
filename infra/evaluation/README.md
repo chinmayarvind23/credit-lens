@@ -7,7 +7,7 @@ a hosted fallback. Keep serving dependencies in the main project environment.
 ## Install and select a model
 
 ```powershell
-$env:UV_PROJECT_ENVIRONMENT='C:/creditlens-work/semantic-venv'
+$env:UV_PROJECT_ENVIRONMENT='../resources/credit_lens/semantic-venv'
 uv sync --project infra/evaluation --locked
 ```
 
@@ -18,11 +18,11 @@ Use a trusted local server and local weights; this process restriction is not an
 
 ## Controls and individual units
 
-Use a fresh output directory outside the repository:
+Run from the repository root. Use a fresh output directory under `../resources/credit_lens`:
 
 ```powershell
-C:/creditlens-work/semantic-venv/Scripts/python.exe infra/evaluation/run_deepeval.py --cases infra/evaluation/controls-v3.jsonl --model <installed-model> --digest <installed-digest> --output C:/creditlens-work/deepeval-screen
-C:/creditlens-work/semantic-venv/Scripts/python.exe infra/evaluation/run_ragas.py --cases infra/evaluation/controls-v3.jsonl --model <installed-model> --digest <installed-digest> --output C:/creditlens-work/ragas-screen
+../resources/credit_lens/semantic-venv/Scripts/python.exe infra/evaluation/run_deepeval.py --cases infra/evaluation/controls-v3.jsonl --model <installed-model> --digest <installed-digest> --output ../resources/credit_lens/deepeval-screen
+../resources/credit_lens/semantic-venv/Scripts/python.exe infra/evaluation/run_ragas.py --cases infra/evaluation/controls-v3.jsonl --model <installed-model> --digest <installed-digest> --output ../resources/credit_lens/ragas-screen
 ```
 
 Rows contain `id`, `input`, `actual_output`, `retrieval_context`, and optional
@@ -64,7 +64,7 @@ python infra/evaluation/run_full_packet.py export --gold evals/gold_cases.jsonl 
 <semantic-python> infra/evaluation/reconcile_full_packet.py --population <packet-inputs> --run <terminal-run> --output <fresh-report.json>
 ```
 
-Consult each command's `--help` for required inputs. Reconciliation rejects altered
+Resolve every output placeholder to a fresh path under `../resources/credit_lens`. Consult each command's `--help` for required inputs. Reconciliation rejects altered
 inputs, incompatible evaluator identities, duplicate units and raw-output mismatches.
 Field support, packet judgments, deterministic state checks and human calibration are
 separate concepts. A structurally valid model judgment is not proof of semantic correctness.

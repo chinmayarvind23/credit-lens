@@ -10,7 +10,7 @@ Use the already cached pinned OpenSearch image with the isolated container:
 ```sh
 docker compose -p creditlens-indexing-monitor -f infra/monitoring/indexing-compose.yml up -d --pull never
 # After the local service on 127.0.0.1:19201 is ready:
-PYTHONPATH=src python -m scripts.measure_indexing --pages /private/corpus/pages.jsonl --output /private/new-indexing-drill
+PYTHONPATH=src python -m scripts.measure_indexing --pages /private/corpus/pages.jsonl --output ../resources/credit_lens/evidence/new-indexing-drill
 docker compose -p creditlens-indexing-monitor -f infra/monitoring/indexing-compose.yml down
 ```
 

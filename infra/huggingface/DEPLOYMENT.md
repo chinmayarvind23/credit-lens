@@ -21,9 +21,9 @@ The smoke script checks readiness, health, web delivery, the five authorized dem
 Choose a fresh path outside the repository. Existing directories are never overwritten:
 
 ```sh
-uv run python scripts/deploy_space.py stage --output /absolute/path/creditlens-space-stage
-uv run python scripts/deploy_space.py verify --stage /absolute/path/creditlens-space-stage
-docker build --tag creditlens-demo:staged /absolute/path/creditlens-space-stage
+uv run python scripts/deploy_space.py stage --output ../resources/credit_lens/artifacts/space-stage
+uv run python scripts/deploy_space.py verify --stage ../resources/credit_lens/artifacts/space-stage
+docker build --tag creditlens-demo:staged ../resources/credit_lens/artifacts/space-stage
 ```
 
 `stage` copies exactly the files listed in `scripts/deploy_space.py`. The Space card becomes the staged root README. Backend code for evaluation and optional retrieval experiments is excluded. No `.env`, credentials, PDFs, databases, source corpus artifacts, evaluation outputs, Git history, private resources, or installed dependencies enter the package. The manifest records SHA-256 hashes, source revision, and whether the allowlisted working tree had uncommitted changes.
@@ -37,7 +37,7 @@ Upload requires an existing Docker Space, its explicit `namespace/space-name`, a
 After the package and destination have been reviewed:
 
 ```sh
-uv run python scripts/deploy_space.py upload --stage /absolute/path/creditlens-space-stage --repo-id namespace/space-name
+uv run python scripts/deploy_space.py upload --stage ../resources/credit_lens/artifacts/space-stage --repo-id namespace/space-name
 ```
 
 The script checks current login, confirms that the named Space exists, verifies the package again, and uploads that directory. It does not delete remote files. Use a dedicated Space; unrelated old files in an existing Space remain untouched. An upload does not establish a healthy deployment. Inspect the Space build, then check its actual `/health`, `/ready`, borrower/query/source workflow, and UI.

@@ -196,10 +196,12 @@ def ready(request: Request) -> dict[str, str]:
     store: GrantStore = request.app.state.store
     with store.engine.connect() as connection:
         connection.execute(text("SELECT 1"))
-    if config.mode == "production":
+    if config.mode == "production" and config.production_search == "cortex":
         probe_cortex(request.app.state.http, config)
     if request.app.state.workflow is None:
         raise ServiceError("workflow_not_initialized", "Query workflow is not initialized")
+    if config.mode == "production" and config.production_search == "weaviate":
+        request.app.state.workflow.provider.check_ready()
     if config.ingestion_enabled:
         request.app.state.jobs.check_ready()
     try:
@@ -207,7 +209,8 @@ def ready(request: Request) -> dict[str, str]:
         _ = request.app.state.workflow.catalog.version
     except ServiceError as error:
         raise ServiceError("catalog_unavailable", "Evidence catalog is unavailable", 503) from error
-    return {"status": "ready", "mode": config.mode, "search": "local-extractive"}
+    search = "weaviate-hybrid" if config.production_search == "weaviate" else "local-extractive"
+    return {"status": "ready", "mode": config.mode, "search": search}
 
 
 def probe_cortex(client: httpx.Client, config: Settings) -> None:

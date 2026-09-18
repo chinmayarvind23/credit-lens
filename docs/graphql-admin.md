@@ -60,6 +60,3 @@ GraphQL-core's [execution](https://graphql-core-3.readthedocs.io/en/stable/usage
 and [validation contracts](https://graphql-core-3.readthedocs.io/en/stable/modules/validation.html)
 provide parsing, schema checks and synchronous resolution. This application's
 permission checks and all-or-error response policy are additional constraints.
-
-This is an operational metadata explorer, not a new semantic grading system.
-Whole-answer evaluation results remain governed by the separate benchmark ledger.

@@ -9,7 +9,7 @@ From the repository root:
 ```powershell
 docker compose -f infra/opensearch/compose.yml up -d
 curl.exe http://127.0.0.1:19200
-uv run --no-sync python scripts/check_opensearch.py --pages ../creditlens-work/corpus/pages.jsonl --output ../creditlens-work/evals/opensearch-live-new
+uv run --no-sync python scripts/check_opensearch.py --pages ../resources/credit_lens/corpus/pages.jsonl --output ../resources/credit_lens/evals/opensearch-live-new
 docker compose -f infra/opensearch/compose.yml down
 ```
 
@@ -48,9 +48,7 @@ catalogs do not satisfy this contract; replacing either catalog later is rejecte
 requests up to 100 candidates per branch and fuses ranks with RRF k=60. Both branches
 must succeed under the same request, principal and catalog revision. Conflicting
 canonical chunks fail the result. Verification and citation access retain both branch
-freshness checks. Tests use a named dense provider double; that is composition evidence,
-not a live Cortex/dense hybrid quality measurement. Current provider labels identify
-each actual branch rather than replacing the unavailable branch with a fixture label.
+freshness checks. Provider labels identify each configured branch.
 
 The integration CLI writes its initial manifest before network access. Connection,
 indexing, query and cleanup failures retain failed manifests and any collected

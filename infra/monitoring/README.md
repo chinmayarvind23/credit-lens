@@ -18,7 +18,7 @@ If the images are absent, download the two exact images listed in `compose.yaml`
 From the repository root, in one PowerShell terminal:
 
 ```powershell
-.venv\Scripts\python.exe -m scripts.monitoring_fixture --output ../creditlens-work/evals/my-monitoring-run --seconds 300
+.venv\Scripts\python.exe -m scripts.monitoring_fixture --output ../resources/credit_lens/evals/my-monitoring-run --seconds 300
 ```
 
 Choose a fresh output directory. The fixture uses public synthetic documents,
@@ -55,8 +55,7 @@ actual responses, audit database, traces and final metrics in the chosen directo
 
 ## Interpretation and deployment boundary
 
-Histogram percentiles are bucket estimates, unlike exact client-side benchmark
-percentiles. Zero error rates are not evidence of fault tolerance. An unavailable
+Histogram percentiles are estimates from the configured buckets. Zero error rates are not evidence of fault tolerance. An unavailable
 fixture appears as scrape health zero; other panels may have no data. Do not read
 missing traffic as a successful service. The demo registry has finite labels and
 excludes borrower identities, questions, credentials and document text.
@@ -109,7 +108,7 @@ To run the synthetic drill, start a fresh owned PostgreSQL fixture using
 [the PostgreSQL guide](../postgres/README.md), then run from the repo root:
 
 ```powershell
-uv run --no-sync python -m infra.monitoring.ingestion_fixture --port 15432 --output ../creditlens-ingestion-drill --seconds 120
+uv run --no-sync python -m infra.monitoring.ingestion_fixture --port 15432 --output ../resources/credit_lens/evidence/ingestion-drill --seconds 120
 ```
 
 Start this monitoring compose stack while the fixture runs. The fixture submits

@@ -7,6 +7,7 @@
 | Identity and access | [auth.py](../src/creditlens/auth.py), [access.py](../src/creditlens/access.py) | Verify token contract and resolve current grants before evidence access. |
 | Canonical storage | [sql_catalog.py](../src/creditlens/sql_catalog.py), [storage.py](../src/creditlens/storage.py) | Transactions publish evidence and revisions; audits are protected records. |
 | Retrieval | [search_provider.py](../src/creditlens/search_provider.py), [hybrid_provider.py](../src/creditlens/hybrid_provider.py), [rerank_provider.py](../src/creditlens/rerank_provider.py) | Rank only scoped candidates, reject altered or foreign records, rehydrate canonical text. |
+| Vector storage | [weaviate_provider.py](../src/creditlens/weaviate_provider.py), [weaviate_store.py](../src/creditlens/weaviate_store.py) | Scope IDs come from SQL; collection and model identity, complete scope coverage and canonical fingerprints are checked before ranking. |
 | Local models | [llama_chunking.py](../src/creditlens/llama_chunking.py), [neural_search.py](../src/creditlens/neural_search.py) | Preserve exact source offsets and use the pinned model contract. |
 | Packet construction | [workflow.py](../src/creditlens/workflow.py), [intent.py](../src/creditlens/intent.py) | Route reference and assessment requests, bound context, validate before audit and return. |
 | Finance and citations | [finance.py](../src/creditlens/finance.py), [citations.py](../src/creditlens/citations.py) | Decimal arithmetic requires compatible inputs; citations resolve exact current source spans. |
