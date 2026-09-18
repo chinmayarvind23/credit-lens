@@ -104,7 +104,7 @@ def run(output: Path) -> None:
         "cost_usd": None,
         "paid_service_calls": 0,
         "concurrency": 1,
-        "limits": "Serial loopback HTTP, five fictional borrowers, 330-page fixture, "
+        "limits": "Serial loopback HTTP, five synthetic borrowers, 330-page fixture, "
         "lexical retrieval, shared workstation; not a production/cloud benchmark.",
     }
     (output / "records.jsonl").write_text(

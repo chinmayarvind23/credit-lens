@@ -10,7 +10,7 @@ CreditLens helps commercial-loan underwriters connect borrower evidence to the a
 
 Underwriting evidence is spread across financial statements, debt schedules and changing policy documents. A relevant passage can still belong to the wrong borrower or policy version. CreditLens brings scoped evidence and its source pages into the same workbench, makes missing inputs visible and keeps financial arithmetic reproducible.
 
-The demo uses fictional documents and runs the Python workflow inside your browser. After startup, questions and source inspection work offline. Try **“What is the borrower's DSCR?”**, then open the citations or select a borrower with missing debt-service evidence.
+The demo uses synthetic documents and runs the Python workflow inside your browser. After startup, questions and source inspection work offline. Try **“What is the borrower's DSCR?”**, then open the citations or select a borrower with missing debt-service evidence.
 
 ## Key features
 
@@ -47,7 +47,7 @@ Python and FastAPI expose the underwriting service, Pydantic validates its contr
 and SQLAlchemy manages canonical evidence and application state. PostgreSQL supports
 server persistence; Redis supplies shared caching. TypeScript and Bun power the workbench,
 while OpenTelemetry traces retrieval and service operations. The browser demo runs Python
-through Pyodide with SQLite, public fictional evidence and lexical retrieval.
+through Pyodide with SQLite, public synthetic evidence and lexical retrieval.
 
 ### Integrations
 
@@ -93,7 +93,7 @@ flowchart LR
     HF[Free browser demo] --> Worker[Pyodide worker and public fixtures]
 ```
 
-The public browser bundles only fictional data. Use the authenticated server architecture for protected documents. See [system design](docs/system-design.md) and [security](docs/security.md).
+The public browser bundles only synthetic data. Use the authenticated server architecture for protected documents. See [system design](docs/system-design.md) and [security](docs/security.md).
 
 ## Deployment
 

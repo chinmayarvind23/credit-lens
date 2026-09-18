@@ -12,7 +12,7 @@ pinned: false
 
 CreditLens assembles cited borrower evidence, deterministic financial metrics, missing-document checks, conflicts, and next actions for human review.
 
-This Space runs the **synthetic local extractive demonstration**. Borrowers and policy pages are fictional. The local financial disposition assesses **DSCR only**. It does not approve or reject loans or complete a full policy assessment.
+This Space runs the **synthetic local extractive demonstration**. Borrowers and policy pages are synthetic. The local financial disposition assesses **DSCR only**. It does not approve or reject loans or complete a full policy assessment.
 
 Select a borrower, set the policy date, and ask about debt service coverage, missing documents, or conflicts. Open a citation to inspect its page text and provenance. Expand the execution trace to see the actual provider mode and request timing.
 

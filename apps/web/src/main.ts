@@ -94,9 +94,9 @@ async function loadBorrowers(): Promise<void> {
     borrowerSelect.disabled = !borrowers.length;
     required("#environment").textContent = browserMode ? "Browser demo | Free" : result.mode === "demo" ? "Synthetic demo" : "Production";
     required("#environment-notice").textContent = browserMode
-      ? "SYNTHETIC DEMO | Questions run in your browser over fictional documents. No account or server is needed. Session history resets when you reload."
+      ? "SYNTHETIC DEMO | Questions run in your browser over synthetic documents. No account or server is needed. Session history resets when you reload."
       : result.mode === "demo"
-      ? "SYNTHETIC DEMO · Fictional borrowers and policy documents. Review outputs demonstrate the workflow; they are not real lending advice."
+      ? "SYNTHETIC DEMO · Synthetic borrowers and policy documents. Review outputs demonstrate the workflow; they are not real lending advice."
       : "PRODUCTION · Access is restricted to your server-authorized borrower scope. Review all cited evidence before making a lending decision.";
     status.textContent = borrowers.length ? "Authorized borrower scope loaded. Ready for your question." : "No borrowers are available to this identity. Contact your administrator.";
     updateBorrowerDescription(); setBusy(false);

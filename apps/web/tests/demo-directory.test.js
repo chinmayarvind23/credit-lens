@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { directoryConfig, demoDirectory } from "../src/demo-directory";
 
-const local = { mode: "demo", borrowers: [{ borrower_id: "borrower-001", name: "Fictional", industry: "Test" }] };
+const local = { mode: "demo", borrowers: [{ borrower_id: "borrower-001", name: "Synthetic", industry: "Test" }] };
 const config = { origin: "https://synthetic.supabase.co", key: "sb_publishable_syntheticfixtureonly" };
 /** Canned responses exercise only transport contracts; real SQL permissions are checked separately. */
 function response(value) { return new Response(JSON.stringify(value)); }

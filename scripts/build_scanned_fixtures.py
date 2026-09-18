@@ -44,7 +44,7 @@ def table_page(font_path: Path) -> tuple[Image.Image, dict[str, object]]:
     for x in (85, 625, 905, 1160):
         draw.line((x, 330, x, 800), fill="#85938c", width=2)
     label(draw, (85, 940), "DSCR = operating cash flow / annual debt service.", body)
-    label(draw, (85, 995), "This fictional statement supports software testing only.", body)
+    label(draw, (85, 995), "This synthetic statement supports software testing only.", body)
     label(draw, (85, 1600), "Document: scan-financial-v1 | Physical page: 1", body)
     return picture, {
         "table": rows,

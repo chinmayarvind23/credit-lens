@@ -11,7 +11,7 @@ alter table public.creditlens_demo_borrowers force row level security;
 revoke all on public.creditlens_demo_borrowers from public, anon, authenticated;
 grant usage on schema public to anon, authenticated;
 grant select (borrower_id, name, industry) on public.creditlens_demo_borrowers to anon, authenticated;
-create policy public_fictional_directory on public.creditlens_demo_borrowers
+create policy public_synthetic_directory on public.creditlens_demo_borrowers
     for select to anon, authenticated using (published);
 insert into public.creditlens_demo_borrowers (borrower_id, name, industry, published) values
     ('borrower-001', 'Northstar Fabrication', 'Manufacturing', true),

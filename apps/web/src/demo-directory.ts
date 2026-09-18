@@ -12,7 +12,7 @@ export function directoryConfig(origin: string, key: string): DirectoryConfig | 
   return { origin, key };
 }
 
-/** A remote directory may reorder fictional labels but cannot change local evidence identities. */
+/** A remote directory may reorder synthetic labels but cannot change local evidence identities. */
 export async function demoDirectory(local: BorrowerList, config: DirectoryConfig | undefined, signal: AbortSignal, fetcher: typeof fetch = fetch): Promise<BorrowerList> {
   if (signal.aborted) throw new DOMException("Cancelled", "AbortError");
   if (!config || local.mode !== "demo") return local;

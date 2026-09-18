@@ -30,7 +30,7 @@ BROWSER = ROOT / "infra/huggingface/browser"
 
 
 def public_fixture() -> dict:
-    """Publish only fictional demo tenants, five borrowers and underwriting-visible policy pages."""
+    """Publish only synthetic demo tenants, five borrowers and underwriting-visible policy pages."""
     borrowers = build_demo_borrowers()
     allowed = {b.borrower_id for b in borrowers}
     pages = [

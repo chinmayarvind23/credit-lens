@@ -1,7 +1,7 @@
 # Free interactive deployment
 
 The browser package runs CreditLens's Python workflow in a Web Worker. Hugging Face
-serves the UI, Python source, fictional evidence and an 18 MB pinned Pyodide runtime.
+serves the UI, Python source, synthetic evidence and an 18 MB pinned Pyodide runtime.
 Queries, calculations, citation lookup and session audits run on the visitor's device.
 The server deployment and hybrid model experiments remain separate options.
 
@@ -50,7 +50,7 @@ Space after its CDN has updated. Retain the previous HF revision for rollback.
 
 ## Boundaries
 
-- Every shipped document is public and fictional. No restricted pages are bundled.
+- Every shipped document is public and synthetic. No restricted pages are bundled.
 - Browser permission filtering is an educational demonstration, not access control
   for confidential data. Use the authenticated server for protected information.
 - The browser uses BM25 and quoted evidence with deterministic Decimal calculations.

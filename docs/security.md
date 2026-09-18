@@ -4,7 +4,7 @@ The authenticated server resolves current SQL grants after verifying token issue
 
 Search indexes are candidate providers. The canonical catalog supplies current text, revisions and permissions. Citation validation compares exact spans against authorized canonical evidence. Cache keys bind scope and revision; cache hits repeat validation and create a fresh protected audit. The final authority check rejects grant changes during execution.
 
-The browser demo contains public fictional documents. Its client-side checks illustrate the workflow; they do not protect confidential data from the visitor. Do not bundle private documents or credentials into a public build.
+The browser demo contains public synthetic documents. Its client-side checks illustrate the workflow; they do not protect confidential data from the visitor. Do not bundle private documents or credentials into a public build.
 
 Digital ingestion validates immutable source hashes and metadata and executes parsing in a restricted container. Native OCR is an opt-in trusted-operator path and stages extraction for scoped review. Approval locks current reviewer and submitter grants through publication. Untrusted public uploads need a deployment with an appropriate execution boundary.
 

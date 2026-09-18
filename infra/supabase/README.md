@@ -1,6 +1,6 @@
 # Optional public demo directory
 
-The browser can read the five fictional borrower labels from Supabase's REST API.
+The browser can read the five synthetic borrower labels from Supabase's REST API.
 Evidence, questions, financial calculations and session audits stay in the Python
 browser worker. The default Hugging Face release uses its bundled directory and
 does not require Supabase or make directory requests.
@@ -10,7 +10,7 @@ editor as an administrator. Use a dedicated synthetic project: this table is
 public. The migration enables and forces RLS, grants only three readable columns
 to `anon` and `authenticated`, and exposes only published rows. It grants no writes.
 The labels intentionally match `build_demo_borrowers()` exactly, including its
-fictional industry assignments.
+synthetic industry assignments.
 
 Before building your browser deployment, add these two tags inside the `<head>`
 of `apps/web/index.html` in your own checkout:

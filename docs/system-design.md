@@ -20,7 +20,7 @@ The optional native OCR worker accepts trusted operator inputs, verifies generat
 
 ## Deployment boundaries
 
-The free Hugging Face demo runs the Python workflow in a browser worker with public fictional fixtures and session SQLite. Browser-side scope checks are demonstration behavior, not a confidentiality boundary against the visitor.
+The free Hugging Face demo runs the Python workflow in a browser worker with public synthetic fixtures and session SQLite. Browser-side scope checks are demonstration behavior, not a confidentiality boundary against the visitor.
 
 The server uses authenticated authority for protected data. PostgreSQL, Redis, search adapters, monitoring and queue integrations are optional configured service paths. The Cortex adapter has a local contract harness; the browser does not call it. The AWS folder supplies operator-managed infrastructure configuration.
 

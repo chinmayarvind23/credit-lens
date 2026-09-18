@@ -1,6 +1,6 @@
 # Deployment
 
-The [free interactive Hugging Face build](../infra/huggingface/browser/DEPLOYMENT.md) packages the workbench, Python browser runtime and fictional fixtures. It works independently of an owner workstation after publication. Use the browser build for the public demonstration.
+The [free interactive Hugging Face build](../infra/huggingface/browser/DEPLOYMENT.md) packages the workbench, Python browser runtime and synthetic fixtures. It works independently of an owner workstation after publication. Use the browser build for the public demonstration.
 
 For a local server, follow the [README](../README.md#setup). Optional PostgreSQL, Redis, search, queue and monitoring setup lives under [infra](../infra). Configure current identity and catalog authority before admitting protected data.
 
