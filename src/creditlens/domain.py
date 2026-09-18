@@ -4,7 +4,7 @@ from datetime import date
 from decimal import Decimal
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class StrictModel(BaseModel):
@@ -116,6 +116,46 @@ class Stage(StrictModel):
     duration_ms: float = Field(ge=0)
 
 
+class GeneratedStatement(StrictModel):
+    """Model interpretation stays separate from literal support and server-owned calculations."""
+
+    text: str = Field(min_length=1, max_length=1200)
+    citations: tuple[Citation, ...] = Field(min_length=1, max_length=8)
+    supporting_quotes: tuple[Claim, ...] = Field(min_length=1, max_length=8)
+
+    @field_validator("text")
+    @classmethod
+    def nonblank_text(cls, value: str) -> str:
+        """Reject blank claims without relying on the model decoder's limited regex grammar."""
+        if not value.strip():
+            raise ValueError("Generated statements cannot be blank")
+        return value
+
+
+class Synthesis(StrictModel):
+    """Retain model provenance and explicit refusal without delegating workflow authority."""
+
+    status: Literal["answered", "refused"]
+    statements: tuple[GeneratedStatement, ...] = Field(max_length=6)
+    refusal_reason: str = Field(max_length=500)
+    refusal_category: Literal["none", "safety", "input_mismatch", "insufficient_info"]
+    model: str = Field(min_length=1, max_length=100)
+    model_digest: str = Field(pattern=r"^[a-f0-9]{64}$")
+    prompt_version: str = Field(min_length=1, max_length=100)
+    prompt_tokens: int = Field(ge=0, le=16384, strict=True)
+    output_tokens: int = Field(ge=0, le=2048, strict=True)
+
+    @model_validator(mode="after")
+    def consistent_outcome(self) -> "Synthesis":
+        """An explicit model refusal cannot simultaneously contain an asserted answer."""
+        if self.status == "answered":
+            if not self.statements or self.refusal_reason or self.refusal_category != "none":
+                raise ValueError("An answer requires statements and no refusal")
+        elif self.statements or not self.refusal_reason.strip() or self.refusal_category == "none":
+            raise ValueError("A refusal requires a reason/category and no statements")
+        return self
+
+
 class Packet(StrictModel):
     """A preparation artifact has evidence and review states, never a loan decision."""
 
@@ -144,3 +184,4 @@ class Packet(StrictModel):
     latency_ms: float = Field(ge=0)
     cache_hit: bool = False
     cost_usd: Decimal | None = None
+    synthesis: Synthesis | None = None

@@ -3,6 +3,7 @@
 import argparse
 from datetime import date
 from pathlib import Path
+from ssl import create_default_context
 
 import httpx
 
@@ -61,7 +62,11 @@ def main() -> None:
         grants = GrantStore(engine)
         catalog = SqlEvidenceCatalog(engine, config.governed_catalog_id)
         models = LocalNeuralRanker(Path(config.local_model_directory))
-        with httpx.Client(trust_env=False, follow_redirects=False) as client:
+        with httpx.Client(
+            trust_env=False,
+            follow_redirects=False,
+            verify=create_default_context(cafile=config.weaviate_ca_file or None),
+        ) as client:
             vectors = WeaviateStore(
                 config.weaviate_url,
                 config.weaviate_collection,

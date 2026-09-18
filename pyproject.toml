@@ -5,6 +5,7 @@ description = "Permission-aware lending evidence and underwriting preparation"
 readme = "README.md"
 requires-python = ">=3.11,<3.13"
 dependencies = [
+    "anyio>=4.15,<5",
     "fastapi>=0.115,<1",
     "httpx>=0.28,<1",
     "psycopg[binary]>=3.2,<4",
@@ -62,6 +63,7 @@ select = ["E", "F", "I", "B", "UP", "S", "C90"]
 "infra/redis/test_integration.py" = ["S101"]
 "infra/postgres/test_catalog.py" = ["S101"]
 "infra/postgres/test_ingestion_jobs.py" = ["S101"]
+"infra/postgres/test_governed_ingestion.py" = ["S101"]
 "infra/postgres/test_ingestion_execution.py" = ["S101"]
 "infra/postgres/test_queue_execution.py" = ["S101"]
 "infra/postgres/test_worker_loop.py" = ["S101"]

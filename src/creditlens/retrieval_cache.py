@@ -41,6 +41,12 @@ class RetrievalCache:
         self.ttl = ttl
         self.clock = clock
 
+    def check_ready(self) -> None:
+        """Preserve required-provider readiness; Redis remains optional acceleration."""
+        check = getattr(self.provider, "check_ready", None)
+        if callable(check):
+            check()
+
     def key(self, request: QueryRequest, principal: Principal, revision: int, limit: int) -> str:
         """Hide query/scope data while binding request, permission, catalog and index dimensions."""
         identity = {

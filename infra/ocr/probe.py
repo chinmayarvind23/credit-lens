@@ -5,8 +5,30 @@ import hashlib
 import json
 import os
 import time
-from contextlib import nullcontext
+from collections.abc import Iterable
+from contextlib import AbstractContextManager, nullcontext
 from pathlib import Path
+from typing import TYPE_CHECKING, Protocol, cast
+
+if TYPE_CHECKING:
+    from infra.ocr.completion import CompletionRecord
+
+
+class OcrResult(Protocol):
+    """The probe only persists the optional SDK's per-page result objects."""
+
+    def save_to_json(self, path: str) -> None:
+        """Write the SDK result to the caller's owned output path."""
+        ...
+
+
+class OcrPipeline(Protocol):
+    """Type the small optional inference boundary without importing Paddle in API CI."""
+
+    def predict(self, image: str, **kwargs: object) -> Iterable[OcrResult]:
+        """Yield page results for an explicitly bounded local image."""
+        ...
+
 
 REVISIONS = {
     "PP-DocLayoutV3": "7b48a7566925fa464281f930c58eee04fe2c862a",
@@ -35,9 +57,10 @@ def verify_model(root: Path, name: str) -> Path:
     return directory
 
 
-def build_pipeline(models: Path, engine: str):
+def build_pipeline(models: Path, engine: str) -> OcrPipeline:
     """Compare explicit local engines without mixing their outputs or confidence meanings."""
-    from paddleocr import PaddleOCR, PaddleOCRVL
+    # Installed only in the separate pinned OCR environment, never downloaded by this probe.
+    from paddleocr import PaddleOCR, PaddleOCRVL  # type: ignore[import-not-found]
 
     options = {
         "device": "cpu",
@@ -47,24 +70,30 @@ def build_pipeline(models: Path, engine: str):
         "use_doc_unwarping": False,
     }
     if engine == "ocr-v6":
-        return PaddleOCR(
-            **options,
-            text_detection_model_name="PP-OCRv6_tiny_det",
-            text_detection_model_dir=str(verify_model(models, "PP-OCRv6_tiny_det")),
-            text_recognition_model_name="PP-OCRv6_tiny_rec",
-            text_recognition_model_dir=str(verify_model(models, "PP-OCRv6_tiny_rec")),
-            use_textline_orientation=False,
+        return cast(
+            OcrPipeline,
+            PaddleOCR(
+                **options,
+                text_detection_model_name="PP-OCRv6_tiny_det",
+                text_detection_model_dir=str(verify_model(models, "PP-OCRv6_tiny_det")),
+                text_recognition_model_name="PP-OCRv6_tiny_rec",
+                text_recognition_model_dir=str(verify_model(models, "PP-OCRv6_tiny_rec")),
+                use_textline_orientation=False,
+            ),
         )
-    return PaddleOCRVL(
-        **options,
-        pipeline_version="v1.6",
-        layout_detection_model_name="PP-DocLayoutV3",
-        layout_detection_model_dir=str(verify_model(models, "PP-DocLayoutV3")),
-        vl_rec_model_name="PaddleOCR-VL-1.6-0.9B",
-        vl_rec_model_dir=str(verify_model(models, "PaddleOCR-VL-1.6")),
-        vl_rec_backend="native",
-        use_layout_detection=True,
-        use_queues=False,
+    return cast(
+        OcrPipeline,
+        PaddleOCRVL(
+            **options,
+            pipeline_version="v1.6",
+            layout_detection_model_name="PP-DocLayoutV3",
+            layout_detection_model_dir=str(verify_model(models, "PP-DocLayoutV3")),
+            vl_rec_model_name="PaddleOCR-VL-1.6-0.9B",
+            vl_rec_model_dir=str(verify_model(models, "PaddleOCR-VL-1.6")),
+            vl_rec_backend="native",
+            use_layout_detection=True,
+            use_queues=False,
+        ),
     )
 
 
@@ -90,11 +119,11 @@ def main() -> None:
     pipeline = build_pipeline(args.models, args.engine)
     loaded = time.perf_counter()
     options = {"max_new_tokens": 1024, "use_queues": False} if args.engine == "vl" else {}
-    if __package__:
+    if TYPE_CHECKING or __package__:
         from .completion import observe_generation
     else:
         from completion import observe_generation
-    observer = (
+    observer: AbstractContextManager[list[CompletionRecord]] = (
         observe_generation(args.output / "completion.json")
         if args.engine == "vl"
         else nullcontext([])

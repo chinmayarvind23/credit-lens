@@ -18,6 +18,7 @@ The demo uses synthetic documents and runs the Python workflow inside your brows
 - Page-level citations tied to canonical text, document versions and exact source spans.
 - Decimal financial calculations, explicit abstention, conflict detection and exception guidance.
 - Persistent Weaviate vector search for the authenticated server, with lexical fusion, query grounding and local reranking.
+- Grounded synthesis from a pinned Ollama model, with adjacent citations and exact supporting quotes for review.
 - Response caching with fresh authorization and audit records; optional shared request quotas.
 - Durable document ingestion with worker leases, atomic publication and reviewed OCR quarantine.
 - Retrieval tracing, operational dashboards and executable evaluation and regression checks.
@@ -45,7 +46,7 @@ Open [the workbench](http://127.0.0.1:8000) or [API documentation](http://127.0.
 
 Python and FastAPI expose the underwriting service, Pydantic validates its contracts,
 and SQLAlchemy manages canonical evidence and application state. PostgreSQL supports
-server persistence; Weaviate stores searchable embeddings and Redis supports shared caching. TypeScript and Bun power the workbench,
+server persistence; Weaviate stores searchable embeddings, Ollama generates cited interpretation, and Redis supports shared caching. TypeScript and Bun power the workbench,
 while OpenTelemetry traces retrieval and service operations. The browser demo runs Python
 through Pyodide with SQLite, public synthetic evidence and lexical retrieval.
 
@@ -57,6 +58,7 @@ Configure the integrations your deployment needs:
   for model-based retrieval and reranking, [Weaviate](docs/weaviate.md), [Snowflake Cortex](infra/cortex/README.md)
   and [OpenSearch](infra/opensearch/README.md) for search integrations, and
   [reviewed OCR](infra/ocr/README.md) for document ingestion.
+- **Generation:** [Ollama](docs/generation.md) serves an installed local model pinned by tag and digest.
 - **Evaluation and monitoring:** DeepEval and RAGAS for evaluation, with Prometheus
   and Grafana for operational monitoring.
 - **Interfaces and delivery:** [SQS-compatible messaging](infra/sqs/README.md) for
@@ -67,13 +69,13 @@ Configure the integrations your deployment needs:
   integration and [AWS Terraform](infra/aws/README.md) for operator-managed infrastructure.
 - **Metadata processing:** [Spark/PySpark](infra/spark/README.md) validates and prepares scoped index metadata.
 
-Server services and model-based retrieval are configured separately from the browser demo.
+Server services, model-based retrieval and [grounded synthesis](docs/generation.md) are configured separately from the browser demo.
 See [system design](docs/system-design.md) for component boundaries and
 [deployment setup](docs/deployment.md) for hosting and infrastructure configuration.
 
 ## How it works
 
-The server resolves the caller's current grants and selects evidence within their borrower and policy scope. The production server can combine Weaviate vector search with lexical ranks and local reranking, or use Cortex Search. PostgreSQL supplies the canonical text and authority. The workflow selects the relevant passages, computes supported financial values and builds an extractive evidence packet. Before returning it, the server validates citations, rechecks permissions and writes a protected audit record. Opening a source repeats authorization.
+The server resolves the caller's current grants and selects evidence within their borrower and policy scope. The production server can combine Weaviate vector search with lexical ranks and local reranking, or use Cortex Search. PostgreSQL supplies the canonical text and authority. The workflow selects relevant passages and computes supported financial values. When evidence supports an answer, a pinned Ollama model adds generated interpretation with exact supporting quotes; server-abstained packets skip generation. The reviewer sees that interpretation alongside the deterministic assessment. Before returning the packet, the server validates citations, rechecks permissions and writes a protected audit record. Opening a source repeats authorization.
 
 ```mermaid
 flowchart LR
@@ -83,7 +85,8 @@ flowchart LR
     Search --> Rank[Canonical validation and optional reranking]
     Rank --> Evidence[Canonical PostgreSQL evidence]
     Evidence --> Packet[Quoted facts and Decimal calculations]
-    Packet --> Check[Citations and permission recheck]
+    Packet --> Generation[Grounded synthesis unless abstained]
+    Generation --> Check[Supporting quotes, citations and permission recheck]
     Check --> Audit[Protected audit]
     Audit --> UI
     Ingest[PDF parsing and reviewed OCR] --> Catalog[Transactional publication]

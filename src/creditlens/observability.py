@@ -18,7 +18,7 @@ from prometheus_client import CollectorRegistry, Counter, Histogram, generate_la
 from starlette.datastructures import State
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
-from creditlens.domain import Packet
+from creditlens.domain import Packet, Synthesis
 
 ROUTES = frozenset(
     {
@@ -43,6 +43,7 @@ STAGES = frozenset(
         "cache.retrieval.hit",
         "cache.retrieval.miss",
         "cache.retrieval.disabled",
+        "cache.retrieval.unavailable",
         "intent.classify_question",
         "context.check_requested_topic",
         "retrieval.financial_metadata_lookup",
@@ -52,6 +53,7 @@ STAGES = frozenset(
         "neural.embed_documents",
         "neural.embed_query",
         "neural.rerank",
+        "generation.synthesize",
     }
 )
 
@@ -165,6 +167,24 @@ class Telemetry:
             buckets=(0, 0.001, 0.005, 0.01, 0.025, 0.043, 0.05, 0.1, 0.5, 1),
             registry=self.registry,
         )
+        self.generation_tokens = Counter(
+            "creditlens_generation_tokens_total",
+            "Tokens reported by completed validated model calls; excludes response-cache reuse",
+            ["kind"],
+            registry=self.registry,
+        )
+        self.generation_outcomes = Counter(
+            "creditlens_generation_outcomes_total",
+            "Completed validated synthesis calls by model response state",
+            ["status"],
+            registry=self.registry,
+        )
+
+    def generation(self, synthesis: Synthesis) -> None:
+        """Observe bounded token/outcome labels without model text or borrower identities."""
+        self.generation_tokens.labels("prompt").inc(synthesis.prompt_tokens)
+        self.generation_tokens.labels("output").inc(synthesis.output_tokens)
+        self.generation_outcomes.labels(synthesis.status).inc()
 
     @contextmanager
     def span(self, name: str) -> Iterator[None]:

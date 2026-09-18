@@ -5,6 +5,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import date
 from hashlib import sha256
+from typing import cast
 from uuid import uuid4
 
 from sqlalchemy import (
@@ -137,6 +138,11 @@ class SqlEvidenceCatalog:
             raise ServiceError("evidence_changed", "Evidence changed; retry the request", 409)
         self._authority = authority
         return int(row["revision"])
+
+    @property
+    def authority_id(self) -> str:
+        """Expose the identity captured at construction; callers still check current SQL state."""
+        return cast(str, self._authority)
 
     @property
     def version(self) -> str:

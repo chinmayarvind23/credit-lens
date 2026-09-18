@@ -82,6 +82,8 @@ rolls back publication if ownership expires during work. The shared grant lock
 prevents concurrent revocation between authorization and commit. OCR jobs retain normalized artifacts in quarantine. Explicit scoped administrator
 review can atomically admit corrected pages; see [reviewed admission](../ocr/README.md#reviewed-admission).
 
+For governed production, follow [governed ingestion](../../docs/ingestion.md): initialize the job schema explicitly, select the existing governed catalog and use a fresh non-synthetic queue. The queue binds to that catalog and its immutable authority.
+
 With the shared demo catalog configured, set `CREDITLENS_INGESTION_ENABLED=true`
 and a `CREDITLENS_INGESTION_QUEUE_ID` beginning with `synthetic-`. Ingestion remains
 disabled by default. `POST /api/v1/admin/documents` accepts `IngestionInput` JSON
@@ -116,8 +118,8 @@ size limits are polled detection thresholds, not hard host filesystem quotas.
 
 ## Local operator commands
 
-After initializing the opt-in ingestion API, an operator with the same database
-configuration can stage a PDF and run one digital job:
+After initializing the job schema and opt-in ingestion configuration, an operator
+with the same database settings can stage a PDF and run one digital job:
 
 ```powershell
 .venv\Scripts\python.exe scripts/ingest_documents.py --source-root C:/creditlens-sources submit --pdf C:/incoming/document.pdf --manifest C:/incoming/manifest.json --subject your-private-admin-subject --key document-v1
@@ -133,8 +135,10 @@ it explicitly. Without that flag, the worker claims the next eligible digital
 job. An empty queue returns `IDLE`. Retries respect persisted availability times.
 
 The commands require `CREDITLENS_DATABASE_URL`, `CREDITLENS_CATALOG_BACKEND`,
-`CREDITLENS_DEMO_CATALOG_ID`, `CREDITLENS_INGESTION_ENABLED` and
-`CREDITLENS_INGESTION_QUEUE_ID` to match the initialized API. Credentials stay in
+`CREDITLENS_INGESTION_ENABLED` and `CREDITLENS_INGESTION_QUEUE_ID` to match
+the initialized API. Demo mode selects `CREDITLENS_DEMO_CATALOG_ID`; production
+selects `CREDITLENS_GOVERNED_CATALOG_ID` and retains its complete protected-server
+configuration. Credentials stay in
 local configuration. The named subject must already have a current private admin
 grant covering every page. The tool creates neither identities nor grants.
 It is a trusted host operator interface using database access, not remote user

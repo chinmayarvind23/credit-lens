@@ -224,6 +224,8 @@ def production_config(**changes):
         weaviate_token=SecretStr("test-only"),
         weaviate_collection="Evidence",
         local_model_directory="unused",
+        generation_model="qwen3:8b",
+        generation_digest="a" * 64,
     )
     return Settings(**(values | changes))
 
@@ -248,7 +250,12 @@ def test_production_configuration_fails_closed(changes):
 
 def test_production_api_composition_readiness_and_shutdown(state, monkeypatch):
     """Exercise the production factory and a full packet through the configured vector branch."""
+    from contextlib import nullcontext
+
     from creditlens import api, neural_search, runtime, sql_catalog
+
+    # This test isolates search wiring; generator wiring and actual inference have separate tests.
+    monkeypatch.setattr(runtime, "open_generation", lambda config: nullcontext(None))
 
     models = SimpleNamespace(
         revision="model-v1",

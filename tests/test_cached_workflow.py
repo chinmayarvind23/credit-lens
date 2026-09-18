@@ -140,13 +140,13 @@ def test_cache_configuration_rejects_incomplete_or_unbounded_values(values: dict
         Settings(**values)
 
 
-def test_cache_configuration_cannot_enable_unimplemented_production_path() -> None:
-    """Production readiness cannot be satisfied by wiring a synthetic cached workflow."""
+def test_production_cache_requires_governed_authority() -> None:
+    """Configured production Redis must have a governed workflow that actually consumes it."""
     values = production_settings().model_dump()
     values.update(
         redis_url=SecretStr("redis://localhost:6379"), cache_signing_key=SecretStr("k" * 32)
     )
-    with pytest.raises(ValidationError, match="demo mode only"):
+    with pytest.raises(ValidationError, match="governed"):
         Settings(**values)
 
 

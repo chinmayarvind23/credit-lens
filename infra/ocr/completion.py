@@ -1,11 +1,22 @@
 """Observe native generation termination before Paddle decodes away EOS and padding tokens."""
 
 import json
+from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
+from typing import Any, TypedDict
 
 
-def classify(tokens: list[int], *, limit: int, eos: int = 2, pad: int = 0) -> dict:
+class CompletionRecord(TypedDict):
+    """Retain the observed token sequence and the bounded termination decision."""
+
+    tokens: list[int]
+    eos_position: int | None
+    max_new_tokens: int
+    generation_complete: bool
+
+
+def classify(tokens: list[int], *, limit: int, eos: int = 2, pad: int = 0) -> CompletionRecord:
     """An early EOS followed only by padding proves stopping; a token cap never does."""
     if not 1 <= limit <= 1024 or not tokens or len(tokens) > limit:
         raise ValueError("Unsupported generation length")
@@ -26,17 +37,18 @@ def classify(tokens: list[int], *, limit: int, eos: int = 2, pad: int = 0) -> di
 
 
 @contextmanager
-def observe_generation(path: Path):
+def observe_generation(path: Path) -> Iterator[list[CompletionRecord]]:
     """Wrap one pinned native class inside the owned probe; restore it on every exit path."""
-    from paddlex.inference.models.doc_vlm.modeling.paddleocr_vl import (
+    # The pinned native OCR environment owns this optional SDK; API CI does not install it.
+    from paddlex.inference.models.doc_vlm.modeling.paddleocr_vl import (  # type: ignore[import-not-found]
         PaddleOCRVLForConditionalGeneration,
     )
 
     owner = PaddleOCRVLForConditionalGeneration
     original = owner.generate
-    records = []
+    records: list[CompletionRecord] = []
 
-    def generate(model, inputs, **kwargs):
+    def generate(model: Any, inputs: Any, **kwargs: Any) -> Any:
         """Preserve inference inputs/output while recording the actual undecoded token rows."""
         config = model.generation_config
         if (

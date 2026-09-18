@@ -89,7 +89,12 @@ def test_readiness_rejects_incompatible_vector_configuration(incompatible):
 
 def test_readiness_failure_releases_models_and_owned_http_client(state, monkeypatch):
     """Startup failure must unwind resources even though the workflow never yields."""
+    from contextlib import nullcontext
+
     from creditlens import neural_search, runtime, sql_catalog
+
+    # Isolate vector startup failure from the independently tested required generation dependency.
+    monkeypatch.setattr(runtime, "open_generation", lambda config: nullcontext(None))
 
     models = SimpleNamespace(revision="model-v1", close=Mock())
     backend = httpx.Client(

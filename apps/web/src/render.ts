@@ -1,4 +1,4 @@
-import type { Citation, Claim, Chunk, Disposition, Packet, QueryRequest } from "./contracts";
+import type { Citation, Claim, Chunk, Disposition, Packet, QueryRequest, Synthesis } from "./contracts";
 
 export const dispositionLabels: Record<Disposition, { title: string; description: string; tone: string }> = {
   MEETS_POLICY: { title: "Meets reviewed policy", description: "Review the cited requirements and evidence before making a lending decision.", tone: "green" },
@@ -8,10 +8,10 @@ export const dispositionLabels: Record<Disposition, { title: string; description
   HUMAN_JUDGMENT_REQUIRED: { title: "Underwriter judgment required", description: "The evidence requires interpretation by an authorized reviewer.", tone: "amber" },
 };
 
-/** The local extractor assesses DSCR only; its banner must not imply a broader policy determination. */
+/** Synthesis does not broaden the deterministic DSCR check into a complete lending assessment. */
 export function packetDisposition(packet: Pick<Packet, "provider_mode" | "policy_disposition">): { title: string; description: string; tone: string } {
   const label = dispositionLabels[packet.policy_disposition];
-  if (packet.provider_mode !== "local-extractive") return label;
+  if (!["local-extractive", "ollama-rag", "rag-withheld"].includes(packet.provider_mode)) return label;
   if (packet.policy_disposition === "MEETS_POLICY") return { ...label, title: "Meets DSCR threshold", description: "Only DSCR was assessed; review remaining requirements." };
   if (packet.policy_disposition === "EXCEPTION_REQUIRED") return { ...label, title: "DSCR exception required", description: "The assessed DSCR is below the policy threshold. Review the DSCR exception and remaining requirements." };
   return label;
@@ -60,6 +60,26 @@ function textSection(title: string, items: string[], empty: string, kind = ""): 
   else { const list = element("ul", "review-list"); for (const item of items) list.append(element("li", "", item)); section.append(list); }
   return section;
 }
+/** Separate generated interpretation from literal quotes, keeping provenance beside each statement. */
+function synthesisSection(synthesis: Synthesis, sources: Map<string, Chunk>): HTMLElement {
+  const section = element("section", "result-card generated-synthesis");
+  section.append(element("h3", "", "Generated interpretation"));
+  if (synthesis.status === "refused") {
+    section.append(element("h4", "", "Generated answer withheld"), element("p", "abstention", synthesis.refusal_reason));
+    return section;
+  }
+  section.append(element("p", "field-note", "Model-generated interpretation. Review the exact quotes and sources before relying on it."));
+  for (const statement of synthesis.statements) {
+    const row = element("div", "claim-row");
+    row.append(element("p", "claim-text", statement.text), citationGroup(statement.citations, sources));
+    const details = element("details", "source-provenance"); details.append(element("summary", "", "Exact supporting quotes"));
+    for (const quote of statement.supporting_quotes) {
+      details.append(element("blockquote", "claim-text", quote.text), citationGroup(quote.citations, sources));
+    }
+    row.append(details); section.append(row);
+  }
+  return section;
+}
 /** Render an immutable request snapshot so editing the question or date cannot relabel an older result. */
 export function renderPacket(packet: Packet, request: QueryRequest, borrowerName: string, elapsedMs: number, recorded = false): DocumentFragment {
   const fragment = document.createDocumentFragment(); const sources = new Map<string, Chunk>();
@@ -68,6 +88,7 @@ export function renderPacket(packet: Packet, request: QueryRequest, borrowerName
   headingCopy.append(element("p", "eyebrow", "Evidence packet"), element("h2", "", borrowerName));
   heading.append(headingCopy, element("span", "subtle", `Policy date ${request.effective_at} · Provider: ${packet.provider_mode}`)); fragment.append(heading);
   fragment.append(element("p", "submitted-question", request.question));
+  if (packet.synthesis) fragment.append(synthesisSection(packet.synthesis, sources));
   const disposition = packetDisposition(packet); const banner = element("section", `disposition ${disposition.tone}`);
   banner.append(element("p", "eyebrow", "Policy disposition"), element("h3", "", disposition.title), element("p", "", disposition.description));
   if (packet.abstained) banner.append(element("p", "abstention", "Assessment withheld: the service abstained from a supported conclusion."));
@@ -98,6 +119,7 @@ export function renderPacket(packet: Packet, request: QueryRequest, borrowerName
   const trace = element("details", "trace-card"); trace.append(element("summary", "", `Execution trace · ${duration(packet.latency_ms)} service time`));
   const metadata = element("dl", "trace-metadata");
   const fields = [["Provider mode", packet.provider_mode], ["Corpus version", packet.corpus_version], ["Request ID", packet.request_id], [recorded ? "Recorded local service time" : "Service time", duration(packet.latency_ms)], [recorded ? "Recorded API round trip" : "Browser round trip", duration(elapsedMs)], ["Cache", packet.cache_hit ? "Hit" : "Miss"], ["Reported request cost", packet.cost_usd === null ? "Not reported" : `$${packet.cost_usd}`]];
+  if (packet.synthesis) fields.push(["Synthesis model", packet.synthesis.model], ["Model digest", packet.synthesis.model_digest], ["Synthesis prompt", packet.synthesis.prompt_version], ["Prompt tokens", String(packet.synthesis.prompt_tokens)], ["Output tokens", String(packet.synthesis.output_tokens)]);
   for (const [label, value] of fields) { metadata.append(element("dt", "", label), element("dd", "", value)); }
   trace.append(metadata, element("p", "field-note", recorded ? "These timings were captured from a local synthetic API request. Viewing this recording does not run the backend. No benchmark percentile or current response speed is claimed." : "Timings describe this request. They are not benchmark percentiles. Browser round trip includes transfer and response validation."));
   const stages = element("ol", "stage-list");

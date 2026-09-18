@@ -391,6 +391,7 @@ name = "creditlens"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "anyio" },
     { name = "fastapi" },
     { name = "httpx" },
     { name = "psycopg", extra = ["binary"] },
@@ -439,6 +440,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "anyio", specifier = ">=4.15,<5" },
     { name = "boto3", marker = "extra == 'queue'", specifier = ">=1.43.92,<2" },
     { name = "boto3-stubs", extras = ["sqs"], marker = "extra == 'queue'", specifier = ">=1.43.92,<2" },
     { name = "faiss-cpu", marker = "extra == 'retrieval'", specifier = ">=1.12,<2" },

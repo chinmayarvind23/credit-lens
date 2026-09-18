@@ -1,8 +1,9 @@
-"""Compose a locally verifiable evidence packet with an explicit extractive mode."""
+"""Compose authorized evidence, deterministic calculations and separately cited LLM synthesis."""
 
 from collections.abc import Iterator
 from contextlib import contextmanager, nullcontext
 from dataclasses import replace
+from functools import partial
 from hashlib import sha256
 from time import perf_counter
 from typing import TYPE_CHECKING
@@ -12,6 +13,7 @@ from creditlens.citations import quote, validate_citation, validate_extract
 from creditlens.domain import Chunk, Packet, Principal, QueryRequest, Stage
 from creditlens.errors import ServiceError
 from creditlens.finance import FinanceResult, calculate_review
+from creditlens.generation_contract import AnswerGenerator, validate_synthesis
 from creditlens.intent import classify_intent, textual_support, topic_supported
 from creditlens.response_cache import ResponseCache
 from creditlens.retrieval import CanonicalCatalog, lexical_rank
@@ -81,7 +83,7 @@ def collect_context(
 
 
 class QueryWorkflow:
-    """The initial workflow guarantees quoted support without claiming an LLM quality score."""
+    """Preserve deterministic authority while constraining interpretation to admitted evidence."""
 
     def __init__(
         self,
@@ -91,6 +93,7 @@ class QueryWorkflow:
         *,
         response_cache: ResponseCache | None = None,
         telemetry: "Telemetry | None" = None,
+        generator: AnswerGenerator | None = None,
     ) -> None:
         """Inject authoritative evidence and grants for failure and revocation testing."""
         self.catalog = catalog
@@ -100,6 +103,7 @@ class QueryWorkflow:
         self.provider = provider
         self.response_cache = response_cache
         self.telemetry = telemetry
+        self.generator = generator
 
     def query(self, query: QueryRequest, principal: Principal) -> Packet:
         """Authorize, retrieve, calculate, validate, recheck grants, then acknowledge audit."""
@@ -114,6 +118,8 @@ class QueryWorkflow:
                 current, query.borrower_id, query.effective_at
             )
         key = ResponseCache.key(query, current, revision)
+        if self.generator is not None:
+            key = sha256(f"{key}:{self.generator.revision}".encode()).hexdigest()
         cached = self.response_cache.get(key) if self.response_cache else None
         allowed = {c.chunk_id: c for c in candidates}
         hit = cached is not None and all(allowed.get(c.chunk_id) == c for c in cached.evidence)
@@ -199,6 +205,8 @@ class QueryWorkflow:
                     result, disposition="INSUFFICIENT_EVIDENCE", missing=("relevant evidence",)
                 )
         packet = self._packet(query, result, evidence)
+        if self.generator is not None:
+            packet = self._synthesize(query, current, revision, packet, trace)
         if self.provider is not None:
             packet = packet.model_copy(
                 update={
@@ -206,6 +214,33 @@ class QueryWorkflow:
                 }
             )
         return packet, search
+
+    def _verify_generation_authority(self, current: Principal, revision: int) -> None:
+        """Recheck immediately before protected model exposure and after inference completes."""
+        self.catalog.verify_revision(revision)
+        if self.store.resolve(current.subject) != current:
+            raise ServiceError("access_changed", "Access changed; retry the request", 409)
+
+    def _synthesize(
+        self, query: QueryRequest, current: Principal, revision: int, packet: Packet, trace: Trace
+    ) -> Packet:
+        """The model can add an interpretation, but cannot change financial or review authority."""
+        if packet.abstained:
+            return packet.model_copy(update={"provider_mode": "rag-withheld"})
+        validate_packet(packet)
+        if self.generator is None:
+            raise ServiceError("generation_unavailable", "Answer generation is unavailable")
+        with trace.span("generation.synthesize"):
+            synthesis = self.generator.synthesize(
+                query, packet, partial(self._verify_generation_authority, current, revision)
+            )
+            generated = packet.model_copy(
+                update={"synthesis": synthesis, "provider_mode": "ollama-rag"}
+            )
+            validate_synthesis(generated)
+        if self.telemetry is not None:
+            self.telemetry.generation(synthesis)
+        return generated
 
     def _search(
         self,
@@ -281,3 +316,4 @@ def validate_packet(packet: Packet) -> None:
             validate_citation(citation, packet.evidence)
     if packet.recommended_next_actions != ACTIONS[packet.policy_disposition]:
         raise ServiceError("unsupported_action", "Review actions could not be validated")
+    validate_synthesis(packet)

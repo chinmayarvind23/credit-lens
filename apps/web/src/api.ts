@@ -18,7 +18,7 @@ export class CreditLensApi {
   }
   /** The wire request contains a borrower selector, question, and date, with no client-provided ACL. */
   async query(request: QueryRequest, signal: AbortSignal): Promise<Packet> {
-    return parsePacket(await this.request("/api/v1/query", signal, request));
+    return parsePacket(await this.request("/api/v1/query", signal, request, 240_000));
   }
   /** Reauthorize source inspection server-side with the date and borrower of the completed packet. */
   async evidence(chunkId: string, request: QueryRequest, signal: AbortSignal): Promise<Chunk> {
@@ -26,15 +26,15 @@ export class CreditLensApi {
     return parseChunk(await this.request(`/api/v1/evidence/${encodeURIComponent(chunkId)}?${query}`, signal));
   }
   /** Bounded fetch, no-store, and generic errors prevent silent hangs, browser persistence, and reflected server payloads. */
-  private async request(path: string, signal: AbortSignal, body?: QueryRequest): Promise<unknown> {
+  private async request(path: string, signal: AbortSignal, body?: QueryRequest, deadlineMs = 30_000): Promise<unknown> {
     const controller = new AbortController();
     /** Forward user/scope cancellation to the same controller used for the timeout. */
     const cancel = (): void => controller.abort();
     signal.addEventListener("abort", cancel, { once: true });
     if (signal.aborted) controller.abort();
     let timedOut = false;
-    /** An explicit 30-second client deadline bounds even a stalled response body. */
-    const timeout = setTimeout((): void => { timedOut = true; controller.abort(); }, 30_000);
+    /** Queries allow bounded model generation; every deadline also covers a stalled response body. */
+    const timeout = setTimeout((): void => { timedOut = true; controller.abort(); }, deadlineMs);
     try {
       const headers = new Headers({ Accept: "application/json" });
       if (this.token) headers.set("Authorization", `Bearer ${this.token}`);
@@ -56,7 +56,7 @@ export class CreditLensApi {
       try { return await response.json(); }
       catch { throw new Error("The API returned invalid JSON. No result was accepted."); }
     } catch (error) {
-      if (timedOut) throw new Error("The request exceeded 30 seconds. No result was accepted. You can try again.");
+      if (timedOut) throw new Error(`The request exceeded ${deadlineMs / 1000} seconds. No result was accepted. You can try again.`);
       if (error instanceof TypeError) throw new Error("Cannot reach the API. Check your connection and that the CreditLens service is running.");
       throw error;
     } finally { clearTimeout(timeout); signal.removeEventListener("abort", cancel); }

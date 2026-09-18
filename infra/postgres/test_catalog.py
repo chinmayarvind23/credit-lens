@@ -550,6 +550,8 @@ def test_governed_cortex_runtime_uses_existing_catalog(engine, monkeypatch):
         database_url=engine.url.render_as_string(hide_password=False),
         catalog_backend="postgres",
         governed_catalog_id=catalog.catalog_id,
+        generation_model="qwen3:8b",
+        generation_digest="a" * 64,
         issuer="https://cognito-idp.us-east-1.amazonaws.com/fixture",
         client_id="fixture",
         cortex_url=endpoint,
@@ -575,6 +577,10 @@ def test_governed_cortex_runtime_uses_existing_catalog(engine, monkeypatch):
         return client
 
     monkeypatch.setattr(runtime, "ProviderClient", client_factory)
+    from contextlib import nullcontext
+
+    # Keep this SQL/Cortex fixture independent of the dedicated generation contract/live suites.
+    monkeypatch.setattr(runtime, "open_generation", lambda config: nullcontext(None))
     key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
     now = datetime.now(UTC)
     token = jwt.encode(

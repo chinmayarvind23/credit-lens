@@ -1,5 +1,11 @@
 export interface Citation { document_id: string; document_version: string; page: number; chunk_id: string }
 export interface Claim { text: string; citations: Citation[] }
+export interface SynthesisStatement extends Claim { supporting_quotes: Claim[] }
+export interface Synthesis {
+  status: "answered" | "refused"; statements: SynthesisStatement[]; refusal_reason: string;
+  refusal_category: "none" | "safety" | "input_mismatch" | "insufficient_info";
+  model: string; model_digest: string; prompt_version: string; prompt_tokens: number; output_tokens: number;
+}
 export interface FinancialMetric { name: string; value: string; unit: string; source_fields: string[]; citations: Citation[] }
 export interface Borrower { borrower_id: string; name: string; industry: string }
 export interface Chunk extends Citation {
@@ -17,6 +23,7 @@ export interface Packet {
   exceptions: Claim[]; contradictions: Claim[]; recommended_next_actions: string[];
   questions_for_underwriter: string[]; abstained: boolean; evidence: Chunk[]; stages: Stage[];
   provider_mode: string; corpus_version: string; latency_ms: number; cache_hit: boolean; cost_usd: string | null;
+  synthesis: Synthesis | null;
 }
 export interface BorrowerList { borrowers: Borrower[]; mode: "demo" | "production" }
 export interface QueryRequest { borrower_id: string; question: string; effective_at: string }
@@ -65,6 +72,26 @@ function parseClaim(value: unknown): Claim {
   if (citations.length === 0) throw new Error("The API returned an uncited claim.");
   return { text: string(data.text), citations };
 }
+/** Generated statements retain their exact supporting quotes without treating the prose as a source. */
+function parseSynthesisStatement(value: unknown): SynthesisStatement {
+  const data = object(value); const claim = parseClaim(value); const quotes = array(data.supporting_quotes, parseClaim);
+  if (!claim.text.trim() || [...claim.text].length > 1200 || claim.citations.length > 8 || !quotes.length || quotes.length > 8 || quotes.some(quote => !quote.text.trim())) throw new Error("The API returned unsupported generated text.");
+  return { ...claim, supporting_quotes: quotes };
+}
+/** Accept legacy packets while rejecting contradictory generation states before displaying any answer. */
+function parseSynthesis(value: unknown): Synthesis | null {
+  if (value === undefined || value === null) return null;
+  const data = object(value);
+  if (data.status !== "answered" && data.status !== "refused") throw new Error("The API returned an invalid synthesis status.");
+  if (data.refusal_category !== "none" && data.refusal_category !== "safety" && data.refusal_category !== "input_mismatch" && data.refusal_category !== "insufficient_info") throw new Error("The API returned an invalid refusal category.");
+  const statements = array(data.statements, parseSynthesisStatement); const reason = string(data.refusal_reason);
+  if (statements.length > 6 || [...reason].length > 500 || (data.status === "answered" ? !statements.length || reason !== "" || data.refusal_category !== "none" : statements.length !== 0 || !reason.trim() || data.refusal_category === "none")) throw new Error("The API returned an inconsistent synthesis result.");
+  const model = string(data.model); const digest = string(data.model_digest); const version = string(data.prompt_version);
+  const promptTokens = number(data.prompt_tokens); const outputTokens = number(data.output_tokens);
+  if (!model.trim() || [...model].length > 100 || !/^[a-f0-9]{64}$/.test(digest) || !version.trim() || [...version].length > 100 || !Number.isInteger(promptTokens) || promptTokens > 16384 || !Number.isInteger(outputTokens) || outputTokens > 2048) throw new Error("The API returned invalid synthesis provenance.");
+  return { status: data.status, statements, refusal_reason: reason, refusal_category: data.refusal_category,
+    model, model_digest: digest, prompt_version: version, prompt_tokens: promptTokens, output_tokens: outputTokens };
+}
 /** Metrics display only backend-computed values and their cited input fields. */
 function parseMetric(value: unknown): FinancialMetric {
   const data = object(value); const citations = array(data.citations, parseCitation);
@@ -109,19 +136,32 @@ export function parsePacket(value: unknown): Packet {
     questions_for_underwriter: array(data.questions_for_underwriter, string), abstained: boolean(data.abstained),
     evidence: array(data.evidence, parseChunk), stages: array(data.stages, parseStage), provider_mode: string(data.provider_mode),
     corpus_version: string(data.corpus_version), latency_ms: number(data.latency_ms), cache_hit: boolean(data.cache_hit),
-    cost_usd: data.cost_usd === null ? null : decimal(data.cost_usd) };
+    cost_usd: data.cost_usd === null ? null : decimal(data.cost_usd), synthesis: parseSynthesis(data.synthesis) };
+  if (packet.abstained && packet.synthesis) throw new Error("The API returned synthesis for an abstained packet.");
   const sources = new Map<string, Chunk>();
   for (const source of packet.evidence) {
     if (sources.has(source.chunk_id)) throw new Error("The API returned duplicate evidence identifiers.");
     sources.set(source.chunk_id, source);
   }
-  for (const claim of [...packet.borrower_summary, ...packet.applicable_policy, ...packet.exceptions, ...packet.contradictions, ...packet.calculated_metrics]) {
+  const statements = packet.synthesis?.statements ?? [];
+  for (const claim of [...packet.borrower_summary, ...packet.applicable_policy, ...packet.exceptions, ...packet.contradictions, ...packet.calculated_metrics, ...statements, ...statements.flatMap(statement => statement.supporting_quotes)]) {
     for (const citation of claim.citations) {
       const source = sources.get(citation.chunk_id);
       if (!source || source.document_id !== citation.document_id || source.document_version !== citation.document_version || source.page !== citation.page) {
         throw new Error("The API returned a citation that does not match its retrieved evidence.");
       }
     }
+  }
+  for (const statement of statements) {
+    const cited = new Set(statement.citations.map(citation => citation.chunk_id));
+    const supported = new Set<string>();
+    for (const quote of statement.supporting_quotes) {
+      for (const citation of quote.citations) {
+        if (!cited.has(citation.chunk_id) || !sources.get(citation.chunk_id)?.text.includes(quote.text)) throw new Error("The API returned a supporting quote that does not match its cited evidence.");
+        supported.add(citation.chunk_id);
+      }
+    }
+    if (supported.size !== cited.size) throw new Error("The API returned generated citations without supporting quotes.");
   }
   return packet;
 }

@@ -8,7 +8,7 @@ import time
 from pathlib import Path
 
 
-def stop_tree(process: subprocess.Popen) -> None:
+def stop_tree(process: subprocess.Popen[bytes]) -> None:
     """Windows virtualenv launchers spawn children, so killing only the launcher leaks inference."""
     taskkill = Path(os.environ["SystemRoot"]) / "System32" / "taskkill.exe"
     subprocess.run(  # noqa: S603 - absolute Windows tool and the exact child PID, never shell input.

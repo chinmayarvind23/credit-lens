@@ -16,6 +16,7 @@ from fastapi.responses import JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import Field
 from sqlalchemy import text
+from sqlalchemy.engine import Engine
 from sqlalchemy.exc import SQLAlchemyError
 
 from creditlens import __version__
@@ -23,6 +24,7 @@ from creditlens.auth import Authenticator
 from creditlens.corpus import build_demo_borrowers
 from creditlens.domain import Borrower, Chunk, Packet, Principal, QueryRequest, StrictModel
 from creditlens.errors import ServiceError
+from creditlens.ingestion_context import ingestion_context
 from creditlens.ingestion_jobs import IngestionInput, JobStatus, JobStore, initialize_jobs
 from creditlens.limits import BodyLimit, PrivateResponses, create_query_limiter
 from creditlens.ocr import OcrReview, OcrReviewSnapshot
@@ -65,6 +67,15 @@ def register_ingestion_metrics(app: FastAPI) -> None:
         app.state.telemetry.registry.register(IngestionCollector(app.state.jobs))
 
 
+def initialize_ingestion(app: FastAPI, config: Settings, engine: Engine) -> None:
+    """Governed schema is operator-owned; demo may initialize its synthetic job tables."""
+    if config.ingestion_enabled:
+        if config.mode == "demo":
+            initialize_jobs(engine)
+        app.state.jobs, _ = ingestion_context(config, engine)
+    register_ingestion_metrics(app)
+
+
 def create_app(settings: Settings | None = None) -> FastAPI:
     """An application factory keeps configuration and dependency ownership testable."""
     config = settings or Settings()
@@ -85,16 +96,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             app.state.store = store
             app.state.auth = Authenticator(config, store)
             app.state.jobs = None
-            if config.ingestion_enabled:
-                initialize_jobs(engine)
-                app.state.jobs = JobStore(engine, config.ingestion_queue_id)
             if config.telemetry_enabled:
                 from creditlens.observability import Telemetry
 
                 app.state.telemetry = Telemetry(config.trace_file)
-            register_ingestion_metrics(app)
             with open_workflow(config, store, app.state.telemetry) as workflow:
                 app.state.workflow = workflow
+                initialize_ingestion(app, config, engine)
                 with httpx.Client(
                     timeout=config.request_timeout_seconds, follow_redirects=False
                 ) as client:
@@ -200,6 +208,8 @@ def ready(request: Request) -> dict[str, str]:
         probe_cortex(request.app.state.http, config)
     if request.app.state.workflow is None:
         raise ServiceError("workflow_not_initialized", "Query workflow is not initialized")
+    if request.app.state.workflow.generator is not None:
+        request.app.state.workflow.generator.check_ready()
     if config.mode == "production" and config.production_search == "weaviate":
         request.app.state.workflow.provider.check_ready()
     if config.ingestion_enabled:
@@ -236,8 +246,20 @@ def probe_cortex(client: httpx.Client, config: Settings) -> None:
 def borrowers(
     request: Request, principal: Annotated[Principal, Depends(current_principal)]
 ) -> BorrowerList:
-    """Use the evidence fixture catalog so borrower labels and cited documents cannot drift."""
+    """Expose current granted IDs in production without inventing borrower business metadata."""
     config: Settings = request.app.state.settings
+    if config.mode == "production":
+        result = BorrowerList(
+            borrowers=tuple(
+                Borrower(borrower_id=borrower_id, name=borrower_id, industry="")
+                for borrower_id in principal.borrower_ids
+            ),
+            mode=config.mode,
+        )
+        store: GrantStore = request.app.state.store
+        if store.resolve(principal.subject) != principal:
+            raise ServiceError("access_changed", "Access changed; retry the request", 409)
+        return result
     return BorrowerList(
         borrowers=tuple(
             b

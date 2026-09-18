@@ -24,6 +24,7 @@ MODULES = (
     "search_provider",
     "storage",
     "workflow",
+    "generation_contract",
 )
 ROOT = Path(__file__).resolve().parents[1]
 BROWSER = ROOT / "infra/huggingface/browser"

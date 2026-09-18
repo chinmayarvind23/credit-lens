@@ -1,7 +1,7 @@
 # Local Redis verification
 
 The retrieval cache is an optional provider wrapper enabled explicitly in the
-demo HTTP workflow. It signs opaque request keys and source IDs, reauthorizes every
+demo or governed production HTTP workflow. It signs opaque request keys and source IDs, reauthorizes every
 read and hydrates from the current canonical catalog. Redis is never a grant store.
 
 The fixture uses the pinned Redis image digest
@@ -30,8 +30,17 @@ Keep the signing key out of source control. Remote Redis requires TLS. A cache
 outage records `cache.retrieval.unavailable` and recomputes the same authorized
 search. Hits report `cache_hit: true` and `cache.retrieval.hit`; every hit still
 recomputes finance, validates citations and writes a fresh audit record. Packet
-generation remains `local-extractive`, preserving the DSCR-only UI description.
+generation remains determined by the configured workflow: extractive demo mode or
+pinned Ollama synthesis. A retrieval hit does not bypass generation, its support
+checks or final authority. A separate response-cache hit can reuse a validated
+packet while still requiring current evidence and a new audit.
 Configure the canonical catalog and search workflow before enabling a cache wrapper.
+The same URL and signing-key settings enable caching around governed Cortex or
+Weaviate search. Production cache identity binds the catalog, provider and retrieval
+configuration; Weaviate includes its collection and pinned model revision.
+Use a stable shared signing key from the deployment secret store and a restricted
+Redis service for production. The disposable loopback container above is a local
+verification setup, not a managed deployment.
 
 ## Shared request quotas
 

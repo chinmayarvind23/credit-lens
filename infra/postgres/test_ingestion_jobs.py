@@ -822,10 +822,9 @@ def test_operator_ocr_handoff_verifies_pdf_and_retains_review(store):
         args = argparse.Namespace(
             command="stage-ocr", subject=actor.subject, job_id=job.job_id, input=artifact_path
         )
-        settings = Settings(demo_catalog_id=catalog.catalog_id)
-        assert json.loads(handle_ocr(args, store, sources, settings))["state"] == "REVIEW_REQUIRED"
+        assert json.loads(handle_ocr(args, store, sources, catalog))["state"] == "REVIEW_REQUIRED"
         args.command = "show-ocr"
-        snapshot = json.loads(handle_ocr(args, store, sources, settings))
+        snapshot = json.loads(handle_ocr(args, store, sources, catalog))
         assert snapshot["artifact_sha256"] == artifact.digest()
         decision = {
             "artifact_sha256": artifact.digest(),
@@ -834,7 +833,7 @@ def test_operator_ocr_handoff_verifies_pdf_and_retains_review(store):
         }
         artifact_path.write_text(json.dumps(decision), encoding="utf-8")
         args.command = "review-ocr"
-        assert json.loads(handle_ocr(args, store, sources, settings))["state"] == "COMPLETED"
+        assert json.loads(handle_ocr(args, store, sources, catalog))["state"] == "COMPLETED"
 
 
 def test_graphql_explorer_uses_real_scoped_job_store(store):

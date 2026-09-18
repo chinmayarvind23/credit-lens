@@ -12,6 +12,7 @@ from uuid import uuid4
 from pydantic import Field, model_validator
 from sqlalchemy import (
     JSON,
+    CheckConstraint,
     Column,
     DateTime,
     Integer,
@@ -34,7 +35,7 @@ from creditlens.domain import Page, Principal, StrictModel
 from creditlens.errors import ServiceError
 from creditlens.ingestion import _validate_metadata, text_hash
 from creditlens.ocr import OcrDocument, OcrReview
-from creditlens.sql_catalog import SqlEvidenceCatalog
+from creditlens.sql_catalog import SqlEvidenceCatalog, states
 from creditlens.storage import grants
 
 JobState = Literal["QUEUED", "RUNNING", "RETRY", "REVIEW_REQUIRED", "COMPLETED", "FAILED"]
@@ -61,6 +62,18 @@ FAILURES = {
     "review_rejected",
 }
 schema = MetaData()
+queue_bindings = Table(
+    "ingestion_queue_bindings",
+    schema,
+    Column("queue_id", String, primary_key=True),
+    Column("catalog_id", String),
+    Column("authority", String),
+    CheckConstraint(
+        "(catalog_id IS NULL AND authority IS NULL) OR "
+        "(catalog_id IS NOT NULL AND authority IS NOT NULL)",
+        name="complete_ingestion_catalog_binding",
+    ),
+)
 jobs = Table(
     "ingestion_jobs",
     schema,
@@ -206,7 +219,14 @@ def _validate_extracted(source: IngestionInput, extracted: tuple[Page, ...]) -> 
 class JobStore:
     """Coordinate workers with database time and random fencing tokens, not queue delivery count."""
 
-    def __init__(self, engine: Engine, queue_id: str, *, lease_seconds: int = 600) -> None:
+    def __init__(
+        self,
+        engine: Engine,
+        queue_id: str,
+        *,
+        lease_seconds: int = 600,
+        catalog: SqlEvidenceCatalog | None = None,
+    ) -> None:
         """Bind workers to an explicit queue and bounded lease while reusing the database pool."""
         if engine.dialect.name != "postgresql" or not re.fullmatch(
             r"[a-zA-Z0-9_-]{1,80}", queue_id
@@ -214,16 +234,78 @@ class JobStore:
             raise ValueError("A named PostgreSQL ingestion queue is required")
         if not 10 <= lease_seconds <= 900:
             raise ValueError("Ingestion lease must be 10..900 seconds")
+        if catalog is not None and catalog.engine.pool is not engine.pool:
+            raise ValueError("Ingestion queue and catalog must share the same database pool")
         self.engine = engine.execution_options(isolation_level="READ COMMITTED")
         self.queue_id, self.lease_seconds = queue_id, lease_seconds
+        self._binding = (catalog.catalog_id, catalog.authority_id) if catalog else (None, None)
+        self._initialize_binding()
+
+    def _initialize_binding(self) -> None:
+        """First initialization fixes queue authority; old unbound work cannot be adopted."""
+        with self._transaction(check_binding=False) as connection:
+            existing = connection.scalar(
+                select(queue_bindings.c.queue_id).where(queue_bindings.c.queue_id == self.queue_id)
+            )
+            legacy = connection.scalar(
+                select(jobs.c.job_id).where(jobs.c.queue_id == self.queue_id).limit(1)
+            )
+            if existing is None and legacy is not None and self._binding[0] is not None:
+                raise ServiceError(
+                    "ingestion_catalog_mismatch", "Use a fresh governed ingestion queue", 409
+                )
+            connection.execute(
+                insert(queue_bindings)
+                .values(
+                    queue_id=self.queue_id, catalog_id=self._binding[0], authority=self._binding[1]
+                )
+                .on_conflict_do_nothing()
+            )
+            self._check_binding(connection)
+
+    def _check_binding(self, connection: Connection) -> None:
+        """Shared binding locks preserve worker concurrency while rejecting authority changes."""
+        row = (
+            connection.execute(
+                select(queue_bindings)
+                .where(queue_bindings.c.queue_id == self.queue_id)
+                .with_for_update(read=True)
+            )
+            .mappings()
+            .first()
+        )
+        if row is None or (row["catalog_id"], row["authority"]) != self._binding:
+            raise ServiceError(
+                "ingestion_catalog_mismatch", "Ingestion queue authority does not match", 409
+            )
+        if self._binding[0] is not None:
+            authority = connection.scalar(
+                select(states.c.authority).where(states.c.catalog_id == self._binding[0])
+            )
+            if authority != self._binding[1]:
+                raise ServiceError(
+                    "ingestion_catalog_mismatch", "Ingestion catalog authority has changed", 409
+                )
+
+    def _require_catalog(self, catalog: SqlEvidenceCatalog) -> None:
+        """Publication must use this queue's exact captured catalog, including OCR review."""
+        if self._binding[0] is not None and self._binding != (
+            catalog.catalog_id,
+            catalog.authority_id,
+        ):
+            raise ServiceError(
+                "ingestion_catalog_mismatch", "Ingestion publication catalog does not match", 409
+            )
 
     @contextmanager
-    def _transaction(self) -> Iterator[Connection]:
+    def _transaction(self, *, check_binding: bool = True) -> Iterator[Connection]:
         """Bound lock and statement waits, roll back failures and expose only curated errors."""
         try:
             with self.engine.begin() as connection:
                 connection.exec_driver_sql("SET LOCAL statement_timeout = '5s'")
                 connection.exec_driver_sql("SET LOCAL lock_timeout = '2s'")
+                if check_binding:
+                    self._check_binding(connection)
                 yield connection
         except SQLAlchemyError as error:
             raise ServiceError(
@@ -244,6 +326,8 @@ class JobStore:
             jobs.c.idempotency_key == key,
         )
         with self._transaction() as connection:
+            if _current_publisher(connection, principal.subject, source) != principal:
+                raise ServiceError("permission_changed", "Ingestion permission has changed", 403)
             connection.execute(
                 insert(jobs)
                 .values(
@@ -488,6 +572,7 @@ class JobStore:
     ) -> None:
         """Fence, reauthorize and atomically commit canonical pages plus a completed job."""
         with self._transaction() as connection:
+            self._require_catalog(catalog)
             row = self._locked(connection, lease)
             source = IngestionInput.model_validate(row["input"])
             if source.parser != "digital":
@@ -575,6 +660,7 @@ class JobStore:
         """Commit reviewed evidence and its decision together, or publish nothing on rejection."""
         review = OcrReview.model_validate(review.model_dump())
         with self._transaction() as connection:
+            self._require_catalog(catalog)
             row = self._review_row(connection, job_id, principal)
             artifact = OcrDocument.model_validate(row["result"]["artifact"])
             if review.artifact_sha256 != artifact.digest():

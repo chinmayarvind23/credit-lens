@@ -11,6 +11,15 @@ function fixture() {
   return { request_id: "test-request", borrower_id: "borrower-001", borrower_summary: [claim], calculated_metrics: [{ name: "DSCR", value: "1.2500000000000000001", unit: "x", source_fields: ["net_income", "debt_service"], citations: [citation] }], applicable_policy: [claim], policy_disposition: "MEETS_POLICY", missing_documents: [], exceptions: [], contradictions: [], recommended_next_actions: ["Review cited documents"], questions_for_underwriter: [], abstained: false, evidence: [chunk], stages: [{ name: "citation_validation", duration_ms: 1.2 }], provider_mode: "synthetic-test", corpus_version: "test-v1", latency_ms: 4.5, cache_hit: false, cost_usd: null };
 }
 
+/** Real wire fields with synthetic text let UI tests separate generated claims from exact evidence. */
+function synthesisFixture() {
+  const packet = fixture(); const source = packet.evidence[0];
+  const citation = { document_id: source.document_id, document_version: source.document_version, page: source.page, chunk_id: source.chunk_id };
+  packet.provider_mode = "ollama-rag";
+  packet.synthesis = { status: "answered", statements: [{ text: "<script>Generated interpretation remains text</script>", citations: [citation], supporting_quotes: [{ text: source.text, citations: [citation] }] }], refusal_reason: "", refusal_category: "none", model: "local-test:small", model_digest: "a".repeat(64), prompt_version: "test-prompt-v1", prompt_tokens: 50, output_tokens: 20 };
+  return packet;
+}
+
 /** Build JSON responses with the same media type used by the FastAPI contract. */
 function json(value, status = 200) { return new Response(JSON.stringify(value), { status, headers: { "Content-Type": "application/json" } }); }
 
@@ -36,6 +45,95 @@ describe("runtime contracts", () => {
   test("requires explicit environment mode", () => { expect(() => parseBorrowers({ borrowers: [] })).toThrow("environment mode"); expect(parseBorrowers({ borrowers: [], mode: "demo" }).borrowers).toHaveLength(0); });
   /** Source provenance needs positive page numbers, valid confidence, and an ordered character span. */
   test("validates source coordinates and confidence", () => { const source = fixture().evidence[0]; source.end_char = 0; expect(() => parseChunk(source)).toThrow("source span"); source.end_char = 10; source.extraction_confidence = 1.1; expect(() => parseChunk(source)).toThrow("extraction confidence"); });
+});
+
+describe("generated synthesis contracts", () => {
+  /** Older browser bundles and saved packets remain valid when synthesis was never requested. */
+  test("normalizes absent and explicit null synthesis", () => {
+    expect(parsePacket(fixture()).synthesis).toBeNull();
+    expect(parsePacket({ ...fixture(), synthesis: null }).synthesis).toBeNull();
+  });
+  /** Model output cannot override the workflow's decision to withhold synthesis. */
+  test("rejects synthesis on server-abstained packets", () => {
+    const packet = synthesisFixture(); packet.abstained = true;
+    expect(() => parsePacket(packet)).toThrow("abstained packet");
+    Object.assign(packet.synthesis, { status: "refused", statements: [], refusal_reason: "Unavailable", refusal_category: "insufficient_info" });
+    expect(() => parsePacket(packet)).toThrow("abstained packet");
+  });
+  /** Displayable synthesis preserves provenance and exact quotes instead of recomputing financial values. */
+  test("preserves generated text, exact quotes and model provenance", () => {
+    const packet = parsePacket(synthesisFixture());
+    expect(packet.synthesis.statements[0].supporting_quotes[0].text).toBe(packet.evidence[0].text);
+    expect(packet.synthesis.model_digest).toBe("a".repeat(64));
+    expect(packet.synthesis.prompt_tokens).toBe(50);
+    expect(packet.calculated_metrics[0].value).toBe("1.2500000000000000001");
+  });
+  /** A model citation cannot create a source that the server omitted from authorized evidence. */
+  test("rejects generated statements with foreign citations", () => {
+    const packet = synthesisFixture(); packet.synthesis.statements[0].citations = [{ ...packet.borrower_summary[0].citations[0], chunk_id: "foreign" }];
+    expect(() => parsePacket(packet)).toThrow("does not match");
+  });
+  /** Structurally valid source identities cannot excuse a rewritten quote. */
+  test("rejects fabricated supporting quotes", () => {
+    const packet = synthesisFixture(); packet.synthesis.statements[0].supporting_quotes[0].text = "This sentence is absent from the source.";
+    expect(() => parsePacket(packet)).toThrow("supporting quote");
+  });
+  /** Every displayed statement citation needs a quote, while quotes cannot introduce uncited support. */
+  test("rejects disconnected statement citations and quote sources", () => {
+    const packet = synthesisFixture(); const second = { ...packet.evidence[0], chunk_id: "chunk-2" }; packet.evidence.push(second);
+    const citation = { document_id: second.document_id, document_version: second.document_version, page: second.page, chunk_id: second.chunk_id };
+    packet.synthesis.statements[0].citations.push(citation);
+    expect(() => parsePacket(packet)).toThrow("without supporting quotes");
+    packet.synthesis.statements[0].citations.pop(); packet.synthesis.statements[0].supporting_quotes[0].citations.push(citation);
+    expect(() => parsePacket(packet)).toThrow("supporting quote");
+  });
+  /** Empty support, missing quotes and blank generated text never become accepted interpretations. */
+  test("rejects absent generated support", () => {
+    const packet = synthesisFixture(); packet.synthesis.statements[0].supporting_quotes = [];
+    expect(() => parsePacket(packet)).toThrow("unsupported generated text");
+    packet.synthesis.statements = [{ text: " ", citations: [packet.evidence[0]], supporting_quotes: [{ text: packet.evidence[0].text, citations: [packet.evidence[0]] }] }];
+    expect(() => parsePacket(packet)).toThrow("unsupported generated text");
+  });
+  /** Unknown or contradictory synthesis states fail as one packet rather than partial success. */
+  test("rejects inconsistent answer and refusal states", () => {
+    const packet = synthesisFixture(); packet.synthesis.status = "approved";
+    expect(() => parsePacket(packet)).toThrow("synthesis status");
+    packet.synthesis.status = "answered"; packet.synthesis.refusal_reason = "Refused";
+    expect(() => parsePacket(packet)).toThrow("inconsistent synthesis");
+    packet.synthesis.status = "refused"; packet.synthesis.refusal_category = "safety";
+    expect(() => parsePacket(packet)).toThrow("inconsistent synthesis");
+    packet.synthesis.statements = []; packet.synthesis.refusal_reason = " ";
+    expect(() => parsePacket(packet)).toThrow("inconsistent synthesis");
+  });
+  /** Runtime model provenance must stay explicit and token counts cannot silently round fractional values. */
+  test("rejects invalid model identity and generation metadata", () => {
+    const packet = synthesisFixture(); packet.synthesis.prompt_tokens = 0.5;
+    expect(() => parsePacket(packet)).toThrow("synthesis provenance");
+    packet.synthesis.prompt_tokens = 50; packet.synthesis.model_digest = "mutable-tag";
+    expect(() => parsePacket(packet)).toThrow("synthesis provenance");
+    packet.synthesis.model_digest = "a".repeat(64); packet.synthesis.refusal_category = "unknown";
+    expect(() => parsePacket(packet)).toThrow("refusal category");
+  });
+  /** Generation budgets match the Python wire contract before oversized fields enter the DOM. */
+  test("rejects oversized synthesis collections, text and token counts", () => {
+    const mutations = [
+      synthesis => { synthesis.statements = Array(7).fill(synthesis.statements[0]); },
+      synthesis => { synthesis.statements[0].text = "x".repeat(1201); },
+      synthesis => { synthesis.statements[0].citations = Array(9).fill(synthesis.statements[0].citations[0]); },
+      synthesis => { synthesis.statements[0].supporting_quotes = Array(9).fill(synthesis.statements[0].supporting_quotes[0]); },
+      synthesis => { synthesis.model = "x".repeat(101); },
+      synthesis => { synthesis.prompt_version = "x".repeat(101); },
+      synthesis => { synthesis.prompt_tokens = 16385; },
+      synthesis => { synthesis.output_tokens = 2049; },
+      synthesis => { Object.assign(synthesis, { status: "refused", statements: [], refusal_category: "safety", refusal_reason: "x".repeat(501) }); },
+    ];
+    for (const mutate of mutations) { const packet = synthesisFixture(); mutate(packet.synthesis); expect(() => parsePacket(packet)).toThrow(); }
+  });
+  /** JavaScript UTF-16 code units must not reject a Python-valid count of Unicode characters. */
+  test("uses Unicode character limits for generated text", () => {
+    const packet = synthesisFixture(); packet.synthesis.statements[0].text = "😀".repeat(1200);
+    expect(parsePacket(packet).synthesis.statements[0].text).toBe(packet.synthesis.statements[0].text);
+  });
 });
 
 // Injected transport tests inspect HTTP behavior without pretending to exercise server authorization.
@@ -93,6 +191,45 @@ describe("API transport", () => {
     const controller = new AbortController(); const pending = new CreditLensApi("", transport).borrowers(controller.signal); controller.abort();
     await expect(pending).rejects.toThrow("Aborted"); expect(transportSignal.aborted).toBe(true); expect(calls).toBe(1);
   });
+  /** Only generation-bearing requests receive the longer budget; source and identity reads stay bounded. */
+  test("uses 240 seconds for queries and 30 seconds for other endpoints", async () => {
+    const original = globalThis.setTimeout; const deadlines = [];
+    /** Record deadlines while retaining native timer cleanup. */
+    globalThis.setTimeout = (callback, delay, ...args) => { deadlines.push(delay); return original(callback, delay, ...args); };
+    try {
+      const request = { borrower_id: "borrower-001", question: "test", effective_at: "2025-01-01" };
+      /** Return each endpoint's normal response shape without external service dependencies. */
+      const transport = async (url) => json(url.endsWith("/query") ? fixture() : url.includes("/evidence/") ? fixture().evidence[0] : { mode: "demo", borrowers: [] });
+      const api = new CreditLensApi("", transport); const signal = new AbortController().signal;
+      await api.query(request, signal); await api.borrowers(signal); await api.evidence("chunk-1", request, signal);
+      expect(deadlines).toEqual([240_000, 30_000, 30_000]);
+    } finally { globalThis.setTimeout = original; }
+  });
+  /** The longer query budget must still abort a stalled body and report its actual deadline. */
+  test("enforces the query deadline through response body consumption", async () => {
+    const original = globalThis.setTimeout; let transportSignal; let calls = 0;
+    /** Advance the owned deadline immediately without waiting four minutes in the test. */
+    globalThis.setTimeout = (callback, delay, ...args) => { expect(delay).toBe(240_000); return original(callback, 0, ...args); };
+    try {
+      /** Model a successful header response whose body only ends when fetch is cancelled. */
+      const transport = async (_url, options) => { calls++; transportSignal = options.signal; return {
+        ok: true, headers: new Headers({ "Content-Type": "application/json" }),
+        /** A stalled body rejects on the same signal as the network request. */
+        json: () => new Promise((_resolve, reject) => options.signal.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")), { once: true })),
+      }; };
+      await expect(new CreditLensApi("", transport).query({ borrower_id: "borrower-001", question: "test", effective_at: "2025-01-01" }, new AbortController().signal)).rejects.toThrow("exceeded 240 seconds");
+      expect(transportSignal.aborted).toBe(true); expect(calls).toBe(1);
+    } finally { globalThis.setTimeout = original; }
+  });
+  /** Scope changes still cancel generation immediately instead of waiting for its larger budget. */
+  test("forwards query cancellation without retrying generation", async () => {
+    let calls = 0;
+    /** Reject the pending query when the caller cancels it. */
+    const transport = (_url, options) => { calls++; return new Promise((_resolve, reject) => options.signal.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")), { once: true })); };
+    const controller = new AbortController();
+    const pending = new CreditLensApi("", transport).query({ borrower_id: "borrower-001", question: "test", effective_at: "2025-01-01" }, controller.signal);
+    controller.abort(); await expect(pending).rejects.toThrow("Aborted"); expect(calls).toBe(1);
+  });
   /** A source lookup preserves the completed request's policy date and borrower. */
   test("encodes source identity and policy scope", async () => {
     let url;
@@ -138,6 +275,43 @@ describe("safe packet rendering", () => {
     expect(packetDisposition({ provider_mode: "local-extractive", policy_disposition: "MEETS_POLICY" }).title).toBe("Meets DSCR threshold");
     expect(packetDisposition({ provider_mode: "local-extractive", policy_disposition: "EXCEPTION_REQUIRED" }).title).toBe("DSCR exception required");
     expect(packetDisposition({ provider_mode: "managed-provider", policy_disposition: "MEETS_POLICY" }).title).toBe("Meets reviewed policy");
+  });
+  /** Generated interpretation never expands what the existing deterministic finance check assessed. */
+  test("scopes generated and withheld provider dispositions to DSCR", () => {
+    for (const mode of ["ollama-rag", "rag-withheld"]) {
+      expect(packetDisposition({ provider_mode: mode, policy_disposition: "MEETS_POLICY" }).title).toBe("Meets DSCR threshold");
+      expect(packetDisposition({ provider_mode: mode, policy_disposition: "EXCEPTION_REQUIRED" }).title).toBe("DSCR exception required");
+    }
+  });
+  /** Interpretation appears before the deterministic packet but its exact quotes stay separately inspectable. */
+  test("renders synthesis first with adjacent citations and literal supporting quotes", () => {
+    const packet = parsePacket(synthesisFixture());
+    const output = withDocument(() => renderPacket(packet, { borrower_id: packet.borrower_id, question: "Question", effective_at: "2025-01-01" }, "Borrower", 2));
+    const synthesisIndex = output.children.findIndex(node => node.className === "result-card generated-synthesis");
+    const dispositionIndex = output.children.findIndex(node => node.className.startsWith("disposition "));
+    expect(synthesisIndex).toBeGreaterThan(-1); expect(synthesisIndex).toBeLessThan(dispositionIndex);
+    const section = output.children[synthesisIndex]; const row = section.children[2];
+    expect(section.textContent).toContain("Generated interpretation");
+    expect(row.children[0].textContent).toBe(packet.synthesis.statements[0].text);
+    expect(row.children[1].children[0].dataset.chunkId).toBe("chunk-1");
+    expect(row.children[2].tagName).toBe("details");
+    expect(row.children[2].textContent).toContain("Exact supporting quotes");
+    expect(row.children[2].children[1].textContent).toBe(packet.evidence[0].text);
+    expect(row.children[0].tagName).toBe("p");
+    expect(row.children[2].children[1].tagName).toBe("blockquote");
+    expect(section.textContent).not.toContain("Verified answer");
+    expect(output.textContent).toContain("Meets DSCR threshold");
+  });
+  /** Refused synthesis stays explicit without presenting a nonexistent generated answer or invented quotes. */
+  test("renders a generated refusal before the remaining evidence", () => {
+    const packet = synthesisFixture(); Object.assign(packet.synthesis, { status: "refused", statements: [], refusal_reason: "<img src=x> More information is required.", refusal_category: "insufficient_info" });
+    const output = withDocument(() => renderPacket(parsePacket(packet), { borrower_id: packet.borrower_id, question: "Question", effective_at: "2025-01-01" }, "Borrower", 2));
+    const section = output.children.find(node => node.className === "result-card generated-synthesis");
+    expect(section.textContent).toContain("Generated answer withheld");
+    expect(section.textContent).toContain(packet.synthesis.refusal_reason);
+    expect(section.textContent).not.toContain("Exact supporting quotes");
+    expect(section.children[2].tagName).toBe("p");
+    expect(output.textContent).toContain("Borrower evidence");
   });
   /** Malicious claims and source instructions must remain visible literal text. */
   test("renders hostile source content without an HTML sink", () => {

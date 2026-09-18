@@ -23,15 +23,19 @@ CREDITLENS_WEAVIATE_URL=https://<vector-service-host>
 CREDITLENS_WEAVIATE_TOKEN=<operator-managed-api-token>
 CREDITLENS_WEAVIATE_COLLECTION=CreditLensEvidence
 CREDITLENS_LOCAL_MODEL_DIRECTORY=<absolute-pinned-model-directory>
+CREDITLENS_GENERATION_MODEL=<installed-model:tag>
+CREDITLENS_GENERATION_DIGEST=<64-lowercase-hex-digest-from-api-tags>
 ```
 
-Leave `CREDITLENS_RETRIEVAL_MODE` at its default `lexical`; that setting selects the demo's local retrieval mode. The production selector above assembles the Weaviate hybrid workflow. Remove Cortex URL and token settings when selecting Weaviate. Supply secrets through the environment or secret store, never shell arguments or source files.
+Leave `CREDITLENS_RETRIEVAL_MODE` at its default `lexical`; that setting selects the demo's local retrieval mode. The production selector above assembles the Weaviate hybrid workflow. Configure the existing Ollama service using [grounded synthesis](generation.md); its default URL is loopback. Remove Cortex URL and token settings when selecting Weaviate. Supply secrets through the environment or secret store, never shell arguments or source files.
+
+The [governed ingestion guide](ingestion.md) covers staged PDF publication into this catalog and the explicit synchronization step that follows it.
 
 ## Optional self-hosted vector service
 
 [compose.production.yaml](../infra/weaviate/compose.production.yaml) runs a single Weaviate node with a pinned image, native HTTPS and the named `evidence_vectors` volume. It exposes only `127.0.0.1:18443` for a server on the same host. Anonymous access is disabled. The `indexer` identity can manage collections and write vectors; the `reader` identity has read-only access under Weaviate's [Admin list authorization](https://docs.weaviate.io/deploy/configuration/authorization). These service identities are separate from CreditLens's current SQL grants.
 
-Prepare an external TLS directory containing `server.crt` and `server.key`. Use a certificate whose hostname matches the configured service URL and whose chain the Python HTTP client trusts. The certificate directory is mounted read-only. Keep certificate verification enabled; an untrusted self-signed certificate is unsuitable for the normal application configuration.
+Prepare an external TLS directory containing `server.crt` and `server.key`. Use a certificate whose hostname matches the configured service URL and whose chain the Python HTTP client trusts. The certificate directory is mounted read-only. Keep certificate verification enabled. For a private issuing CA, set `CREDITLENS_WEAVIATE_CA_FILE` to the absolute path of its PEM trust bundle in both serving and indexing environments. This supplies an explicit trust root without disabling chain or hostname verification; it is not the server's private key. Otherwise, the client uses its default trust roots.
 
 Load separate indexer and reader keys from the deployment secret store into `CREDITLENS_WEAVIATE_ADMIN_KEY` and `CREDITLENS_WEAVIATE_READER_KEY`. Set `CREDITLENS_WEAVIATE_TLS_DIR` to the absolute certificate directory. Keep these keys and private certificate material outside the repository. After making the exact pinned image available locally, run:
 

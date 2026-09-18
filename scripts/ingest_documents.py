@@ -7,10 +7,12 @@ import subprocess
 from hashlib import sha256
 from pathlib import Path
 from threading import Event
+from typing import cast
 
 from sqlalchemy.exc import SQLAlchemyError
 
 from creditlens.errors import ServiceError
+from creditlens.ingestion_context import ingestion_context
 from creditlens.ingestion_jobs import IngestionInput, JobStatus, JobStore, _authorize
 from creditlens.ingestion_worker import DockerPdfExtractor, IngestionWorker, OcrExtractor
 from creditlens.ocr import OcrDocument, OcrReview
@@ -47,7 +49,10 @@ def submit(args: argparse.Namespace, store: JobStore, sources: LocalSourceStore)
 
 
 def handle_ocr(
-    args: argparse.Namespace, store: JobStore, sources: LocalSourceStore, settings: Settings
+    args: argparse.Namespace,
+    store: JobStore,
+    sources: LocalSourceStore,
+    catalog: SqlEvidenceCatalog,
 ) -> str:
     """Trusted offline artifacts enter quarantine only after source and current grant checks."""
     actor = GrantStore(store.engine).resolve(args.subject)
@@ -63,7 +68,7 @@ def handle_ocr(
             args.job_id,
             actor,
             OcrReview.model_validate_json(data),
-            SqlEvidenceCatalog(store.engine, settings.demo_catalog_id),
+            catalog,
         ).model_dump_json()
     artifact = OcrDocument.model_validate_json(data)
     lease = store.claim(args.job_id, parser="ocr")
@@ -104,16 +109,16 @@ def execute(args: argparse.Namespace, settings: Settings) -> str:
     try:
         if endpoint:
             queue = SqsQueue(endpoint, queue_url)
-        store = JobStore(engine, settings.ingestion_queue_id)
+        store, catalog = ingestion_context(settings, engine)
         sources = LocalSourceStore(args.source_root)
         if args.command == "submit":
             return notify_submission(submit(args, store, sources), queue)
         if args.command in {"stage-ocr", "review-ocr", "show-ocr"}:
-            return handle_ocr(args, store, sources, settings)
+            return handle_ocr(args, store, sources, catalog)
         worker = IngestionWorker(
             store,
             sources,
-            SqlEvidenceCatalog(engine, settings.demo_catalog_id),
+            catalog,
             DockerPdfExtractor(args.image, timeout_seconds=args.timeout),
             ocr_extractor=optional_ocr(args),
         )
@@ -143,7 +148,14 @@ def optional_ocr(args: argparse.Namespace) -> OcrExtractor | None:
         raise ValueError("All four OCR paths/image settings are required")
     from infra.ocr.worker import NativeOcrExtractor
 
-    return NativeOcrExtractor(*values, timeout=args.ocr_timeout)
+    # argparse declares these paths/image types; the all-present check above excludes None.
+    return NativeOcrExtractor(
+        cast(Path, values[0]),
+        cast(Path, values[1]),
+        cast(str, values[2]),
+        cast(Path, values[3]),
+        timeout=args.ocr_timeout,
+    )
 
 
 def run_loop(args: argparse.Namespace, worker: IngestionWorker, queue: SqsQueue | None) -> str:

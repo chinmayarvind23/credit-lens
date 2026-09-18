@@ -22,9 +22,15 @@ class Settings(BaseSettings):
     production_search: Literal["cortex", "weaviate"] = "cortex"
     weaviate_url: str = ""
     weaviate_token: SecretStr = SecretStr("")
+    weaviate_ca_file: str = Field(default="", max_length=2048)
     weaviate_collection: str = Field(
         default="CreditLensEvidence", pattern=r"^[A-Z][A-Za-z0-9_]{0,79}$"
     )
+    generation_url: str = "http://127.0.0.1:11434"
+    generation_model: str = ""
+    generation_digest: str = ""
+    generation_token: SecretStr = SecretStr("")
+    generation_timeout_seconds: float = Field(default=120, ge=1, le=180)
     cors_origins: list[str] = ["http://localhost:3000"]
     request_timeout_seconds: float = 5.0
     response_cache_enabled: bool = False
@@ -48,11 +54,40 @@ class Settings(BaseSettings):
     ingestion_sqs_endpoint: str = Field(default="", max_length=2048)
     ingestion_sqs_queue_url: str = Field(default="", max_length=2048)
     ingestion_queue_id: str = Field(
-        default="synthetic-ingestion-v1", pattern=r"^synthetic-[a-z0-9-]{1,64}$"
+        default="synthetic-ingestion-v1", pattern=r"^[A-Za-z0-9_-]{1,80}$"
     )
     demo_catalog_id: str = Field(
         default="synthetic-demo-v1", pattern=r"^synthetic-[a-z0-9-]{1,64}$"
     )
+
+    @model_validator(mode="after")
+    def validate_generation(self) -> "Settings":
+        """A configured production evidence workflow must include an explicit pinned generator."""
+        import re
+
+        from creditlens.opensearch_provider import validate_search_url
+
+        if bool(self.generation_model) != bool(self.generation_digest):
+            raise ValueError("Configure the generation model and digest together")
+        if self.mode == "production" and self.generation_model and not self.governed_catalog_id:
+            raise ValueError("Production generation requires a governed catalog")
+        if self.mode == "production" and self.governed_catalog_id and not self.generation_model:
+            raise ValueError("Governed production requires a pinned generation model")
+        if self.generation_model:
+            if (
+                not re.fullmatch(r"[a-z0-9._-]+:[a-z0-9._-]+", self.generation_model)
+                or "cloud" in self.generation_model
+                or not re.fullmatch(r"[a-f0-9]{64}", self.generation_digest)
+            ):
+                raise ValueError("Expected an installed generation model and SHA256 digest")
+            validate_search_url(self.generation_url, "ollama", True)
+            if self.generation_url.startswith("https:") != bool(
+                self.generation_token.get_secret_value()
+            ):
+                raise ValueError("Remote generation requires authenticated TLS")
+        elif self.generation_token.get_secret_value():
+            raise ValueError("Generation credentials require a model")
+        return self
 
     @model_validator(mode="after")
     def validate_local_models(self) -> "Settings":
@@ -77,7 +112,7 @@ class Settings(BaseSettings):
                 raise ValueError("Weaviate requires an API token")
             if self.cortex_url or self.cortex_token.get_secret_value():
                 raise ValueError("Configure only the selected production search service")
-        elif self.weaviate_url or self.weaviate_token.get_secret_value():
+        elif self.weaviate_url or self.weaviate_token.get_secret_value() or self.weaviate_ca_file:
             raise ValueError("Weaviate credentials require production_search=weaviate")
         return self
 
@@ -102,9 +137,16 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_ingestion(self) -> "Settings":
-        """Expose staged synthetic jobs only with the explicitly enabled shared catalog."""
-        if self.ingestion_enabled and (self.catalog_backend != "postgres" or self.mode != "demo"):
-            raise ValueError("Ingestion requires the shared demo PostgreSQL catalog")
+        """Governed ingestion requires an existing catalog and a distinct explicitly named queue."""
+        if self.ingestion_enabled:
+            if self.catalog_backend != "postgres":
+                raise ValueError("Ingestion requires the shared PostgreSQL catalog")
+            if self.mode == "production" and (
+                not self.governed_catalog_id or self.ingestion_queue_id.startswith("synthetic-")
+            ):
+                raise ValueError("Production ingestion requires a governed catalog and queue")
+        if self.mode == "demo" and not self.ingestion_queue_id.startswith("synthetic-"):
+            raise ValueError("Demo ingestion requires a synthetic queue")
         if bool(self.ingestion_sqs_endpoint) != bool(self.ingestion_sqs_queue_url):
             raise ValueError("SQS endpoint and queue URL must be configured together")
         if self.ingestion_sqs_endpoint:
@@ -139,10 +181,10 @@ class Settings(BaseSettings):
         if bool(url) != bool(key):
             raise ValueError("Redis URL and cache signing key must be configured together")
         if url:
+            if self.mode == "production" and not self.governed_catalog_id:
+                raise ValueError("Production retrieval caching requires a governed catalog")
             if len(key.encode()) < 32:
                 raise ValueError("Cache signing key must contain at least 32 bytes")
-            if self.mode != "demo":
-                raise ValueError("Redis workflow integration currently supports demo mode only")
         if not 1 <= self.cache_ttl_seconds <= 3600:
             raise ValueError("Cache TTL must be between 1 and 3600 seconds")
         return self

@@ -1,14 +1,19 @@
 """Own optional cache connections with the application workflow lifecycle."""
 
+import json
 from collections.abc import Iterator
 from contextlib import ExitStack, contextmanager
+from hashlib import sha256
 from pathlib import Path
+from ssl import create_default_context
 from typing import TYPE_CHECKING
 
 from httpx import Client as ProviderClient
 
 from creditlens.cache import RedisBytes
 from creditlens.corpus import build_demo_pages
+from creditlens.generation_contract import AnswerGenerator
+from creditlens.generation_transport import GenerationClient
 from creditlens.local_search import LocalSearchProvider
 from creditlens.response_cache import ResponseCache
 from creditlens.retrieval import CanonicalCatalog, EvidenceCatalog
@@ -39,7 +44,10 @@ def open_workflow(
         catalog = shared
     else:
         catalog = EvidenceCatalog(build_demo_pages())
-    with open_search(config, catalog, store, telemetry) as provider:
+    with (
+        open_search(config, catalog, store, telemetry) as provider,
+        open_generation(config) as generator,
+    ):
         cache = (
             ResponseCache(
                 capacity=config.response_cache_capacity, ttl=config.response_cache_ttl_seconds
@@ -47,7 +55,9 @@ def open_workflow(
             if config.response_cache_enabled
             else None
         )
-        yield QueryWorkflow(catalog, store, provider, response_cache=cache, telemetry=telemetry)
+        yield QueryWorkflow(
+            catalog, store, provider, response_cache=cache, telemetry=telemetry, generator=generator
+        )
 
 
 @contextmanager
@@ -111,9 +121,13 @@ def open_governed_workflow(
 
     catalog = SqlEvidenceCatalog(store.engine, config.governed_catalog_id)
     with ExitStack() as stack:
+        generator = stack.enter_context(open_generation(config))
         client = stack.enter_context(
             ProviderClient(
-                timeout=config.request_timeout_seconds, trust_env=False, follow_redirects=False
+                timeout=config.request_timeout_seconds,
+                trust_env=False,
+                follow_redirects=False,
+                verify=create_default_context(cafile=config.weaviate_ca_file or None),
             )
         )
         provider: CanonicalProvider
@@ -130,6 +144,17 @@ def open_governed_workflow(
                 store,
                 timeout_seconds=config.request_timeout_seconds,
             )
+        if config.redis_url.get_secret_value():
+            backend = RedisBytes(config.redis_url.get_secret_value())
+            stack.callback(backend.close)
+            provider = RetrievalCache(
+                provider,
+                store,
+                backend,
+                config.cache_signing_key.get_secret_value().encode(),
+                production_cache_revision(config, provider),
+                ttl=config.cache_ttl_seconds,
+            )
         cache = (
             ResponseCache(
                 capacity=config.response_cache_capacity, ttl=config.response_cache_ttl_seconds
@@ -137,7 +162,50 @@ def open_governed_workflow(
             if config.response_cache_enabled
             else None
         )
-        yield QueryWorkflow(catalog, store, provider, response_cache=cache, telemetry=telemetry)
+        yield QueryWorkflow(
+            catalog, store, provider, response_cache=cache, telemetry=telemetry, generator=generator
+        )
+
+
+def production_cache_revision(config: Settings, provider: CanonicalProvider) -> str:
+    """Bind cached rankings to immutable retrieval configuration without retaining credentials."""
+    from creditlens.query_grounding import GROUNDING_VERSION
+    from creditlens.weaviate_provider import WeaviateHybridProvider
+
+    identity = ["governed-retrieval-v1", config.production_search, config.governed_catalog_id]
+    if isinstance(provider, WeaviateHybridProvider):
+        identity.extend(
+            [
+                config.weaviate_url,
+                config.weaviate_collection,
+                GROUNDING_VERSION,
+                provider.vectors.revision,
+            ]
+        )
+    else:
+        identity.extend(["cortex-canonical-v1", config.cortex_url])
+    return sha256(json.dumps(identity, separators=(",", ":")).encode()).hexdigest()
+
+
+@contextmanager
+def open_generation(config: Settings) -> Iterator[AnswerGenerator | None]:
+    """Verify explicitly configured generation at startup and close its separate HTTP lifecycle."""
+    if not config.generation_model:
+        yield None
+        return
+    from creditlens.ollama_generation import OllamaGenerator
+
+    with GenerationClient(trust_env=False, follow_redirects=False) as client:
+        generator = OllamaGenerator(
+            config.generation_url,
+            config.generation_model,
+            config.generation_digest,
+            client,
+            token=config.generation_token,
+            timeout_seconds=config.generation_timeout_seconds,
+        )
+        generator.check_ready()
+        yield generator
 
 
 @contextmanager
