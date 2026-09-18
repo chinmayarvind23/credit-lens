@@ -161,3 +161,9 @@ def index_current_scope(client: TestClient, settings: Settings, subject: str) ->
             )
     finally:
         models.close()
+    if settings.production_lexical == "opensearch":
+        from tests.governed_opensearch_live import synchronize_lexical_scope
+
+        synchronize_lexical_scope(
+            settings, client.app.state.workflow.catalog, client.app.state.store, subject
+        )

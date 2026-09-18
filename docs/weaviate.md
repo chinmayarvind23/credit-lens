@@ -2,6 +2,11 @@
 
 The authenticated server can use persistent Weaviate vectors together with lexical search and local reranking. PostgreSQL owns document text, permissions and revisions. Weaviate stores vectors and canonical record fingerprints; returned candidates must match the current canonical records before they enter a packet.
 
+Set `CREDITLENS_PRODUCTION_LEXICAL=opensearch` to use the
+[authenticated OpenSearch branch](../infra/opensearch/README.md). Otherwise the server
+uses local BM25. The OpenSearch reader validates its complete canonical scope and index
+contract; synchronize both indexes after publishing source changes.
+
 ## Configure the server
 
 Provide an existing governed PostgreSQL catalog and current administrator and user grants. Configure a Cognito user pool and app client for the server's access-token contract. Provision a persistent Weaviate service with HTTPS, API-token authentication, restricted network access and operator-managed backups. The disposable [local test container](../infra/weaviate/README.md) has different security and storage settings.

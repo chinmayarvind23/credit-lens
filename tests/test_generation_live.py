@@ -115,7 +115,12 @@ def test_actual_production_rag() -> None:
                     vectors.upsert(batch, models.encode_documents(batch))
             finally:
                 models.close()
-            exercise_production_app(settings, principal.subject, QueryWorkflow(catalog, store))
+            from tests.governed_opensearch_live import lexical_fixture
+
+            with lexical_fixture(settings, catalog, store, principal.subject) as configured:
+                exercise_production_app(
+                    configured, principal.subject, QueryWorkflow(catalog, store)
+                )
         finally:
             if created:
                 client.delete(
@@ -213,6 +218,8 @@ def exercise_production_app(settings: Settings, subject: str, baseline: QueryWor
                     )
                 ).scalar_one()
                 assert "weaviate" in event["search_provider_mode"]
+                if settings.production_lexical == "opensearch":
+                    assert "opensearch-governed-bm25-v1" in event["search_provider_mode"]
                 assert (
                     event["protected_packet"]["synthesis"]
                     == packet.model_dump(mode="json")["synthesis"]

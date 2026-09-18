@@ -1,8 +1,58 @@
-# Local synthetic OpenSearch integration
+# OpenSearch lexical retrieval
 
-This setup exercises the real OpenSearch lexical adapter. It has no cloud credentials
-and is separate from the local Python BM25 control and from Cortex Search. The adapter
-does not enable production API queries.
+The authenticated Weaviate path can use OpenSearch for its lexical branch. The server
+combines its ranks with vector retrieval, reranks the combined evidence and passes
+canonical PostgreSQL evidence to grounded generation. Select it with
+`CREDITLENS_PRODUCTION_LEXICAL=opensearch` alongside
+`CREDITLENS_PRODUCTION_SEARCH=weaviate`. The default lexical branch is local BM25.
+
+## Configure the server
+
+Set `CREDITLENS_OPENSEARCH_URL` to an HTTPS origin, `CREDITLENS_OPENSEARCH_INDEX` to one
+physical index name, and `CREDITLENS_OPENSEARCH_TOKEN` to a reader bearer token issued
+by your configured security provider. For a private CA, set
+`CREDITLENS_OPENSEARCH_CA_FILE` to its PEM trust bundle. Certificate and hostname
+verification remain enabled. The OpenSearch client has its own connection pool.
+
+The index mapping binds to the existing catalog ID and its authority UUID. Readiness
+checks that binding, the mapping, BM25 configuration, physical index UUID and search
+permission. Aliases and a changed physical index cannot silently replace the selected
+index. Restart the service after an intentional index replacement.
+
+For every query, SQL first selects the authorized canonical scope. A single bounded
+OpenSearch query returns that complete scope with lexical scores. The server checks
+all source text and provenance before keeping matching results. An incomplete or
+stale index fails the request. Grant changes and source revisions are checked again
+before evidence is returned. Both lexical and vector branches are required when
+OpenSearch is selected.
+
+## Publish an authorized scope
+
+Provision the SQL catalog and administrator grant first. In a separate indexing
+process, load a writer token into `CREDITLENS_OPENSEARCH_TOKEN` using your secret store.
+Keep the API's token read-only. The writer must be restricted to the chosen physical
+index and its create, bulk index, metadata and search operations.
+
+```powershell
+uv run --no-sync python scripts/index_opensearch.py --subject YOUR_ADMIN_SUBJECT --borrower YOUR_BORROWER_ID --effective-at 2026-09-01 --create-index
+```
+
+Use `--create-index` only for initial provisioning. Omit it for subsequent scopes and
+updates. The command verifies the current administrator and borrower grants before
+remote operations. It writes bounded batches, checks each operation's acknowledgment,
+waits for search visibility and verifies the complete authorized scope. Retrying an
+interrupted publication replaces the same document IDs. It never deletes an index or
+initializes a SQL catalog. Synchronize Weaviate with its [indexing command](../../docs/weaviate.md)
+after canonical publication as well.
+
+The index is a rebuildable projection. PostgreSQL remains authoritative, including
+when a revoked row still exists in OpenSearch. Keep source backups and canonical
+database recovery separate from index rebuilding.
+
+## Local adapter exercise
+
+This isolated setup exercises the standalone OpenSearch adapter with synthetic data.
+The authenticated server uses the governed configuration above.
 
 From the repository root:
 

@@ -2,7 +2,7 @@
 
 from functools import partial
 
-from creditlens.hybrid_provider import HybridProvider
+from creditlens.hybrid_provider import CanonicalSearchProvider, HybridProvider
 from creditlens.local_search import LocalSearchProvider
 from creditlens.neural_search import LocalNeuralRanker
 from creditlens.query_grounding import GroundedProvider
@@ -41,13 +41,19 @@ class WeaviateHybridProvider(GroundedProvider):
         store: GrantStore,
         vectors: WeaviateStore,
         models: LocalNeuralRanker,
+        *,
+        lexical: CanonicalSearchProvider | None = None,
     ) -> None:
         """Keep fusion, reranking and grounding identical to the governed local path."""
         dense = WeaviateProvider(catalog, store, vectors, models)
-        hybrid = HybridProvider(LocalSearchProvider(catalog, store), dense)
+        self.lexical = lexical or LocalSearchProvider(catalog, store)
+        hybrid = HybridProvider(self.lexical, dense)
         super().__init__(RerankProvider(hybrid, models.rerank, mode=models.revision), store)
         self.vectors = vectors
 
     def check_ready(self) -> None:
         """Readiness verifies the required remote branch, including query access."""
         self.vectors.check_ready()
+        check = getattr(self.lexical, "check_ready", None)
+        if callable(check):
+            check()

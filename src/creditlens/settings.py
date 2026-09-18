@@ -20,6 +20,11 @@ class Settings(BaseSettings):
     cortex_url: str = ""
     cortex_token: SecretStr = SecretStr("")
     production_search: Literal["cortex", "weaviate"] = "cortex"
+    production_lexical: Literal["local", "opensearch"] = "local"
+    opensearch_url: str = ""
+    opensearch_index: str = Field(default="", pattern=r"^$|^[a-z][a-z0-9_-]{0,79}$")
+    opensearch_token: SecretStr = SecretStr("")
+    opensearch_ca_file: str = Field(default="", max_length=2048)
     weaviate_url: str = ""
     weaviate_token: SecretStr = SecretStr("")
     weaviate_ca_file: str = Field(default="", max_length=2048)
@@ -133,6 +138,27 @@ class Settings(BaseSettings):
             and not self.governed_catalog_id
         ):
             raise ValueError("Production PostgreSQL requires an existing governed catalog ID")
+        return self
+
+    @model_validator(mode="after")
+    def validate_production_lexical(self) -> "Settings":
+        """An explicitly selected remote lexical branch cannot be ignored or used by demo mode."""
+        configured = bool(
+            self.opensearch_url
+            or self.opensearch_index
+            or self.opensearch_token.get_secret_value()
+            or self.opensearch_ca_file
+        )
+        if self.production_lexical == "opensearch":
+            from creditlens.opensearch_provider import validate_search_url
+
+            if self.mode != "production" or self.production_search != "weaviate":
+                raise ValueError("OpenSearch requires governed Weaviate production")
+            validate_search_url(self.opensearch_url, self.opensearch_index, False)
+            if not self.opensearch_token.get_secret_value():
+                raise ValueError("OpenSearch requires a bearer token")
+        elif configured:
+            raise ValueError("OpenSearch configuration requires production_lexical=opensearch")
         return self
 
     @model_validator(mode="after")

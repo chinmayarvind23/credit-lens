@@ -17,7 +17,7 @@ The demo uses synthetic documents and runs the Python workflow inside your brows
 - Permission-aware retrieval with borrower, tenant, access-group and effective-date filters.
 - Page-level citations tied to canonical text, document versions and exact source spans.
 - Decimal financial calculations, explicit abstention, conflict detection and exception guidance.
-- Persistent Weaviate vector search for the authenticated server, with lexical fusion, query grounding and local reranking.
+- Persistent Weaviate vector search for the authenticated server, with configurable OpenSearch lexical retrieval, rank fusion, query grounding and local reranking.
 - Grounded synthesis from a pinned Ollama model, with adjacent citations and exact supporting quotes for review.
 - Response caching with fresh authorization and audit records; optional shared request quotas.
 - Durable document ingestion with worker leases, atomic publication and reviewed OCR quarantine.

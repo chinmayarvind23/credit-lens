@@ -174,6 +174,8 @@ def production_cache_revision(config: Settings, provider: CanonicalProvider) -> 
 
     identity = ["governed-retrieval-v1", config.production_search, config.governed_catalog_id]
     if isinstance(provider, WeaviateHybridProvider):
+        from creditlens.governed_opensearch import GovernedOpenSearchProvider
+
         identity.extend(
             [
                 config.weaviate_url,
@@ -182,6 +184,11 @@ def production_cache_revision(config: Settings, provider: CanonicalProvider) -> 
                 provider.vectors.revision,
             ]
         )
+        identity.append(config.production_lexical)
+        if isinstance(provider.lexical, GovernedOpenSearchProvider):
+            identity.extend(
+                [config.opensearch_url, config.opensearch_index, provider.lexical.revision]
+            )
     else:
         identity.extend(["cortex-canonical-v1", config.cortex_url])
     return sha256(json.dumps(identity, separators=(",", ":")).encode()).hexdigest()
@@ -233,6 +240,43 @@ def open_vector_search(
             timeout_seconds=config.request_timeout_seconds,
         )
         vectors.check_ready()
-        yield WeaviateHybridProvider(catalog, store, vectors, models)
+        with open_production_lexical(config, catalog, store) as lexical:
+            yield WeaviateHybridProvider(catalog, store, vectors, models, lexical=lexical)
     finally:
         models.close()
+
+
+@contextmanager
+def open_production_lexical(
+    config: Settings,
+    catalog: CanonicalCatalog,
+    store: GrantStore,
+) -> Iterator[CanonicalProvider | None]:
+    """Own a distinct TLS pool and require the selected lexical service without local fallback."""
+    if config.production_lexical == "local":
+        yield None
+        return
+    from creditlens.governed_opensearch import GovernedOpenSearchProvider
+    from creditlens.sql_catalog import SqlEvidenceCatalog
+
+    if not isinstance(catalog, SqlEvidenceCatalog):
+        raise ValueError("OpenSearch requires the governed SQL catalog")
+    with ProviderClient(
+        timeout=config.request_timeout_seconds,
+        trust_env=False,
+        follow_redirects=False,
+        verify=create_default_context(cafile=config.opensearch_ca_file or None),
+    ) as client:
+        lexical = GovernedOpenSearchProvider(
+            config.opensearch_url,
+            config.opensearch_index,
+            client,
+            catalog,
+            store,
+            namespace=config.governed_catalog_id,
+            authority=catalog.authority_id,
+            token=config.opensearch_token,
+            timeout_seconds=config.request_timeout_seconds,
+        )
+        lexical.check_ready()
+        yield lexical
