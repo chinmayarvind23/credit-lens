@@ -7,6 +7,9 @@ on:
 permissions:
   contents: read
 
+env:
+  UV_LINK_MODE: copy
+
 concurrency:
   group: quality-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
