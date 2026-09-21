@@ -26,6 +26,16 @@ src/*
 !src/creditlens/
 src/creditlens/*
 !src/creditlens/__init__.py
+!src/creditlens/cortex_search.py
+!src/creditlens/generation_contract.py
+!src/creditlens/generation_transport.py
+!src/creditlens/governed_opensearch.py
+!src/creditlens/ingestion_context.py
+!src/creditlens/ingestion_metrics.py
+!src/creditlens/ollama_generation.py
+!src/creditlens/opensearch_provider.py
+!src/creditlens/weaviate_provider.py
+!src/creditlens/weaviate_store.py
 !src/creditlens/api.py
 !src/creditlens/auth.py
 !src/creditlens/access.py
