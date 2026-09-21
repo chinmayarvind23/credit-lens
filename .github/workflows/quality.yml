@@ -16,7 +16,6 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
-      COVERAGE_FILE: ${{ runner.temp }}/creditlens-coverage-data
       CREDITLENS_TEST_POSTGRES_URL: postgresql+psycopg://postgres:creditlens-test-only@127.0.0.1:5432/creditlens_test
       CREDITLENS_TEST_REDIS_URL: redis://127.0.0.1:6379/15
       CREDITLENS_TEST_SQS_ENDPOINT: http://127.0.0.1:19324
@@ -35,6 +34,8 @@ jobs:
           - 5432:5432
         options: --health-cmd "pg_isready -U postgres -d creditlens_test" --health-interval 5s --health-timeout 3s --health-retries 5
     steps:
+      - name: Configure temporary coverage storage
+        run: echo "COVERAGE_FILE=$RUNNER_TEMP/creditlens-coverage-data" >> "$GITHUB_ENV"
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
