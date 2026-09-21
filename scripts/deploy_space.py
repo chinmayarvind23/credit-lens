@@ -21,6 +21,7 @@ FILES = (
     "apps/web/src/api.ts",
     "apps/web/src/browser-api.ts",
     "apps/web/src/contracts.ts",
+    "apps/web/src/demo-directory.ts",
     "apps/web/src/main.ts",
     "apps/web/src/render.ts",
     "apps/web/src/styles.css",
