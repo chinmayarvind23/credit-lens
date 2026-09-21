@@ -4,8 +4,16 @@ import argparse
 import json
 import os
 import subprocess
+import sys
 import time
 from pathlib import Path
+
+
+def hidden_window_flags() -> int:
+    """Resolve Windows-only process flags after rejecting unsupported platforms."""
+    if sys.platform == "win32":
+        return subprocess.CREATE_NO_WINDOW
+    raise ValueError("Native OCR subprocesses require Windows")
 
 
 def stop_tree(process: subprocess.Popen[bytes]) -> None:
@@ -16,7 +24,7 @@ def stop_tree(process: subprocess.Popen[bytes]) -> None:
         capture_output=True,
         timeout=15,
         check=False,
-        creationflags=subprocess.CREATE_NO_WINDOW,
+        creationflags=hidden_window_flags(),
     )
     process.wait(timeout=15)
 
@@ -65,7 +73,7 @@ def main() -> None:
             stdout=log,
             stderr=subprocess.STDOUT,
             env=environment,
-            creationflags=subprocess.CREATE_NO_WINDOW,
+            creationflags=hidden_window_flags(),
         )
         try:
             while process.poll() is None:

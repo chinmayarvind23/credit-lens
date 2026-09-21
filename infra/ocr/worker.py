@@ -16,7 +16,7 @@ from creditlens.ingestion_worker import WorkerFailure
 from creditlens.ocr import OcrDocument, normalize_vl
 from infra.ocr.completion import classify
 from infra.ocr.probe import verify_model
-from infra.ocr.supervise import stop_tree
+from infra.ocr.supervise import hidden_window_flags, stop_tree
 
 
 class NativeOcrExtractor:
@@ -53,7 +53,7 @@ class NativeOcrExtractor:
                 stdout=log,
                 stderr=subprocess.STDOUT,
                 env=environment,
-                creationflags=subprocess.CREATE_NO_WINDOW,
+                creationflags=hidden_window_flags(),
             )
             try:
                 while process.poll() is None:
